@@ -1,0 +1,6 @@
+{
+  "name": "Mutafer Eats",
+  "description": "A premium, fully interactive food delivery platform styled on MUTAFEREATS with categories, live shopping cart, restaurant menus, and order tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
