@@ -15,9 +15,8 @@ const client = createClient(
       }
 );
 
-// تهيئة الجداول (دالة async منفصلة)
-async function initTables() {
-  await client.execute(`
+async function initTables() { 
+  await client.execute(` 
     CREATE TABLE IF NOT EXISTS admins      (id TEXT PRIMARY KEY, data TEXT);
     CREATE TABLE IF NOT EXISTS users       (id TEXT PRIMARY KEY, data TEXT);
     CREATE TABLE IF NOT EXISTS restaurants (id TEXT PRIMARY KEY, data TEXT);
@@ -25,8 +24,11 @@ async function initTables() {
     CREATE TABLE IF NOT EXISTS reviews     (id TEXT PRIMARY KEY, data TEXT);
     CREATE TABLE IF NOT EXISTS settings    (key TEXT PRIMARY KEY, value TEXT);
   `);
+
+  console.log("✅ Tables ready");
 }
-initTables().catch(console.error);
+
+await initTables();
 
 // ── الـ API نفسه زي الأول ────────────────────────────────
 const ALLOWED_TABLES = ["admins","users","restaurants","orders","reviews"] as const;
