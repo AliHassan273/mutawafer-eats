@@ -24,6 +24,8 @@ declare global {
   }
 }
 
+console.log(process.env.TURSO_DATABASE_URL);
+
 const app  = express();
 const PORT = Number(process.env.PORT) || 3001;
 
