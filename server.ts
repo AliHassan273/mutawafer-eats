@@ -844,6 +844,20 @@ async function startServer() {
     const distPath = path.join(process.cwd(), "dist");
     const { default: serveStatic } = await import("serve-static");
     app.use(serveStatic(distPath));
+
+    // حطه قبل الـ catch-all route اللي بيرجع index.html
+app.get("/sitemap.xml", (_req, res) => {
+  res.header("Content-Type", "application/xml");
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://mutawafer-eats-production.up.railway.app/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>`);
+});
+
     app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html")));
   }
 
