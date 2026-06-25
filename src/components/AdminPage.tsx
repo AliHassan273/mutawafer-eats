@@ -1123,18 +1123,6 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
             </form>
           )}
 
-          <div className="bg-amber-50/60 border border-amber-100 rounded-2xl p-4 text-slate-700 text-xs leading-relaxed space-y-1">
-            <p className="font-extrabold text-amber-900 border-b border-amber-100 pb-1.5 mb-1.5 flex items-center gap-1.5">
-              <span>🧠 معطيات الدخول التجريبية للاختبار السريع:</span>
-            </p>
-            <p className="text-right"><strong>1. المدير الأساسي (كامل الصلاحيات):</strong></p>
-            <p className="font-mono text-[10px] bg-white border border-amber-100 rounded px-1.5 py-0.5 text-slate-650 text-left" style={{ direction: 'ltr' }}>alihassanmos6@gmail.com | password: admin</p>
-            <p className="mt-1 text-right"><strong>2. مشرف المطاعم (ادراة مطاعم فقط):</strong></p>
-            <p className="font-mono text-[10px] bg-white border border-amber-100 rounded px-1.5 py-0.5 text-slate-650 text-left" style={{ direction: 'ltr' }}>ahmed@mutafer.com | password: ahmed</p>
-            <p className="mt-1 text-right"><strong>3. مشرف المنيو (ذكاء اصطناعي ومنيوهات فقط):</strong></p>
-            <p className="font-mono text-[10px] bg-white border border-amber-100 rounded px-1.5 py-0.5 text-slate-650 text-left" style={{ direction: 'ltr' }}>sara@mutafer.com | password: sara</p>
-          </div>
-
           <div className="text-center pt-2">
             <button
               onClick={onBack}

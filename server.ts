@@ -154,15 +154,9 @@ app.use(express.urlencoded({ limit: "15mb", extended: true }));
   await initDB();
   if (admins.all().length === 0) {
     const defaultAdmins = [
-      { id: "admin_primary", name: "علي حسن (المدير الأساسي)", email: "alihassanmos6@gmail.com",
+      { id: "admin_primary", name: "عبد الرحمن كشك", email: "bdalrhmnkshk412@gmail.com",
         password: await hashPassword("admin"), role: "primary",
         canManageRestaurants: 1, canManageMenu: 1, canUseAIScanner: 1 },
-      { id: "admin_sub1", name: "أحمد كمال (مشرف مطاعم)", email: "ahmed@mutafer.com",
-        password: await hashPassword("ahmed"), role: "editor",
-        canManageRestaurants: 1, canManageMenu: 0, canUseAIScanner: 0 },
-      { id: "admin_sub2", name: "سارة محمد (محرر منيو)", email: "sara@mutafer.com",
-        password: await hashPassword("sara"), role: "editor",
-        canManageRestaurants: 0, canManageMenu: 1, canUseAIScanner: 1 },
     ];
     for (const admin of defaultAdmins) admins.set(admin.id, admin);
     console.log("✅ Default admins created.");
