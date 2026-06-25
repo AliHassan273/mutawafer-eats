@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://رابط-موقعك.up.railway.app/sitemap.xml
+Sitemap: https://mutawafer-eats-production.up.railway.app/
