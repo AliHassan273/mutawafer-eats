@@ -75,6 +75,18 @@ export const users       = getCollection("users");
 export const restaurants = getCollection("restaurants");
 export const orders      = getCollection("orders");
 export const reviews     = getCollection("reviews");
+export const settings = {
+  async all() {
+    const res = await client.execute(`SELECT value FROM settings`);
+    return res.rows.map((r: any) => JSON.parse(r.value));
+  },
+  async get(key: string) {
+    return await getSetting(key, null);
+  },
+  async set(key: string, value: any) {
+    await setSetting(key, value);
+  },
+};
 
 // settings
 export async function getSetting(key: string, defaultValue: any) {
@@ -91,18 +103,5 @@ export async function setSetting(key: string, value: any) {
     args: [key, JSON.stringify(value)],
   });
 }
-
-export const settings = {
-  async all() {
-    const res = await client.execute(`SELECT value FROM settings`);
-    return res.rows.map((r: any) => JSON.parse(r.value));
-  },
-  async get(key: string) {
-    return await getSetting(key, null);
-  },
-  async set(key: string, value: any) {
-    await setSetting(key, value);
-  },
-};
 
 export default client;
