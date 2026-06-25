@@ -28,7 +28,9 @@ async function initTables() {
   console.log("✅ Tables ready");
 }
 
-await initTables();
+(async () => {
+  await initTables();
+})();
 
 // ── الـ API نفسه زي الأول ────────────────────────────────
 const ALLOWED_TABLES = ["admins","users","restaurants","orders","reviews"] as const;
