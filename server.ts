@@ -15,6 +15,7 @@ import {
   canManageRestaurants, canManageMenu,
   generateToken   // ✅ دالة مركزية جديدة بدل تكرار jwt.sign
 } from "./src/auth";
+import { initDB } from "./src/db.ts";
 
 dotenv.config();
 
@@ -150,6 +151,7 @@ app.use(express.urlencoded({ limit: "15mb", extended: true }));
 // 🏭  INITIALIZE DEFAULT DATA
 // ────────────────────────────────────────────────────────────
 (async function init() {
+  await initDB();
   if (admins.all().length === 0) {
     const defaultAdmins = [
       { id: "admin_primary", name: "علي حسن (المدير الأساسي)", email: "alihassanmos6@gmail.com",
