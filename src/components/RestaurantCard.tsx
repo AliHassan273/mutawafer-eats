@@ -14,7 +14,6 @@ interface RestaurantCardProps {
 const LOCAL_STORE = {
   ar: {
     'Big Bun Burger Bar': 'برجر بار بيج بن 🍔',
-    'Mamma Mia Pizza': 'بيتزا ماما ميا 🍕',
     'Green Leaf Salads': 'سلطة الورقة الخضرا 🥗',
     'Sakura Sushi House': 'بيت سوشي ساكورا 🍣',
     'Dragon Ramen Lounge': 'لاونج تنين الرامين 🍜',

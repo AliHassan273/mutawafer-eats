@@ -21,7 +21,6 @@ interface AdminPageProps {
 
 const RESTAURANT_NAMES_MAP: Record<string, string> = {
   'Big Bun Burger Bar': 'برجر بار بيج بن 🍔',
-  'Mamma Mia Pizza': 'بيتزا ماما ميا 🍕',
   'Green Leaf Salads': 'سلطة الورقة الخضرا 🥗',
   'Sakura Sushi House': 'بيت سوشي ساكورا 🍣',
   'Dragon Ramen Lounge': 'لاونج تنين الرامين 🍜',

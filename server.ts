@@ -151,64 +151,26 @@ app.use(express.urlencoded({ limit: "15mb", extended: true }));
 // 🏭  INITIALIZE DEFAULT DATA
 // ────────────────────────────────────────────────────────────
 (async function init() {
-  await initDB();
-  if (admins.all().length === 0) {
-    const defaultAdmins = [
-      { id: "admin_primary", name: "عبد الرحمن كشك", email: "bdalrhmnkshk412@gmail.com",
-        password: await hashPassword("admin"), role: "primary",
-        canManageRestaurants: 1, canManageMenu: 1, canUseAIScanner: 1 },
-    ];
-    for (const admin of defaultAdmins) admins.set(admin.id, admin);
-    console.log("✅ Default admins created.");
+  await initDB(); // أو await initTables();
+
+  const defaultAdmins = [
+    {
+      id: "admin_primary",
+      name: "عبد الرحمن كشك",
+      email: "bdalrhmnkshk412@gmail.com",
+      password: await hashPassword("admin"),
+      role: "primary",
+      canManageRestaurants: 1,
+      canManageMenu: 1,
+      canUseAIScanner: 1,
+    }
+  ];
+
+  for (const admin of defaultAdmins) {
+    await admins.set(admin.id, admin);
   }
 
-  if (settings.all().length === 0) {
-    const defaultSettings = {
-      whatsappNumber: "201016789012",
-      deliveryPricingType: "area",
-      distanceBaseFee: 10,
-      distanceFeePerKm: 5,
-      deliveryCommissionType: "flat",
-      deliveryCommissionValue: 15,
-      aboutUsContent: "تطبيق مسافر هو المنصة الرائدة لتوصيل الطعام الفاخر والوجبات الطازجة بأقصى سرعة واحترافية.",
-      deliveryOptions: [
-        { id: "reg_1", name: "الزمالك",     fee: 15 },
-        { id: "reg_2", name: "الدقي",        fee: 20 },
-        { id: "reg_3", name: "المهندسين",    fee: 25 },
-        { id: "reg_4", name: "وسط البلد",    fee: 20 },
-        { id: "reg_5", name: "6 أكتوبر",     fee: 40 },
-      ],
-      coupons: [
-        { id: "cp_1", code: "FIRST50", discountType: "percentage", discountValue: 50, minOrder: 0,   isActive: true },
-        { id: "cp_2", code: "EATS10",  discountType: "flat",       discountValue: 30, minOrder: 150, isActive: true },
-      ],
-      categories: [
-        { id: "all",     name: "All Eats",       nameAr: "كل الأكلات 🍽️",       icon: "🍽️" },
-        { id: "burgers", name: "Burgers",         nameAr: "برجر بجمدان 🍔",       icon: "🍔" },
-        { id: "pizza",   name: "Pizza",           nameAr: "بيتزا حكاية 🍕",       icon: "🍕" },
-        { id: "salads",  name: "Salads",          nameAr: "سلطات فريش 🥗",        icon: "🥗" },
-        { id: "sushi",   name: "Sushi",           nameAr: "سوشي دلع 🍣",          icon: "🍣" },
-        { id: "ramen",   name: "Ramen",           nameAr: "رامين ياباني 🍜",       icon: "🍜" },
-        { id: "dessert", name: "Dessert",         nameAr: "حلويات وفرفشة 🍦",      icon: "🍦" },
-        { id: "drinks",  name: "Drinks",          nameAr: "مشروبات منعشة 🥤",      icon: "🥤" },
-        { id: "sides",   name: "Sides",           nameAr: "مقبلات جانبية 🍟",      icon: "🍟" },
-        { id: "offers",  name: "Special Offers",  nameAr: "عروض دمار 🏷️",         icon: "🏷️" },
-      ],
-    };
-    settings.set("main", defaultSettings);
-    console.log("✅ Default settings initialized.");
-  }
-
-  if (restaurants.all().length === 0) {
-    const sample: any = {
-      id: "rest_1", name: "Big Bun Burger Bar", rating: 4.8, distance: 1.2,
-      deliveryTime: "15-25 min", deliveryFee: 15, promo: "FREE DELIVERY",
-      coverImage: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1000&q=80",
-      categories: ["burgers"], descriptionString: "Voted #1 Best Burger Joint in Town!", menu: [],
-    };
-    restaurants.set(sample.id, sample);
-    console.log("✅ Sample restaurant initialized.");
-  }
+  console.log("✅ Default admin created");
 })();
 
 // ────────────────────────────────────────────────────────────
