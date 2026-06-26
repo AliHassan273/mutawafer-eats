@@ -131,9 +131,11 @@ function cleanValue(val: any): any {
   return val;
 }
 
+// ✅ body parsers أولاً — عشان req.body يكون موجود قبل الـ sanitization
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ limit: "15mb", extended: true }));
 
+// ✅ sanitization تانياً — دلوقتي req.body متاح
 app.use((req, res, next) => {
   if (req.body) {
     const raw = JSON.stringify(req.body);
@@ -147,37 +149,28 @@ app.use((req, res, next) => {
   next();
 });
 
-console.log("🔍 admins.get type:", typeof admins.get);
-console.log("🔍 admins object:", Object.keys(admins));
-
 // ────────────────────────────────────────────────────────────
 // 🏭  INITIALIZE DEFAULT DATA
 // ────────────────────────────────────────────────────────────
 (async function init() {
-  console.log("🔄 Running init...");
-  await initDB(); // تأكد من وجود الجداول
-  
-  console.log("🔍 Checking for existing admin...");
-  try {
-    const existingAdmin = await admins.get("admin_primary");
-    console.log("🔍 Existing admin:", existingAdmin ? "Found" : "Not found");
-    
-    if (!existingAdmin) {
-      console.log("📝 Creating default admin...");
-      await admins.set("admin_primary", {
-        id: "admin_primary",
-        name: "عبد الرحمن كشك",
-        email: "bdalrhmnkshk412@gmail.com",
-        password: await hashPassword("admin"),
-        role: "primary",
-        canManageRestaurants: 1,
-        canManageMenu: 1,
-        canUseAIScanner: 1,
-      });
-      console.log("✅ Default admin created.");
-    }
-  } catch (error) {
-    console.error("❌ Error in init:", error);
+  await initDB(); // أو await initTables();
+
+  // ✅ أنشئ الأدمن الافتراضي بس لو مش موجود — لا تـ overwrite البيانات الموجودة
+  const existingAdmin = await admins.get("admin_primary");
+  if (!existingAdmin) {
+    await admins.set("admin_primary", {
+      id: "admin_primary",
+      name: "عبد الرحمن كشك",
+      email: "bdalrhmnkshk412@gmail.com",
+      password: await hashPassword("admin"),
+      role: "primary",
+      canManageRestaurants: 1,
+      canManageMenu: 1,
+      canUseAIScanner: 1,
+    });
+    console.log("✅ Default admin created for the first time.");
+  } else {
+    console.log("✅ Admin already exists — skipping default creation.");
   }
 })();
 
@@ -216,7 +209,7 @@ async function calculateOrderTotal(
   deliveryFee: number
 ): Promise<{ subtotal: number; total: number; validatedItems: any[] } | null> {
 
-  const restaurant: any = await restaurants.get(restaurantId);
+  const restaurant: any = await restaurants.get(restaurantId); // ✅ await
   if (!restaurant) return null;
 
   const menu: any[] = restaurant.menu || [];
@@ -263,18 +256,30 @@ app.put("/api/admins", authenticateToken, isPrimaryAdmin, async (req, res) => {
   const adminsList: any[] = req.body;
 
   for (const admin of adminsList) {
+    if (!admin.id) continue; // تجاهل أي admin بدون ID
+
     const existing = await admins.get(admin.id);
-    if (!existing) continue; // تجاهل أي ID مش موجود
 
-    // ✅ احتفظ بالـ password الموجود في الـ DB — لا تلمسه
-    const updated = {
-      ...existing,           // كل البيانات القديمة (بما فيها password)
-      ...admin,              // التعديلات الجديدة
-      password: existing.password, // ← ضمان: الـ password من الـ DB دايماً
-      id: existing.id,       // ضمان: مينفعش حد يغير الـ ID
-    };
+    if (!existing) {
+      // ✅ أدمن جديد — hash الـ password وحفظه
+      const hashedPassword = admin.password
+        ? await hashPassword(admin.password)
+        : await hashPassword("123456");
 
-    await admins.set(admin.id, updated);
+      await admins.set(admin.id, {
+        ...admin,
+        password: hashedPassword,
+      });
+    } else {
+      // ✅ أدمن موجود — حدّث البيانات واحتفظ بالـ password القديم
+      const updated = {
+        ...existing,
+        ...admin,
+        password: existing.password, // ← الـ password من الـ DB دايماً
+        id: existing.id,
+      };
+      await admins.set(admin.id, updated);
+    }
   }
 
   res.json({ success: true });
@@ -360,6 +365,9 @@ app.post("/api/users/register", async (req, res) => {
     user: { id: newUser.id, name: newUser.name, email: newUser.email, phone: newUser.phone, role: newUser.role, status: newUser.status }
   });
 });
+
+
+
 
 app.post("/api/users/login", async (req, res) => {
   const { phone, password } = req.body;
