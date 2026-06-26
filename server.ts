@@ -147,28 +147,37 @@ app.use((req, res, next) => {
   next();
 });
 
+console.log("🔍 admins.get type:", typeof admins.get);
+console.log("🔍 admins object:", Object.keys(admins));
+
 // ────────────────────────────────────────────────────────────
 // 🏭  INITIALIZE DEFAULT DATA
 // ────────────────────────────────────────────────────────────
 (async function init() {
-  await initDB(); // أو await initTables();
-
-  // ✅ أنشئ الأدمن الافتراضي بس لو مش موجود — لا تـ overwrite البيانات الموجودة
-  const existingAdmin = await admins.get("admin_primary");
-  if (!existingAdmin) {
-    await admins.set("admin_primary", {
-      id: "admin_primary",
-      name: "عبد الرحمن كشك",
-      email: "bdalrhmnkshk412@gmail.com",
-      password: await hashPassword("admin"),
-      role: "primary",
-      canManageRestaurants: 1,
-      canManageMenu: 1,
-      canUseAIScanner: 1,
-    });
-    console.log("✅ Default admin created for the first time.");
-  } else {
-    console.log("✅ Admin already exists — skipping default creation.");
+  console.log("🔄 Running init...");
+  await initDB(); // تأكد من وجود الجداول
+  
+  console.log("🔍 Checking for existing admin...");
+  try {
+    const existingAdmin = await admins.get("admin_primary");
+    console.log("🔍 Existing admin:", existingAdmin ? "Found" : "Not found");
+    
+    if (!existingAdmin) {
+      console.log("📝 Creating default admin...");
+      await admins.set("admin_primary", {
+        id: "admin_primary",
+        name: "عبد الرحمن كشك",
+        email: "bdalrhmnkshk412@gmail.com",
+        password: await hashPassword("admin"),
+        role: "primary",
+        canManageRestaurants: 1,
+        canManageMenu: 1,
+        canUseAIScanner: 1,
+      });
+      console.log("✅ Default admin created.");
+    }
+  } catch (error) {
+    console.error("❌ Error in init:", error);
   }
 })();
 
