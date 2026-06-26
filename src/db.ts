@@ -44,22 +44,41 @@ export function getCollection<T = any>(table: string) {
       return res.rows.map((r: any) => JSON.parse(r.data));
     },
 
-    async get(id: string): Promise<T | null> {
-      const res = await client.execute({
-        sql: `SELECT data FROM ${table} WHERE id = ?`,
-        args: [id],
-      });
-      return res.rows[0] ? JSON.parse(res.rows[0].data as string) : null;
-    },
+// داخل getCollection
+async get(id: string): Promise<T | null> {
+  console.log(`[DB] 🔍 Getting ${table} with id:`, id, typeof id);
+  if (id === undefined || id === null) {
+    console.error(`[DB] ❌ Invalid id for ${table}:`, id);
+    return null;
+  }
+  try {
+    const res = await client.execute({
+      sql: `SELECT data FROM ${table} WHERE id = ?`,
+      args: [id],
+    });
+    console.log(`[DB] ✅ Found ${res.rows.length} rows`);
+    return res.rows[0] ? JSON.parse(res.rows[0].data as string) : null;
+  } catch (error) {
+    console.error(`[DB] ❌ Error getting ${table} with id ${id}:`, error);
+    throw error;
+  }
+},
 
-    async set(id: string, data: T): Promise<void> {
-  console.log(`[DB] 💾 Saving to ${table} with id:`, id);
-  console.log(`[DB] 📦 Data:`, JSON.stringify(data, null, 2));
-  
+async set(id: string, data: T): Promise<void> {
+  console.log(`[DB] 💾 Saving to ${table} with id:`, id, typeof id);
+  if (id === undefined || id === null) {
+    throw new Error(`[DB] Invalid id for ${table}: ${id}`);
+  }
+  // تنظيف البيانات: تحويل undefined إلى null، وتحويل التواريخ
+  const sanitized = JSON.parse(JSON.stringify(data, (key, value) => {
+    if (value === undefined) return null;
+    if (value instanceof Date) return value.toISOString();
+    return value;
+  }));
   try {
     await client.execute({
       sql: `INSERT OR REPLACE INTO ${table} (id, data) VALUES (?, ?)`,
-      args: [id, JSON.stringify(data)],
+      args: [id, JSON.stringify(sanitized)],
     });
     console.log(`[DB] ✅ Successfully saved ${table} with id ${id}`);
   } catch (error) {
@@ -67,7 +86,6 @@ export function getCollection<T = any>(table: string) {
     throw error;
   }
 },
-
     async delete(id: string): Promise<void> {
       await client.execute({
         sql: `DELETE FROM ${table} WHERE id = ?`,
