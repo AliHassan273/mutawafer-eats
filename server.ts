@@ -153,8 +153,10 @@ app.use((req, res, next) => {
 (async function init() {
   await initDB(); // أو await initTables();
 
-  const defaultAdmins = [
-    {
+  // ✅ أنشئ الأدمن الافتراضي بس لو مش موجود — لا تـ overwrite البيانات الموجودة
+  const existingAdmin = await admins.get("admin_primary");
+  if (!existingAdmin) {
+    await admins.set("admin_primary", {
       id: "admin_primary",
       name: "عبد الرحمن كشك",
       email: "bdalrhmnkshk412@gmail.com",
@@ -163,14 +165,11 @@ app.use((req, res, next) => {
       canManageRestaurants: 1,
       canManageMenu: 1,
       canUseAIScanner: 1,
-    }
-  ];
-
-  for (const admin of defaultAdmins) {
-    await admins.set(admin.id, admin);
+    });
+    console.log("✅ Default admin created for the first time.");
+  } else {
+    console.log("✅ Admin already exists — skipping default creation.");
   }
-
-  console.log("✅ Default admin created");
 })();
 
 // ────────────────────────────────────────────────────────────
