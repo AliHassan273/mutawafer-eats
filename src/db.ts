@@ -15,6 +15,10 @@ const client = createClient(
       }
 );
 
+// في بداية ملف db.ts، بعد إنشاء client
+console.log("🔍 TURSO_DATABASE_URL:", process.env.TURSO_DATABASE_URL ? "✅ Set" : "❌ Not set");
+console.log("🔍 Using database:", process.env.TURSO_DATABASE_URL || "file:./mutafer.db");
+
 // ✅ بس صدّرها
 export async function initDB() {
   await client.execute(`CREATE TABLE IF NOT EXISTS admins      (id TEXT PRIMARY KEY, data TEXT)`);
@@ -87,11 +91,22 @@ async set(id: string, data: T): Promise<void> {
   }
 },
     async delete(id: string): Promise<void> {
-      await client.execute({
-        sql: `DELETE FROM ${table} WHERE id = ?`,
-        args: [id],
-      });
-    },
+  console.log(`[DB] 🗑️ Deleting from ${table} with id:`, id);
+  if (id === undefined || id === null) {
+    console.error(`[DB] ❌ Invalid id for deletion:`, id);
+    return;
+  }
+  try {
+    await client.execute({
+      sql: `DELETE FROM ${table} WHERE id = ?`,
+      args: [id],
+    });
+    console.log(`[DB] ✅ Successfully deleted from ${table} with id ${id}`);
+  } catch (error) {
+    console.error(`[DB] ❌ Error deleting from ${table}:`, error);
+    throw error;
+  }
+},
   };
 }
 
