@@ -17,64 +17,23 @@ async function migrate() {
   console.log("🚀 Running database migrations...");
 
   try {
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS settings (
-        id   TEXT PRIMARY KEY,
-        data TEXT NOT NULL
-      )
-    `);
-    console.log("✅ Table 'settings' ready.");
-
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS admins (
-        id                   TEXT PRIMARY KEY,
-        name                 TEXT,
-        email                TEXT UNIQUE,
-        password             TEXT,
-        role                 TEXT,
-        canManageRestaurants INTEGER,
-        canManageMenu        INTEGER,
-        canUseAIScanner      INTEGER
-      )
-    `);
+    await client.execute(`CREATE TABLE IF NOT EXISTS admins      (id TEXT PRIMARY KEY, data TEXT)`);
     console.log("✅ Table 'admins' ready.");
 
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS users (
-        id       TEXT PRIMARY KEY,
-        name     TEXT,
-        email    TEXT,
-        phone    TEXT UNIQUE,
-        password TEXT,
-        role     TEXT,
-        status   TEXT
-      )
-    `);
+    await client.execute(`CREATE TABLE IF NOT EXISTS users       (id TEXT PRIMARY KEY, data TEXT)`);
     console.log("✅ Table 'users' ready.");
 
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS restaurants (
-        id   TEXT PRIMARY KEY,
-        data TEXT NOT NULL
-      )
-    `);
+    await client.execute(`CREATE TABLE IF NOT EXISTS restaurants (id TEXT PRIMARY KEY, data TEXT)`);
     console.log("✅ Table 'restaurants' ready.");
 
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS orders (
-        id   TEXT PRIMARY KEY,
-        data TEXT NOT NULL
-      )
-    `);
+    await client.execute(`CREATE TABLE IF NOT EXISTS orders      (id TEXT PRIMARY KEY, data TEXT)`);
     console.log("✅ Table 'orders' ready.");
 
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS reviews (
-        id   TEXT PRIMARY KEY,
-        data TEXT NOT NULL
-      )
-    `);
+    await client.execute(`CREATE TABLE IF NOT EXISTS reviews     (id TEXT PRIMARY KEY, data TEXT)`);
     console.log("✅ Table 'reviews' ready.");
+
+    await client.execute(`CREATE TABLE IF NOT EXISTS settings    (key TEXT PRIMARY KEY, value TEXT)`);
+    console.log("✅ Table 'settings' ready.");
 
     console.log("✅ All migrations completed successfully.");
     process.exit(0);

@@ -5,10 +5,10 @@ dotenv.config();
 // ✅ لو في TURSO_URL → اتصل بـ Turso cloud
 // ✅ لو مفيش (local dev) → استخدم SQLite عادي
 const client = createClient(
-  process.env.TURSO_URL
+  process.env.TURSO_DATABASE_URL
     ? {
-        url:       process.env.TURSO_URL,
-        authToken: process.env.TURSO_TOKEN,
+        url:       process.env.TURSO_DATABASE_URL,
+        authToken: process.env.TURSO_AUTH_TOKEN,
       }
     : {
         url: "file:./mutafer.db", // local development

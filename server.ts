@@ -131,6 +131,9 @@ function cleanValue(val: any): any {
   return val;
 }
 
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ limit: "15mb", extended: true }));
+
 app.use((req, res, next) => {
   if (req.body) {
     const raw = JSON.stringify(req.body);
@@ -143,9 +146,6 @@ app.use((req, res, next) => {
   if (req.params) req.params = cleanValue(req.params);
   next();
 });
-
-app.use(express.json({ limit: "15mb" }));
-app.use(express.urlencoded({ limit: "15mb", extended: true }));
 
 // ────────────────────────────────────────────────────────────
 // 🏭  INITIALIZE DEFAULT DATA
@@ -202,13 +202,13 @@ async function getSettings() {
 // ✅ الحل: السيرفر يحسب السعر بنفسه من بيانات المطاعم المحفوظة
 //    ولا يثق بأي سعر يجي من الـ frontend.
 // ============================================================
-function calculateOrderTotal(
+async function calculateOrderTotal(
   items: Array<{ menuItem: { id: string }; quantity: number }>,
   restaurantId: string,
   deliveryFee: number
-): { subtotal: number; total: number; validatedItems: any[] } | null {
+): Promise<{ subtotal: number; total: number; validatedItems: any[] } | null> {
 
-  const restaurant: any = restaurants.get(restaurantId);
+  const restaurant: any = await restaurants.get(restaurantId);
   if (!restaurant) return null;
 
   const menu: any[] = restaurant.menu || [];
@@ -351,20 +351,6 @@ app.post("/api/users/register", async (req, res) => {
     success: true,
     user: { id: newUser.id, name: newUser.name, email: newUser.email, phone: newUser.phone, role: newUser.role, status: newUser.status }
   });
-});
-
-// 🧪 DEBUG: عرض محتويات جدول المطاعم (للاختبار فقط)
-app.get("/api/debug/restaurants", async (req, res) => {
-  try {
-    const data = await restaurants.all();
-    res.json({
-      success: true,
-      count: data.length,
-      data: data,
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
 app.post("/api/users/login", async (req, res) => {
