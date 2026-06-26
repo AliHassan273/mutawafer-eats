@@ -11,7 +11,7 @@ const client = createClient(
         authToken: process.env.TURSO_AUTH_TOKEN,
       }
     : {
-        url: "file:./mutafer.db", // local development
+        url: "file:./mutawafer.db", // local development
       }
 );
 
@@ -53,11 +53,20 @@ export function getCollection<T = any>(table: string) {
     },
 
     async set(id: string, data: T): Promise<void> {
-      await client.execute({
-        sql: `INSERT OR REPLACE INTO ${table} (id, data) VALUES (?, ?)`,
-        args: [id, JSON.stringify(data)],
-      });
-    },
+  console.log(`[DB] 💾 Saving to ${table} with id:`, id);
+  console.log(`[DB] 📦 Data:`, JSON.stringify(data, null, 2));
+  
+  try {
+    await client.execute({
+      sql: `INSERT OR REPLACE INTO ${table} (id, data) VALUES (?, ?)`,
+      args: [id, JSON.stringify(data)],
+    });
+    console.log(`[DB] ✅ Successfully saved ${table} with id ${id}`);
+  } catch (error) {
+    console.error(`[DB] ❌ Error saving to ${table}:`, error);
+    throw error;
+  }
+},
 
     async delete(id: string): Promise<void> {
       await client.execute({
