@@ -16,13 +16,7 @@ const client = createClient({ url, authToken });
 async function migrate() {
   console.log("🚀 Running database migrations...");
 
-  try {
-    const tables = ["admins", "users", "restaurants", "orders", "reviews", "settings"];
-    for (const t of tables) {
-      await client.execute(`DROP TABLE IF EXISTS ${t}`);
-      console.log(`🗑️  Dropped old table '${t}' (if existed).`);
-    }
-    
+  try {    
     await client.execute(`CREATE TABLE IF NOT EXISTS admins      (id TEXT PRIMARY KEY, data TEXT)`);
     console.log("✅ Table 'admins' ready.");
 
