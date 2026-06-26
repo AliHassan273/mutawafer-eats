@@ -42,20 +42,20 @@ export const comparePassword = async (plain: string, hash: string) =>
 // ============================================================
 export const authenticateToken = (req: any, res: any, next: any) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // صيغة: "Bearer <token>"
+  const token = authHeader && authHeader.split(' ')[1];
+  console.log('[Auth] Token received:', token ? 'Yes' : 'No');
 
   if (!token) {
+    console.log('[Auth] No token provided');
     return res.status(401).json({ error: 'غير مصرح، الرجاء تسجيل الدخول.' });
   }
 
-  // jwt.verify يتحقق من:
-  //   1. أن التوكن موقّع بنفس JWT_SECRET
-  //   2. أن التوكن لم ينته (expiresIn)
-  //   3. أن بنية التوكن سليمة
   jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
     if (err) {
+      console.log('[Auth] Token verification failed:', err.message);
       return res.status(403).json({ error: 'التوكن غير صالح أو منتهي الصلاحية.' });
     }
+    console.log('[Auth] Decoded user:', user);
     req.user = user;
     next();
   });

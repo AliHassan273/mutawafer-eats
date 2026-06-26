@@ -288,24 +288,34 @@ app.put("/api/admins", authenticateToken, isPrimaryAdmin, async (req, res) => {
 // ── Admin Login ───────────────────────────────────────────────
 app.post("/api/admins/login", async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password)
+    if (!email || !password)
     return res.status(400).json({ error: "البريد والرقم السري مطلوبان" });
+  console.log('[Login] Attempt for:', email);
 
   const found = (await admins.all()).find((a: any) => a.email?.toLowerCase() === email.toLowerCase());
-  if (!found) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+  if (!found) {
+    console.log('[Login] User not found');
+    return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+  }
+
+  console.log('[Login] Found user:', found.id, found.role);
 
   const isMatch = await comparePassword(password, found.password);
-  if (!isMatch) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+  if (!isMatch) {
+    console.log('[Login] Password mismatch');
+    return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+  }
 
-  // ✅ استخدام generateToken المركزي بدل jwt.sign المكرر
   const token = generateToken({
-    id: found.id, email: found.email, role: found.role,
+    id: found.id,
+    email: found.email,
+    role: found.role,
     canManageRestaurants: !!found.canManageRestaurants,
     canManageMenu: !!found.canManageMenu,
     canUseAIScanner: !!found.canUseAIScanner,
   });
 
-  // ✅ لا نرسل الـ password مطلقاً في الـ response
+  console.log('[Login] Token generated successfully');
   res.json({
     success: true,
     token,
@@ -365,9 +375,6 @@ app.post("/api/users/register", async (req, res) => {
     user: { id: newUser.id, name: newUser.name, email: newUser.email, phone: newUser.phone, role: newUser.role, status: newUser.status }
   });
 });
-
-
-
 
 app.post("/api/users/login", async (req, res) => {
   const { phone, password } = req.body;
