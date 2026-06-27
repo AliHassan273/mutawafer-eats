@@ -15,7 +15,7 @@ export default function OrderTracker({ order, onBack, onUpdateStatus, lang }: Or
   // Coordinates range from 0 (at restaurant) to 1 (arrived at destination).
   const [courierProgress, setCourierProgress] = useState(0);
   const [countdownMinutes, setCountdownMinutes] = useState(order.eta);
-  const [whatsappNumber, setWhatsappNumber] = useState("201016789012");
+  const [whatsappNumber, setWhatsappNumber] = useState("201095452533");
   const [currentOrder, setCurrentOrder] = useState<Order>(order);
   const [courierContactActiveMessage, setCourierContactActiveMessage] = useState('');
 

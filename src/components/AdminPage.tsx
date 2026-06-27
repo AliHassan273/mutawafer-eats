@@ -1211,12 +1211,12 @@ const handleDeleteAdmin = async (adminId: string, name: string) => {
                 <input
                   type="text"
                   required
-                  placeholder="201016789012"
+                  placeholder="201095452533"
                   value={whatsappNumberSetting}
                   onChange={(e) => setWhatsappNumberSetting(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#f94c10]/20 font-bold"
                 />
-                <span className="text-[10px] text-slate-400 block">الرجاء إدخال الرقم بكود الدولة بدون أي فواصل أو علامات زائد (مثال: 201016789012).</span>
+                <span className="text-[10px] text-slate-400 block">الرجاء إدخال الرقم بكود الدولة بدون أي فواصل أو علامات زائد (مثال: 201095452533).</span>
               </div>
 
               {/* Delivery Pricing Type */}
@@ -1720,7 +1720,7 @@ const handleDeleteAdmin = async (adminId: string, name: string) => {
             <label className="text-xs font-bold text-slate-600">رقم واتساب المطعم (اختياري) 💬</label>
             <input
               type="text"
-              placeholder="مثال: 201016789012"
+              placeholder="مثال: 201095452533"
               value={restForm.whatsappNumber}
               onChange={(e) => setRestForm({ ...restForm, whatsappNumber: e.target.value })}
               className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2.5 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-orange-500 font-bold font-mono"
@@ -2529,7 +2529,7 @@ const handleDeleteAdmin = async (adminId: string, name: string) => {
                             >
                               <option value="">-- اختر كابتن توصيل معتمد --</option>
                               {currentAdmin && (
-                                <option value={JSON.stringify({ name: `${currentAdmin.name} (آدمن)`, phone: currentAdmin.phone || '01016789012' })}>
+                                <option value={JSON.stringify({ name: `${currentAdmin.name} (آدمن)`, phone: currentAdmin.phone || '01095452533' })}>
                                   👑 نفسي ({currentAdmin.name} - الآدمن الحالي)
                                 </option>
                               )}
@@ -2948,7 +2948,7 @@ const handleDeleteAdmin = async (adminId: string, name: string) => {
                     onChange={(e) => setWhatsappNumberSetting(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2 text-xs font-medium outline-none text-slate-800"
                   />
-                  <p className="text-[10px] text-slate-400">{isAr ? "مثال: 201016789012 (مع كود الدولة وبدون علامة +)" : "e.g., 201016789012 (with country code, no +)"}</p>
+                  <p className="text-[10px] text-slate-400">{isAr ? "مثال: 201095452533 (مع كود الدولة وبدون علامة +)" : "e.g., 201095452533 (with country code, no +)"}</p>
                 </div>
 
                 <div className="space-y-1.5">

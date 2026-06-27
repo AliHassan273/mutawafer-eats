@@ -181,7 +181,7 @@ async function getSettings() {
   const data = await settings.get("main");
   if (!data) {
     const defaults = {
-      whatsappNumber: "201016789012", deliveryPricingType: "area",
+      whatsappNumber: "201095452533", deliveryPricingType: "area",
       distanceBaseFee: 10, distanceFeePerKm: 5,
       deliveryCommissionType: "flat", deliveryCommissionValue: 15,
       aboutUsContent: "تطبيق مسافر...", deliveryOptions: [], coupons: [], categories: [],

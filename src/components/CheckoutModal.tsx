@@ -634,7 +634,7 @@ export default function CheckoutModal({
                       : `1. Transfer ${(subtotal + activeDeliveryFee + vodafoneFee - discount).toFixed(0)} EGP to our wallet:`}
                   </p>
                   <div className="bg-white border border-red-100 rounded-xl p-2.5 text-center font-mono text-sm font-black text-red-600 tracking-wider">
-                    {settings?.whatsappNumber || "01016789012"}
+                    {settings?.whatsappNumber || "01095452533"}
                   </div>
                   <p className="text-[10px] text-red-600">
                     💡 {isAr 

@@ -98,7 +98,7 @@ export default function App() {
     coupons?: { id: string; code: string; discountType: 'percentage' | 'flat'; discountValue: number; minOrder: number; isActive: boolean }[];
     categories?: { id: string; name: string; nameAr: string; icon: string }[];
   }>({
-    whatsappNumber: "201016789012",
+    whatsappNumber: "201095452533",
     deliveryPricingType: "area",
     distanceBaseFee: 10,
     distanceFeePerKm: 5,
@@ -1262,7 +1262,7 @@ export default function App() {
                     id: currentUser.id,
                     name: currentUser.role === 'primary' || currentUser.role === 'admin' ? `${currentUser.name} (آدمن)` : currentUser.name,
                     email: currentUser.email,
-                    phone: currentUser.phone || '01016789012',
+                    phone: currentUser.phone || '201095452533',
                     role: 'captain'
                   }
                 : { id: 'temp_cap', name: lang === 'ar' ? 'كابتن مسافر التجريبي 🛵' : 'Demo Captain Explorer 🛵', email: 'captain@mutafer.com', phone: '01012345678', role: 'captain' }

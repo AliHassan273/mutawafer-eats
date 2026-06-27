@@ -3,7 +3,7 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-const url = process.env.TURSO_DATABASE_URL;
+const url = process.env.TURSO_DATABASE_URL || "file:./mutawafer.db";
 const authToken = process.env.TURSO_AUTH_TOKEN;
 
 if (!url) {
