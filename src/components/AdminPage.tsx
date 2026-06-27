@@ -537,27 +537,27 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
     }
   };
 
-  const handleDeleteAdmin = async (adminId: string, name: string) => {
-    if (adminId === currentAdmin?.id) {
-      alert("عفوًا، لا يمكنك حذف حسابك النشط حاليًا!");
-      return;
-    }
+const handleDeleteAdmin = async (adminId: string, name: string) => {
+  if (adminId === currentAdmin?.id) {
+    alert("عفوًا، لا يمكنك حذف حسابك النشط حاليًا!");
+    return;
+  }
 
-    const updated = adminsList.filter(a => a.id !== adminId);
-    try {
-      const response = await fetchWithRetry("/api/admins", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updated)
-      });
-      if (response.ok) {
-        setAdminsList(updated);
-        triggerSuccess(`تم حذف حساب المشرف "${name}" بنجاح!`);
-      }
-    } catch (err) {
-      console.error(err);
+  const updated = adminsList.filter(a => a.id !== adminId);
+  try {
+    const response = await fetchWithRetry("/api/admins", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updated)
+    });
+    if (response.ok) {
+      setAdminsList(updated);
+      triggerSuccess(`تم حذف حساب المشرف "${name}" بنجاح!`);
     }
-  };
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   const [activeStoreDropdownId, setActiveStoreDropdownId] = useState<string | null>(null);
   const [activeDishDropdownId, setActiveDishDropdownId] = useState<string | null>(null);

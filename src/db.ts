@@ -90,9 +90,9 @@ async set(id: string, data: T): Promise<void> {
     throw error;
   }
 },
-    async delete(id: string): Promise<void> {
+async delete(id: string): Promise<void> {
   console.log(`[DB] 🗑️ Deleting from ${table} with id:`, id);
-  if (id === undefined || id === null) {
+  if (id === undefined || id === null || id === '') {
     console.error(`[DB] ❌ Invalid id for deletion:`, id);
     return;
   }
