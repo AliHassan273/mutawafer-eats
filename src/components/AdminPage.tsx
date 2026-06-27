@@ -118,99 +118,106 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
     }
   };
 
-  const fetchAdminsAndSettings = async () => {
-    try {
-      const adRes = await fetchWithRetry("/api/admins");
-      if (adRes.ok) {
-        const adData = await adRes.json();
-        setAdminsList(adData);
+const fetchAdminsAndSettings = async () => {
+  try {
+    const adRes = await fetchWithRetry("/api/admins");
+    if (adRes.ok) {
+      const adData = await adRes.json();
+      setAdminsList(adData);
 
-        if (adData && adData.length > 0) {
-          setCurrentAdmin((prev: any) => {
-            if (prev) {
-              const synced = adData.find((a: any) => a.id === prev.id);
-              if (synced) {
-                localStorage.setItem("mutafer_logged_in_admin", JSON.stringify(synced));
-                return synced;
-              }
-            }
-            return prev;
-          });
+      // تحديث currentAdmin إذا كان موجوداً في القائمة
+      if (currentAdmin) {
+        const synced = adData.find((a: any) => a.id === currentAdmin.id);
+        if (synced) {
+          const updatedAdmin = {
+            ...synced,
+            canManageRestaurants: synced.canManageRestaurants === 1,
+            canManageMenu: synced.canManageMenu === 1,
+            canUseAIScanner: synced.canUseAIScanner === 1,
+          };
+          setCurrentAdmin(updatedAdmin);
+          localStorage.setItem("mutafer_logged_in_admin", JSON.stringify(updatedAdmin));
+        } else {
+          // إذا تم حذف الأدمن المسجل، قم بتسجيل الخروج
+          setCurrentAdmin(null);
+          localStorage.removeItem("mutafer_logged_in_admin");
+          if (onAdminLogout) onAdminLogout();
         }
       }
-    } catch (err) {
-      console.error("Error loading admin accounts:", err);
     }
+  } catch (err) {
+    console.error("Error loading admin accounts:", err);
+  }
 
-    try {
-      const setRes = await fetchWithRetry("/api/settings");
-      if (setRes.ok) {
-        const setData = await setRes.json();
-        if (setData) {
-          if (setData.whatsappNumber) {
-            setWhatsappNumberSetting(setData.whatsappNumber);
-          }
-          if (setData.deliveryPricingType) {
-            setDeliveryPricingType(setData.deliveryPricingType);
-          }
-          if (setData.distanceBaseFee !== undefined) {
-            setDistanceBaseFee(setData.distanceBaseFee);
-          }
-          if (setData.distanceFeePerKm !== undefined) {
-            setDistanceFeePerKm(setData.distanceFeePerKm);
-          }
-          if (setData.deliveryCommissionType) {
-            setDeliveryCommissionType(setData.deliveryCommissionType);
-          }
-          if (setData.deliveryCommissionValue !== undefined) {
-            setDeliveryCommissionValue(setData.deliveryCommissionValue);
-          }
-          if (setData.aboutUsContent) {
-            setAboutUsContentSetting(setData.aboutUsContent);
-          }
-          if (setData.deliveryOptions) {
-            setDeliveryOptions(setData.deliveryOptions);
-          }
-          if (setData.coupons) {
-            setCouponsList(setData.coupons);
-          } else {
-            setCouponsList([
-              { id: "cp_1", code: "FIRST50", discountType: "percentage", discountValue: 50, minOrder: 0, isActive: true },
-              { id: "cp_2", code: "EATS10", discountType: "flat", discountValue: 30, minOrder: 150, isActive: true }
-            ]);
-          }
-          if (setData.categories) {
-            setCategoriesList(setData.categories);
-          } else {
-            setCategoriesList([
-              { id: 'all', name: 'All Eats', nameAr: 'كل الأكلات 🍽️', icon: '🍽️' },
-              { id: 'burgers', name: 'Burgers', nameAr: 'برجر بجمدان 🍔', icon: '🍔' },
-              { id: 'pizza', name: 'Pizza', nameAr: 'بيتزا حكاية 🍕', icon: '🍕' },
-              { id: 'salads', name: 'Salads', nameAr: 'سلطات فريش 🥗', icon: '🥗' },
-              { id: 'sushi', name: 'Sushi', nameAr: 'سوشي دلع 🍣', icon: '🍣' },
-              { id: 'ramen', name: 'Ramen', nameAr: 'رامين ياباني 🍜', icon: '🍜' },
-              { id: 'dessert', name: 'Dessert', nameAr: 'حلويات وفرفشة 🍦', icon: '🍦' },
-              { id: 'drinks', name: 'Drinks', nameAr: 'مشروبات منعشة 🥤', icon: '🥤' },
-              { id: 'sides', name: 'Sides', nameAr: 'مقبلات جانبية 🍟', icon: '🍟' },
-              { id: 'offers', name: 'Special Offers', nameAr: 'عروض دمار 🏷️', icon: '🏷️' }
-            ]);
-          }
+  try {
+    const setRes = await fetchWithRetry("/api/settings");
+    if (setRes.ok) {
+      const setData = await setRes.json();
+      if (setData) {
+        if (setData.whatsappNumber) {
+          setWhatsappNumberSetting(setData.whatsappNumber);
+        }
+        if (setData.deliveryPricingType) {
+          setDeliveryPricingType(setData.deliveryPricingType);
+        }
+        if (setData.distanceBaseFee !== undefined) {
+          setDistanceBaseFee(setData.distanceBaseFee);
+        }
+        if (setData.distanceFeePerKm !== undefined) {
+          setDistanceFeePerKm(setData.distanceFeePerKm);
+        }
+        if (setData.deliveryCommissionType) {
+          setDeliveryCommissionType(setData.deliveryCommissionType);
+        }
+        if (setData.deliveryCommissionValue !== undefined) {
+          setDeliveryCommissionValue(setData.deliveryCommissionValue);
+        }
+        if (setData.aboutUsContent) {
+          setAboutUsContentSetting(setData.aboutUsContent);
+        }
+        if (setData.deliveryOptions) {
+          setDeliveryOptions(setData.deliveryOptions);
+        }
+        if (setData.coupons) {
+          setCouponsList(setData.coupons);
+        } else {
+          setCouponsList([
+            { id: "cp_1", code: "FIRST50", discountType: "percentage", discountValue: 50, minOrder: 0, isActive: true },
+            { id: "cp_2", code: "EATS10", discountType: "flat", discountValue: 30, minOrder: 150, isActive: true }
+          ]);
+        }
+        if (setData.categories) {
+          setCategoriesList(setData.categories);
+        } else {
+          setCategoriesList([
+            { id: 'all', name: 'All Eats', nameAr: 'كل الأكلات 🍽️', icon: '🍽️' },
+            { id: 'burgers', name: 'Burgers', nameAr: 'برجر بجمدان 🍔', icon: '🍔' },
+            { id: 'pizza', name: 'Pizza', nameAr: 'بيتزا حكاية 🍕', icon: '🍕' },
+            { id: 'salads', name: 'Salads', nameAr: 'سلطات فريش 🥗', icon: '🥗' },
+            { id: 'sushi', name: 'Sushi', nameAr: 'سوشي دلع 🍣', icon: '🍣' },
+            { id: 'ramen', name: 'Ramen', nameAr: 'رامين ياباني 🍜', icon: '🍜' },
+            { id: 'dessert', name: 'Dessert', nameAr: 'حلويات وفرفشة 🍦', icon: '🍦' },
+            { id: 'drinks', name: 'Drinks', nameAr: 'مشروبات منعشة 🥤', icon: '🥤' },
+            { id: 'sides', name: 'Sides', nameAr: 'مقبلات جانبية 🍟', icon: '🍟' },
+            { id: 'offers', name: 'Special Offers', nameAr: 'عروض دمار 🏷️', icon: '🏷️' }
+          ]);
         }
       }
-    } catch (err) {
-      console.error("Error loading settings:", err);
     }
+  } catch (err) {
+    console.error("Error loading settings:", err);
+  }
 
-    try {
-      const ordRes = await fetchWithRetry("/api/orders");
-      if (ordRes.ok) {
-        const ordData = await ordRes.json();
-        setOrdersList(ordData);
-      }
-    } catch (err) {
-      console.error("Error loading admin orders:", err);
+  try {
+    const ordRes = await fetchWithRetry("/api/orders");
+    if (ordRes.ok) {
+      const ordData = await ordRes.json();
+      setOrdersList(ordData);
     }
-  };
+  } catch (err) {
+    console.error("Error loading admin orders:", err);
+  }
+};
 
   React.useEffect(() => {
     fetchAdminsAndSettings();
@@ -537,6 +544,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
     }
   };
 
+// داخل AdminPage.tsx – دالة handleDeleteAdmin
 const handleDeleteAdmin = async (adminId: string, name: string) => {
   if (adminId === currentAdmin?.id) {
     alert("عفوًا، لا يمكنك حذف حسابك النشط حاليًا!");
@@ -551,8 +559,12 @@ const handleDeleteAdmin = async (adminId: string, name: string) => {
       body: JSON.stringify(updated)
     });
     if (response.ok) {
+      // تحديث القائمة المحلية
       setAdminsList(updated);
+      // إذا كان الأدمن المحذوف هو الأدمن المسجل (تم التحقق من ذلك أعلاه)، فلا حاجة لتحديث currentAdmin
       triggerSuccess(`تم حذف حساب المشرف "${name}" بنجاح!`);
+      // إعادة تحميل البيانات من الخادم للتأكد من المزامنة
+      await fetchAdminsAndSettings();
     }
   } catch (err) {
     console.error(err);

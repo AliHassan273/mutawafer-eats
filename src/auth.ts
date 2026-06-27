@@ -74,21 +74,21 @@ export const isPrimaryAdmin = (req: any, res: any, next: any) => {
 };
 
 // أي admin لديه صلاحية إدارة المطاعم
+// auth.ts
 export const canManageRestaurants = (req: any, res: any, next: any) => {
-  if (!req.user?.canManageRestaurants) {
+  // السماح إذا كانت القيمة true أو 1
+  if (!(req.user?.canManageRestaurants === true || req.user?.canManageRestaurants === 1)) {
     return res.status(403).json({ error: 'ليس لديك صلاحية لإدارة المطاعم.' });
   }
   next();
 };
 
-// أي admin لديه صلاحية إدارة المنيو
 export const canManageMenu = (req: any, res: any, next: any) => {
-  if (!req.user?.canManageMenu) {
+  if (!(req.user?.canManageMenu === true || req.user?.canManageMenu === 1)) {
     return res.status(403).json({ error: 'ليس لديك صلاحية لإدارة المنيو.' });
   }
   next();
 };
-
 // ============================================================
 // 🏭  توليد JWT Token
 // ============================================================

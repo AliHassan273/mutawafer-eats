@@ -252,31 +252,63 @@ app.get("/api/admins", authenticateToken, isPrimaryAdmin, async (_req, res) => {
   res.json(safeAdmins);
 });
 
+// server.ts - داخل route PUT /api/admins
+
 app.put("/api/admins", authenticateToken, isPrimaryAdmin, async (req, res) => {
   const adminsList: any[] = req.body;
 
+  // 1. الحصول على قائمة الأدمن الحالية من قاعدة البيانات
+  const currentAdmins = await admins.all();
+
+  // 2. استخراج معرفات الأدمن المطلوب الاحتفاظ بها
+  const idsToKeep = new Set(adminsList.map(a => a.id).filter(Boolean));
+
+  // 3. حذف الأدمن الموجودين حالياً ولكن غير موجودين في القائمة الجديدة
+  for (const existing of currentAdmins) {
+    if (!idsToKeep.has(existing.id)) {
+      // لا تسمح بحذف الأدمن الأساسي
+      if (existing.role === 'primary') {
+        console.warn(`⛔️ Cannot delete primary admin: ${existing.id}`);
+        continue;
+      }
+      await admins.delete(existing.id);
+      console.log(`🗑️ Deleted admin: ${existing.id}`);
+    }
+  }
+
+  // 4. تحديث أو إدراج الأدمن الموجودين في القائمة الجديدة
   for (const admin of adminsList) {
-    if (!admin.id) continue; // تجاهل أي admin بدون ID
+    if (!admin.id) continue;
 
     const existing = await admins.get(admin.id);
-
     if (!existing) {
-      // ✅ أدمن جديد — hash الـ password وحفظه
+      // أدمن جديد – تشفير كلمة المرور
       const hashedPassword = admin.password
         ? await hashPassword(admin.password)
         : await hashPassword("123456");
 
+      // تحويل الصلاحيات من boolean إلى 0/1
       await admins.set(admin.id, {
-        ...admin,
+        id: admin.id,
+        name: admin.name,
+        email: admin.email,
         password: hashedPassword,
+        role: admin.role || 'editor',
+        canManageRestaurants: admin.canManageRestaurants ? 1 : 0,
+        canManageMenu: admin.canManageMenu ? 1 : 0,
+        canUseAIScanner: admin.canUseAIScanner ? 1 : 0,
       });
     } else {
-      // ✅ أدمن موجود — حدّث البيانات واحتفظ بالـ password القديم
+      // أدمن موجود – تحديث البيانات مع الاحتفاظ بكلمة المرور القديمة
       const updated = {
         ...existing,
-        ...admin,
-        password: existing.password, // ← الـ password من الـ DB دايماً
-        id: existing.id,
+        name: admin.name || existing.name,
+        email: admin.email || existing.email,
+        role: admin.role || existing.role,
+        canManageRestaurants: admin.canManageRestaurants !== undefined ? (admin.canManageRestaurants ? 1 : 0) : existing.canManageRestaurants,
+        canManageMenu: admin.canManageMenu !== undefined ? (admin.canManageMenu ? 1 : 0) : existing.canManageMenu,
+        canUseAIScanner: admin.canUseAIScanner !== undefined ? (admin.canUseAIScanner ? 1 : 0) : existing.canUseAIScanner,
+        password: existing.password, // الاحتفاظ بالكلمة القديمة
       };
       await admins.set(admin.id, updated);
     }
@@ -284,7 +316,6 @@ app.put("/api/admins", authenticateToken, isPrimaryAdmin, async (req, res) => {
 
   res.json({ success: true });
 });
-
 // ── Admin Login ───────────────────────────────────────────────
 app.post("/api/admins/login", async (req, res) => {
   const { email, password } = req.body;
