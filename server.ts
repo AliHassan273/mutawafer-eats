@@ -307,13 +307,13 @@ app.post("/api/admins/login", async (req, res) => {
   }
 
   const token = generateToken({
-    id: found.id,
-    email: found.email,
-    role: found.role,
-    canManageRestaurants: !!found.canManageRestaurants,
-    canManageMenu: !!found.canManageMenu,
-    canUseAIScanner: !!found.canUseAIScanner,
-  });
+  id: found.id,
+  email: found.email,
+  role: found.role,
+  canManageRestaurants: found.canManageRestaurants === 1 || found.canManageRestaurants === true,
+  canManageMenu: found.canManageMenu === 1 || found.canManageMenu === true,
+  canUseAIScanner: found.canUseAIScanner === 1 || found.canUseAIScanner === true,
+});
 
   console.log('[Login] Token generated successfully');
   res.json({
