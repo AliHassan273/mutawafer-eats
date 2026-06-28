@@ -840,7 +840,9 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
     }
 
     const text    = (response?.text || "[]").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    console.log("🤖 Gemini raw response (first 2000 chars):", text.substring(0, 2000));
     const parsed  = JSON.parse(text);
+    console.log(`🤖 Gemini parsed ${parsed.length} items. First item:`, JSON.stringify(parsed[0]));
     res.json({ success: true, items: parsed });
 
   } catch (error: any) {
