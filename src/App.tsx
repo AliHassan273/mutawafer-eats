@@ -20,6 +20,9 @@ import { Restaurant, MenuItem, CartItem, Order, Review } from './types';
 import { Language, getTranslation } from './translations';
 import { useMemo } from 'react';
 
+// داخل App.tsx، بعد تعريف useState للغة (lang)
+const t = (key: any, params?: any) => getTranslation(key, lang, params);
+
 const DISH_NAMES_MAP: Record<string, string> = {
   'The Original Big Bun': 'برجر بيج بن الأصلي 🍔',
   'Smokey Bacon & Cheese': 'برجر سموكي بيكون وجبنة 🥓',

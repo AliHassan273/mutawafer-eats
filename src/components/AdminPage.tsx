@@ -26,6 +26,35 @@ const RESTAURANT_NAMES_MAP: Record<string, string> = {
 };
 
 export default function AdminPage({ restaurants, lang, onBack, onRefreshData, onAdminLogin, onAdminLogout, reviews }: AdminPageProps) {
+  // ✅ ترجمات عربية ثابتة
+  const translations: Record<string, string> = {
+    egp: "ج",
+    backToHome: "الرئيسية",
+    adminTitle: "لوحة التحكم",
+    adminDesc: "إدارة المطاعم والمنيو والطلبات",
+    cancel: "إلغاء",
+    addRestaurant: "إضافة مطعم",
+    editRestaurant: "تعديل المطعم",
+    restaurantName: "اسم المطعم",
+    coverImageUrl: "رابط صورة الغلاف",
+    categoryTags: "التصنيفات",
+    promoText: "نص العرض",
+    deliveryTime: "وقت التوصيل",
+    deliveryFee: "رسوم التوصيل",
+    placeOrder: "حفظ",
+    uploadMenuPrompt: "ارفع صورة أو ملف المنيو",
+    uploadMenuDesc: "PNG، JPG، PDF، Excel، CSV",
+    analyzeLoading: "جاري التحليل بالذكاء الاصطناعي...",
+    dragDropFile: "اسحب الملف هنا أو اضغط للاختيار",
+    analysisResults: "الأطباق المستخرجة بالذكاء الاصطناعي",
+    restaurantSelect: "سيُضاف إلى",
+    approveImport: "استيراد المحدد",
+    addedSuccess: "✅ تم الاستيراد بنجاح!",
+    statusSaved: "✅ تم الحفظ",
+    statusDeleted: "🗑️ تم الحذف",
+  };
+  const t = (key: string) => translations[key] ?? key;
+
   // Navigation / Tab selection
   const [selectedRestId, setSelectedRestId] = useState<string>(restaurants[0]?.id || "");
   const [isCreatingRest, setIsCreatingRest] = useState(false);
