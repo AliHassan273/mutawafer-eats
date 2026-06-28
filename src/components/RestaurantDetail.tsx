@@ -510,69 +510,6 @@ export default function RestaurantDetail({
                         {isAr ? "📐 الوحدات والأحجام المتوفرة:" : "📐 Available Units & Sizes:"}
                       </p>
 
-                      {/* Prepend Base/Standard Unit if item has price */}
-                      {item.price > 0 && (() => {
-                        const addedForBase = cartItemOf(item.id);
-                        return (
-                          <div
-                            className="flex items-center justify-between gap-2 bg-slate-50/70 p-1.5 px-2.5 rounded-xl border border-slate-100 hover:border-orange-100 transition-colors"
-                          >
-                            <div className="min-w-0" style={{ textAlign: isAr ? 'right' : 'left' }}>
-                              <span className="text-xs font-bold text-slate-800 block">
-                                {isAr ? "الوحدة الأساسية" : "Standard Unit"}
-                              </span>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="text-[11px] font-black text-[#f94c10] font-mono">
-                                  {item.price.toFixed(0)} {t('egp')}
-                                </span>
-                                {item.originalPrice && (
-                                  <span className="text-[9px] text-slate-400 line-through">
-                                    {item.originalPrice.toFixed(0)} {t('egp')}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div>
-                              {addedForBase ? (
-                                <div className="flex items-center bg-white rounded-full p-0.5 select-none border border-slate-200" style={{ direction: 'ltr' }}>
-                                  <button
-                                    onClick={() => onRemoveFromCart(item.id)}
-                                    className="h-5.5 w-5.5 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-700 flex items-center justify-center shrink-0 transition-all cursor-pointer font-bold text-[10px]"
-                                  >
-                                    <Minus className="h-2.5 w-2.5" />
-                                  </button>
-                                  <span className="w-5 text-center text-xs font-black text-slate-800">
-                                    {addedForBase.quantity}
-                                  </span>
-                                  <button
-                                    onClick={() => handleAddToCartSecure(item, restaurant)}
-                                    disabled={!isOpen}
-                                    className={`h-5.5 w-5.5 rounded-full bg-[#f94c10] text-white flex items-center justify-center shrink-0 transition-all font-bold text-[10px] ${isOpen ? "hover:bg-[#e03d08] cursor-pointer" : "opacity-40 cursor-not-allowed"}`}
-                                  >
-                                    <Plus className="h-2.5 w-2.5" />
-                                  </button>
-                                </div>
-                              ) : (
-                                isOpen ? (
-                                  <button
-                                    onClick={() => handleAddToCartSecure(item, restaurant)}
-                                    className="flex items-center gap-1 bg-[#f94c10] hover:bg-[#e03d08] hover:scale-102 text-white font-black text-[10px] px-2.5 py-1 rounded-full cursor-pointer transition-all shadow-xxs"
-                                  >
-                                    <Plus className="h-2.5 w-2.5" />
-                                    <span>{isAr ? 'شيل' : 'Add'}</span>
-                                  </button>
-                                ) : (
-                                  <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
-                                    {isAr ? 'مغلق' : 'Closed'}
-                                  </span>
-                                )
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })()}
-
                       {item.sizes.map((sz) => {
                         const addedForSize = cartItemOf(item.id, sz.id);
                         return (
