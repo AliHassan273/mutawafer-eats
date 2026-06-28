@@ -534,6 +534,7 @@ app.post("/api/restaurants/:id/menu", authenticateToken, canManageMenu, async (r
   const menu  = rest.menu || [];
   for (const item of items) {
     item.id = item.id || crypto.randomUUID();
+    if (item.category) item.category = item.category.toLowerCase(); // ✅ normalize
     menu.push(item);
   }
   rest.menu = menu;

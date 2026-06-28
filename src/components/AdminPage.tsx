@@ -6,12 +6,10 @@ import {
 } from "lucide-react";
 import { Restaurant, MenuItem, Review } from "../types";
 import { fetchWithRetry } from "../utils/fetchHelper";
-import { Language, getTranslation } from "../translations";
 import { saveToken } from '../utils/fetchHelper';
 
 interface AdminPageProps {
   restaurants: Restaurant[];
-  lang: Language;
   onBack: () => void;
   onRefreshData: () => Promise<void>;
   onAdminLogin?: (admin: any, token?: string) => void;
@@ -28,7 +26,6 @@ const RESTAURANT_NAMES_MAP: Record<string, string> = {
 };
 
 export default function AdminPage({ restaurants, lang, onBack, onRefreshData, onAdminLogin, onAdminLogout, reviews }: AdminPageProps) {
-  const isAr = lang === 'ar';
   // Navigation / Tab selection
   const [selectedRestId, setSelectedRestId] = useState<string>(restaurants[0]?.id || "");
   const [isCreatingRest, setIsCreatingRest] = useState(false);
@@ -118,106 +115,99 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
     }
   };
 
-const fetchAdminsAndSettings = async () => {
-  try {
-    const adRes = await fetchWithRetry("/api/admins");
-    if (adRes.ok) {
-      const adData = await adRes.json();
-      setAdminsList(adData);
+  const fetchAdminsAndSettings = async () => {
+    try {
+      const adRes = await fetchWithRetry("/api/admins");
+      if (adRes.ok) {
+        const adData = await adRes.json();
+        setAdminsList(adData);
 
-      // تحديث currentAdmin إذا كان موجوداً في القائمة
-      if (currentAdmin) {
-        const synced = adData.find((a: any) => a.id === currentAdmin.id);
-        if (synced) {
-          const updatedAdmin = {
-            ...synced,
-            canManageRestaurants: synced.canManageRestaurants === 1,
-            canManageMenu: synced.canManageMenu === 1,
-            canUseAIScanner: synced.canUseAIScanner === 1,
-          };
-          setCurrentAdmin(updatedAdmin);
-          localStorage.setItem("mutafer_logged_in_admin", JSON.stringify(updatedAdmin));
-        } else {
-          // إذا تم حذف الأدمن المسجل، قم بتسجيل الخروج
-          setCurrentAdmin(null);
-          localStorage.removeItem("mutafer_logged_in_admin");
-          if (onAdminLogout) onAdminLogout();
+        if (adData && adData.length > 0) {
+          setCurrentAdmin((prev: any) => {
+            if (prev) {
+              const synced = adData.find((a: any) => a.id === prev.id);
+              if (synced) {
+                localStorage.setItem("mutafer_logged_in_admin", JSON.stringify(synced));
+                return synced;
+              }
+            }
+            return prev;
+          });
         }
       }
+    } catch (err) {
+      console.error("Error loading admin accounts:", err);
     }
-  } catch (err) {
-    console.error("Error loading admin accounts:", err);
-  }
 
-  try {
-    const setRes = await fetchWithRetry("/api/settings");
-    if (setRes.ok) {
-      const setData = await setRes.json();
-      if (setData) {
-        if (setData.whatsappNumber) {
-          setWhatsappNumberSetting(setData.whatsappNumber);
-        }
-        if (setData.deliveryPricingType) {
-          setDeliveryPricingType(setData.deliveryPricingType);
-        }
-        if (setData.distanceBaseFee !== undefined) {
-          setDistanceBaseFee(setData.distanceBaseFee);
-        }
-        if (setData.distanceFeePerKm !== undefined) {
-          setDistanceFeePerKm(setData.distanceFeePerKm);
-        }
-        if (setData.deliveryCommissionType) {
-          setDeliveryCommissionType(setData.deliveryCommissionType);
-        }
-        if (setData.deliveryCommissionValue !== undefined) {
-          setDeliveryCommissionValue(setData.deliveryCommissionValue);
-        }
-        if (setData.aboutUsContent) {
-          setAboutUsContentSetting(setData.aboutUsContent);
-        }
-        if (setData.deliveryOptions) {
-          setDeliveryOptions(setData.deliveryOptions);
-        }
-        if (setData.coupons) {
-          setCouponsList(setData.coupons);
-        } else {
-          setCouponsList([
-            { id: "cp_1", code: "FIRST50", discountType: "percentage", discountValue: 50, minOrder: 0, isActive: true },
-            { id: "cp_2", code: "EATS10", discountType: "flat", discountValue: 30, minOrder: 150, isActive: true }
-          ]);
-        }
-        if (setData.categories) {
-          setCategoriesList(setData.categories);
-        } else {
-          setCategoriesList([
-            { id: 'all', name: 'All Eats', nameAr: 'كل الأكلات 🍽️', icon: '🍽️' },
-            { id: 'burgers', name: 'Burgers', nameAr: 'برجر بجمدان 🍔', icon: '🍔' },
-            { id: 'pizza', name: 'Pizza', nameAr: 'بيتزا حكاية 🍕', icon: '🍕' },
-            { id: 'salads', name: 'Salads', nameAr: 'سلطات فريش 🥗', icon: '🥗' },
-            { id: 'sushi', name: 'Sushi', nameAr: 'سوشي دلع 🍣', icon: '🍣' },
-            { id: 'ramen', name: 'Ramen', nameAr: 'رامين ياباني 🍜', icon: '🍜' },
-            { id: 'dessert', name: 'Dessert', nameAr: 'حلويات وفرفشة 🍦', icon: '🍦' },
-            { id: 'drinks', name: 'Drinks', nameAr: 'مشروبات منعشة 🥤', icon: '🥤' },
-            { id: 'sides', name: 'Sides', nameAr: 'مقبلات جانبية 🍟', icon: '🍟' },
-            { id: 'offers', name: 'Special Offers', nameAr: 'عروض دمار 🏷️', icon: '🏷️' }
-          ]);
+    try {
+      const setRes = await fetchWithRetry("/api/settings");
+      if (setRes.ok) {
+        const setData = await setRes.json();
+        if (setData) {
+          if (setData.whatsappNumber) {
+            setWhatsappNumberSetting(setData.whatsappNumber);
+          }
+          if (setData.deliveryPricingType) {
+            setDeliveryPricingType(setData.deliveryPricingType);
+          }
+          if (setData.distanceBaseFee !== undefined) {
+            setDistanceBaseFee(setData.distanceBaseFee);
+          }
+          if (setData.distanceFeePerKm !== undefined) {
+            setDistanceFeePerKm(setData.distanceFeePerKm);
+          }
+          if (setData.deliveryCommissionType) {
+            setDeliveryCommissionType(setData.deliveryCommissionType);
+          }
+          if (setData.deliveryCommissionValue !== undefined) {
+            setDeliveryCommissionValue(setData.deliveryCommissionValue);
+          }
+          if (setData.aboutUsContent) {
+            setAboutUsContentSetting(setData.aboutUsContent);
+          }
+          if (setData.deliveryOptions) {
+            setDeliveryOptions(setData.deliveryOptions);
+          }
+          if (setData.coupons) {
+            setCouponsList(setData.coupons);
+          } else {
+            setCouponsList([
+              { id: "cp_1", code: "FIRST50", discountType: "percentage", discountValue: 50, minOrder: 0, isActive: true },
+              { id: "cp_2", code: "EATS10", discountType: "flat", discountValue: 30, minOrder: 150, isActive: true }
+            ]);
+          }
+          if (setData.categories) {
+            setCategoriesList(setData.categories);
+          } else {
+            setCategoriesList([
+              { id: 'all', name: 'All Eats', nameAr: 'كل الأكلات 🍽️', icon: '🍽️' },
+              { id: 'burgers', name: 'Burgers', nameAr: 'برجر بجمدان 🍔', icon: '🍔' },
+              { id: 'pizza', name: 'Pizza', nameAr: 'بيتزا حكاية 🍕', icon: '🍕' },
+              { id: 'salads', name: 'Salads', nameAr: 'سلطات فريش 🥗', icon: '🥗' },
+              { id: 'sushi', name: 'Sushi', nameAr: 'سوشي دلع 🍣', icon: '🍣' },
+              { id: 'ramen', name: 'Ramen', nameAr: 'رامين ياباني 🍜', icon: '🍜' },
+              { id: 'dessert', name: 'Dessert', nameAr: 'حلويات وفرفشة 🍦', icon: '🍦' },
+              { id: 'drinks', name: 'Drinks', nameAr: 'مشروبات منعشة 🥤', icon: '🥤' },
+              { id: 'sides', name: 'Sides', nameAr: 'مقبلات جانبية 🍟', icon: '🍟' },
+              { id: 'offers', name: 'Special Offers', nameAr: 'عروض دمار 🏷️', icon: '🏷️' }
+            ]);
+          }
         }
       }
+    } catch (err) {
+      console.error("Error loading settings:", err);
     }
-  } catch (err) {
-    console.error("Error loading settings:", err);
-  }
 
-  try {
-    const ordRes = await fetchWithRetry("/api/orders");
-    if (ordRes.ok) {
-      const ordData = await ordRes.json();
-      setOrdersList(ordData);
+    try {
+      const ordRes = await fetchWithRetry("/api/orders");
+      if (ordRes.ok) {
+        const ordData = await ordRes.json();
+        setOrdersList(ordData);
+      }
+    } catch (err) {
+      console.error("Error loading admin orders:", err);
     }
-  } catch (err) {
-    console.error("Error loading admin orders:", err);
-  }
-};
+  };
 
   React.useEffect(() => {
     fetchAdminsAndSettings();
@@ -544,32 +534,27 @@ const fetchAdminsAndSettings = async () => {
     }
   };
 
-// داخل AdminPage.tsx – دالة handleDeleteAdmin
-const handleDeleteAdmin = async (adminId: string, name: string) => {
-  if (adminId === currentAdmin?.id) {
-    alert("عفوًا، لا يمكنك حذف حسابك النشط حاليًا!");
-    return;
-  }
-
-  const updated = adminsList.filter(a => a.id !== adminId);
-  try {
-    const response = await fetchWithRetry("/api/admins", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updated)
-    });
-    if (response.ok) {
-      // تحديث القائمة المحلية
-      setAdminsList(updated);
-      // إذا كان الأدمن المحذوف هو الأدمن المسجل (تم التحقق من ذلك أعلاه)، فلا حاجة لتحديث currentAdmin
-      triggerSuccess(`تم حذف حساب المشرف "${name}" بنجاح!`);
-      // إعادة تحميل البيانات من الخادم للتأكد من المزامنة
-      await fetchAdminsAndSettings();
+  const handleDeleteAdmin = async (adminId: string, name: string) => {
+    if (adminId === currentAdmin?.id) {
+      alert("عفوًا، لا يمكنك حذف حسابك النشط حاليًا!");
+      return;
     }
-  } catch (err) {
-    console.error(err);
-  }
-};
+
+    const updated = adminsList.filter(a => a.id !== adminId);
+    try {
+      const response = await fetchWithRetry("/api/admins", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated)
+      });
+      if (response.ok) {
+        setAdminsList(updated);
+        triggerSuccess(`تم حذف حساب المشرف "${name}" بنجاح!`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const [activeStoreDropdownId, setActiveStoreDropdownId] = useState<string | null>(null);
   const [activeDishDropdownId, setActiveDishDropdownId] = useState<string | null>(null);
@@ -610,7 +595,6 @@ const handleDeleteAdmin = async (adminId: string, name: string) => {
 
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const t = (key: any, params?: any) => getTranslation(key, lang, params);
 
   // ✅ Selected active restaurant instance helper (آمن)
   const activeRestaurant = restaurants.find((r) => r.id === selectedRestId);
@@ -620,87 +604,72 @@ const handleDeleteAdmin = async (adminId: string, name: string) => {
     setTimeout(() => setSuccessMsg(null), 4000);
   };
 
-// AdminPage.tsx
+  const handleFileParse = async (fileToParse?: File) => {
+    if (currentAdmin && !currentAdmin.canUseAIScanner) {
+      setAiError("عفوًا! هذا الموظف أو المشرف لا يملك الصلاحية الأمنية لاستخدام ماسح الذكاء الاصطناعي على النظام.");
+      return;
+    }
+    const file = fileToParse || selectedFile;
+    if (!file) {
+      setAiError("يرجى سحب وإفلات صورة المنيو أو كشف الـ Excel، أو الضغط لتحديد الملف أولاً.");
+      return;
+    }
 
-const handleFileParse = async (fileToParse?: File) => {
-  // التحقق من صلاحية استخدام AI Scanner
-  if (currentAdmin && !currentAdmin.canUseAIScanner) {
-    setAiError("عفوًا! هذا الموظف أو المشرف لا يملك الصلاحية الأمنية لاستخدام ماسح الذكاء الاصطناعي على النظام.");
-    return;
-  }
+    if (fileToParse) {
+      setSelectedFile(fileToParse);
+      setFileName(fileToParse.name);
+    }
 
-  const file = fileToParse || selectedFile;
-  if (!file) {
-    setAiError(lang === "ar" ? "يرجى سحب وإفلات صورة المنيو أو كشف الـ Excel، أو الضغط لتحديد الملف أولاً." : "Please select or drop a menu image or Excel sheet first.");
-    return;
-  }
+    setAiLoading(true);
+    setAiError(null);
+    setAiWarning(null);
+    setExtractedItems([]);
 
-  setAiLoading(true);
-  setAiError(null);
-  setAiWarning(null);
-  setExtractedItems([]);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const dataUrl = reader.result as string;
+        const base64Content = dataUrl.split(",")[1];
+        const mimeType = file.type;
 
-  try {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = async () => {
-      const dataUrl = reader.result as string;
-      const base64Content = dataUrl.split(",")[1];
-      const mimeType = file.type;
-
-      // التحقق من صيغة الملف المدعومة
-      const supportedTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif", "image/gif", "application/pdf", "text/plain", "text/csv", "text/html"];
-      if (!supportedTypes.includes(mimeType) && !file.name.match(/\.(xlsx?|csv)$/i)) {
-        setAiError("صيغة الملف غير مدعومة. يرجى رفع صورة (PNG/JPEG/WEBP) أو ملف Excel/CSV أو PDF.");
-        setAiLoading(false);
-        return;
-      }
-
-      const response = await fetchWithRetry("/api/gemini/parse-menu", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileData: base64Content,
-          mimeType,
-          fileName: file.name,
-          customInstructions: customInstructions
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success && Array.isArray(data.items)) {
-        setExtractedItems(data.items);
-        setAiWarning(data.warning || null);
-        const autoSelect: Record<number, boolean> = {};
-        data.items.forEach((_, idx) => {
-          autoSelect[idx] = true;
+        const response = await fetchWithRetry("/api/gemini/parse-menu", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileData: base64Content,
+            mimeType,
+            fileName: file.name,
+            customInstructions: customInstructions
+          })
         });
-        setSelectedImportItems(autoSelect);
-        triggerSuccess(lang === "ar" ? "تم بحمد الله استخراج عناصر المنيو بنجاح!" : "Gemini successfully extracted menu options!");
-      } else {
-        // محاولة استخدام الـ fallback المحلي إذا كان متاحاً
-        if (data.isLocalFallback) {
-          setExtractedItems(data.items || []);
-          setAiWarning(data.warning || "تم الاستخراج محلياً (بدون Gemini)");
-          triggerSuccess("تم استخراج الأصناف محلياً!");
-        } else {
-          setAiError(data.error || "فشل تحليل الملف. تأكد من صحة المحتوى.");
-        }
-      }
-      setAiLoading(false);
-    };
 
-    reader.onerror = () => {
-      setAiError("فشل قراءة الملف. تأكد من أنه ليس تالفاً.");
+        const data = await response.json();
+        if (data.success && Array.isArray(data.items)) {
+          setExtractedItems(data.items);
+          setAiWarning(data.warning || null);
+          const autoSelect: Record<number, boolean> = {};
+          data.items.forEach((_, idx) => {
+            autoSelect[idx] = true;
+          });
+          setSelectedImportItems(autoSelect);
+          triggerSuccess("تم بحمد الله استخراج عناصر المنيو بنجاح!");
+        } else {
+          setAiError(data.error || "Failed to analyze menu document.");
+        }
+        setAiLoading(false);
+      };
+
+      reader.onerror = () => {
+        setAiError("Failed to load binary file stream.");
+        setAiLoading(false);
+      };
+    } catch (err: any) {
+      setAiError(err.message || "Something went wrong during parsing.");
       setAiLoading(false);
-    };
-  } catch (err: any) {
-    console.error("File parsing error:", err);
-    setAiError(err.message || "حدث خطأ غير متوقع أثناء المعالجة.");
-    setAiLoading(false);
-  }
-};
+    }
+  };
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -992,8 +961,7 @@ const handleFileParse = async (fileToParse?: File) => {
 
   // إذا لم يكن هناك مشرف مسجل دخول، نعرض نموذج الدخول
   if (!currentAdmin) {
-    const isAr = lang === "ar";
-    return (
+      return (
       <div className="max-w-7xl mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[70vh]" dir={isAr ? "rtl" : "ltr"}>
         <div className="w-full max-w-md bg-white rounded-[32px] p-6 sm:p-8 shadow-xl border border-slate-100 space-y-6">
           <div className="text-center space-y-2">
@@ -1167,7 +1135,7 @@ const handleFileParse = async (fileToParse?: File) => {
   // MAIN ADMIN DASHBOARD (بعد تسجيل الدخول)
   // ============================================================
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8" dir={lang === "ar" ? "rtl" : "ltr"}>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8" dir={"rtl"}>
 
       {/* Header and Back Button */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-5">
@@ -1238,12 +1206,12 @@ const handleFileParse = async (fileToParse?: File) => {
                 <input
                   type="text"
                   required
-                  placeholder="201095452533"
+                  placeholder="201016789012"
                   value={whatsappNumberSetting}
                   onChange={(e) => setWhatsappNumberSetting(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#f94c10]/20 font-bold"
                 />
-                <span className="text-[10px] text-slate-400 block">الرجاء إدخال الرقم بكود الدولة بدون أي فواصل أو علامات زائد (مثال: 201095452533).</span>
+                <span className="text-[10px] text-slate-400 block">الرجاء إدخال الرقم بكود الدولة بدون أي فواصل أو علامات زائد (مثال: 201016789012).</span>
               </div>
 
               {/* Delivery Pricing Type */}
@@ -1347,7 +1315,7 @@ const handleFileParse = async (fileToParse?: File) => {
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="text-base shrink-0">{cat.icon}</span>
                         <div className="min-w-0 leading-tight">
-                          <p className="text-[10px] font-black text-slate-800 truncate">{lang === 'ar' ? cat.nameAr : cat.name}</p>
+                          <p className="text-[10px] font-black text-slate-800 truncate">{cat.nameAr || cat.name}</p>
                           <p className="text-[8px] font-semibold text-slate-400 truncate">{cat.id}</p>
                         </div>
                       </div>
@@ -1356,7 +1324,7 @@ const handleFileParse = async (fileToParse?: File) => {
                           type="button"
                           onClick={() => {
                             setCategoriesList(categoriesList.filter(c => c.id !== cat.id));
-                            triggerSuccess(lang === 'ar' ? 'تم حذف القسم مؤقتاً بالمسودة! اضغط على زر الحفظ بالأسفل للتنفيذ.' : 'Category removed from draft! Save setting.');
+                            triggerSuccess('تم حذف القسم مؤقتاً بالمسودة! اضغط على زر الحفظ بالأسفل للتنفيذ.');
                           }}
                           className="text-red-500 hover:text-red-700 text-xs font-bold p-1 hover:bg-red-50 rounded-lg transition-colors cursor-pointer shrink-0"
                           title="حذف الفئة"
@@ -1416,11 +1384,11 @@ const handleFileParse = async (fileToParse?: File) => {
                     type="button"
                     onClick={() => {
                       if (!newCatId || !newCatName || !newCatNameAr || !newCatIcon) {
-                        alert(lang === 'ar' ? 'يرجى ملء جميع حقول إضافة الفئة الجديدة أولاً!' : 'Please fill all fields to add a category!');
+                        alert('يرجى ملء جميع حقول إضافة الفئة الجديدة أولاً!');
                         return;
                       }
                       if (categoriesList.some(c => c.id === newCatId)) {
-                        alert(lang === 'ar' ? 'هذا المعرف مستخدم بالفعل!' : 'Category ID already exists!');
+                        alert('هذا المعرف مستخدم بالفعل!');
                         return;
                       }
                       const updated = [
@@ -1432,7 +1400,7 @@ const handleFileParse = async (fileToParse?: File) => {
                       setNewCatName("");
                       setNewCatNameAr("");
                       setNewCatIcon("");
-                      triggerSuccess(lang === 'ar' ? 'تمت إضافة القسم للمسودة بنجاح! اضغط على زر الحفظ بالأسفل للاعتماد.' : 'Category added to draft! Save settings.');
+                      triggerSuccess('تمت إضافة القسم للمسودة بنجاح! اضغط على زر الحفظ بالأسفل للاعتماد.');
                     }}
                     className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-2 px-3 rounded-xl text-xs transition-colors cursor-pointer"
                   >
@@ -1747,7 +1715,7 @@ const handleFileParse = async (fileToParse?: File) => {
             <label className="text-xs font-bold text-slate-600">رقم واتساب المطعم (اختياري) 💬</label>
             <input
               type="text"
-              placeholder="مثال: 201095452533"
+              placeholder="مثال: 201016789012"
               value={restForm.whatsappNumber}
               onChange={(e) => setRestForm({ ...restForm, whatsappNumber: e.target.value })}
               className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2.5 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-orange-500 font-bold font-mono"
@@ -1825,7 +1793,7 @@ const handleFileParse = async (fileToParse?: File) => {
                     >
                       <button
                         type="button"
-                        className={`flex-1 font-semibold text-xs truncate max-w-[150px] cursor-pointer ${lang === 'ar' ? 'text-right' : 'text-left'
+                        className={`flex-1 font-semibold text-xs truncate max-w-[150px] cursor-pointer ${'text-right'
                           }`}
                       >
                         {rest.name}
@@ -1849,18 +1817,18 @@ const handleFileParse = async (fileToParse?: File) => {
                               className="fixed inset-0 z-30"
                               onClick={() => setActiveStoreDropdownId(null)}
                             />
-                            <div className={`absolute ${lang === 'ar' ? 'left-0' : 'right-0'} mt-1 z-45 bg-white border border-slate-150 rounded-xl shadow-xl w-32 p-1 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100`}>
+                            <div className={`absolute ${'left-0'} mt-1 z-45 bg-white border border-slate-150 rounded-xl shadow-xl w-32 p-1 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100`}>
                               <button
                                 type="button"
                                 onClick={() => {
                                   handleSetEditRestaurant(rest);
                                   setActiveStoreDropdownId(null);
                                 }}
-                                className={`w-full text-left px-2.5 py-1.5 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer ${lang === 'ar' ? 'flex-row-reverse text-right' : ''
+                                className={`w-full text-left px-2.5 py-1.5 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer ${'flex-row-reverse text-right'
                                   }`}
                               >
                                 <Edit2 className="h-3.5 w-3.5 text-[#f94c10]" />
-                                <span>{lang === 'ar' ? 'تعديل المطعم' : 'Edit Store'}</span>
+                                <span>{'تعديل المطعم'}</span>
                               </button>
                               <button
                                 type="button"
@@ -1868,11 +1836,11 @@ const handleFileParse = async (fileToParse?: File) => {
                                   setDeleteConfirmRestId(rest.id);
                                   setActiveStoreDropdownId(null);
                                 }}
-                                className={`w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer ${lang === 'ar' ? 'flex-row-reverse text-right' : ''
+                                className={`w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer ${'flex-row-reverse text-right'
                                   }`}
                               >
                                 <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                <span>{lang === 'ar' ? 'حذف المطعم' : 'Delete Store'}</span>
+                                <span>{'حذف المطعم'}</span>
                               </button>
                             </div>
                           </>
@@ -1926,7 +1894,7 @@ const handleFileParse = async (fileToParse?: File) => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase font-black text-slate-500">{lang === 'ar' ? 'فئة الطعام (القسم) *' : 'Food Category (Section) *'}</label>
+                    <label className="text-[10px] uppercase font-black text-slate-500">{'فئة الطعام (القسم) *'}</label>
                     <select
                       value={manualItemForm.category}
                       onChange={(e) => setManualItemForm({ ...manualItemForm, category: e.target.value })}
@@ -1934,7 +1902,7 @@ const handleFileParse = async (fileToParse?: File) => {
                     >
                       {categoriesList.filter(c => c.id !== 'all').map(cat => (
                         <option key={cat.id} value={cat.id || cat.name}>
-                          {lang === 'ar' ? cat.nameAr : cat.name}
+                          {cat.nameAr || cat.name}
                         </option>
                       ))}
                     </select>
@@ -1974,20 +1942,20 @@ const handleFileParse = async (fileToParse?: File) => {
               <div className="z-10 relative bg-slate-950/40 border border-slate-800 rounded-2xl p-4 space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-orange-400 mb-1">
-                    {lang === "ar" ? "🏪 اختر المطعم المستهدف لإضافة الأصناف إليه" : "🏪 Choose Target Restaurant to Add Items to"}
+                    {"🏪 اختر المطعم المستهدف لإضافة الأصناف إليه"}
                   </label>
                   <p className="text-[10px] text-slate-400 mb-3">
-                    {lang === "ar" ? "اضغط على المطعم بالأسفل لاختياره مباشرة كوجهة للأصناف المستخرجة بالذكاء الاصطناعي." : "Click on a restaurant below to set it as target for extracted AI items."}
+                    {"اضغط على المطعم بالأسفل لاختياره مباشرة كوجهة للأصناف المستخرجة بالذكاء الاصطناعي."}
                   </p>
                 </div>
 
                 <div
                   id="ai-target-restaurant-selector"
                   className="grid grid-cols-2 sm:grid-cols-3 gap-2.5"
-                  style={{ direction: lang === 'ar' ? 'rtl' : 'ltr' }}
+                  style={{ direction: 'rtl' }}
                 >
                   {restaurants.map(r => {
-                    const displayRestName = (lang === 'ar' ? RESTAURANT_NAMES_MAP[r.name] || r.name : r.name);
+                    const displayRestName = RESTAURANT_NAMES_MAP[r.name] || r.name;
                     const isSelected = selectedRestId === r.id;
                     return (
                       <button
@@ -2022,7 +1990,7 @@ const handleFileParse = async (fileToParse?: File) => {
                   >
                     <span className="text-xl mb-1 text-orange-400 group-hover:scale-110 transition-transform">➕</span>
                     <span className="text-[11px] font-bold text-orange-400 group-hover:text-orange-300">
-                      {lang === 'ar' ? 'إضافة مطعم جديد...' : 'Add New Restaurant...'}
+                      {'إضافة مطعم جديد...'}
                     </span>
                   </button>
                 </div>
@@ -2034,22 +2002,22 @@ const handleFileParse = async (fileToParse?: File) => {
                       const val = e.target.value;
                       if (val === "NEW_STORE") {
                         handleScrollToRestaurantForm();
-                        triggerSuccess(lang === 'ar' ? 'نموذج المطعم مفعل بالأعلى!' : 'New restaurant form activated at the top!');
+                        triggerSuccess('نموذج المطعم مفعل بالأعلى!');
                       } else {
                         setSelectedRestId(val);
                       }
                     }}
                     className="flex-1 text-xs bg-slate-900 border border-slate-850 rounded-xl px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-bold"
                   >
-                    <option value="" disabled>{lang === 'ar' ? '-- اختر مطعماً --' : '-- Choose a restaurant --'}</option>
+                    <option value="" disabled>{'-- اختر مطعماً --'}</option>
                     {restaurants.map(r => {
-                      const displayRestName = (lang === 'ar' ? RESTAURANT_NAMES_MAP[r.name] || r.name : r.name);
+                      const displayRestName = RESTAURANT_NAMES_MAP[r.name] || r.name;
                       return (
                         <option key={r.id} value={r.id}>{displayRestName}</option>
                       );
                     })}
                     <option value="NEW_STORE" className="text-orange-400 font-bold">
-                      {lang === 'ar' ? '➕ إضافة مطعم جديد...' : '➕ Add New Store...'}
+                      {'➕ إضافة مطعم جديد...'}
                     </option>
                   </select>
 
@@ -2058,7 +2026,7 @@ const handleFileParse = async (fileToParse?: File) => {
                     onClick={handleScrollToRestaurantForm}
                     className="bg-[#f94c10] hover:bg-[#d83f0c] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5"
                   >
-                    <span>{lang === "ar" ? "اضافة مطعم جديد" : "Add Restaurant"}</span>
+                    <span>{"اضافة مطعم جديد"}</span>
                   </button>
                 </div>
               </div>
@@ -2066,23 +2034,19 @@ const handleFileParse = async (fileToParse?: File) => {
               {/* AI Custom prompt customInstructions input field */}
               <div className="z-10 relative bg-slate-950/40 border border-slate-800 rounded-2xl p-4 space-y-2">
                 <label className="block text-xs font-bold text-orange-400">
-                  {lang === "ar" ? "📝 توجيهات خاصة بالذكاء الاصطناعي (اختياري)" : "📝 Custom AI Prompt / Instructions (Optional)"}
+                  {"📝 توجيهات خاصة بالذكاء الاصطناعي (اختياري)"}
                 </label>
                 <textarea
                   value={customInstructions}
                   onChange={(e) => setCustomInstructions(e.target.value)}
                   placeholder={
-                    lang === "ar"
-                      ? "مثال: 'ترجم أسماء الوجبات فقط للغة العربية'، 'قم بزيادة كافة الأسعار بمعدل 15%'، أو 'استخرج الوجبات النباتية فحسب'..."
-                      : "e.g., 'Translate all item names to Arabic', 'Increase all prices by 15%', 'Only extract chicken dishes'..."
+                    "مثال: 'ترجم أسماء الوجبات فقط للغة العربية'، 'قم بزيادة كافة الأسعار بمعدل 15%'، أو 'استخرج الوجبات النباتية فحسب'..."
                   }
                   rows={2}
                   className="w-full text-xs bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all resize-none"
                 />
                 <p className="text-[10px] text-slate-400">
-                  {lang === "ar"
-                    ? "سيقوم نظام Gemini بتطبيق هذه التعليمات أثناء قراءة المنيو أو الكشف المرفوع أدناه."
-                    : "Gemini will apply these custom conditions when parsing your attached file below."}
+                  {"سيقوم نظام Gemini بتطبيق هذه التعليمات أثناء قراءة المنيو أو الكشف المرفوع أدناه."}
                 </p>
                 {selectedFile && !aiLoading && (
                   <button
@@ -2091,7 +2055,7 @@ const handleFileParse = async (fileToParse?: File) => {
                     className="mt-1 flex items-center gap-1.5 text-[11px] font-black tracking-wide text-orange-400 hover:text-orange-350 cursor-pointer transition-all uppercase"
                   >
                     <Sparkles size={13} className="animate-pulse text-orange-400" />
-                    <span>{lang === "ar" ? "إعادة تحليل الملف الحالي بالطلب الجديد" : "Re-run AI Analysis with New prompt"}</span>
+                    <span>{"إعادة تحليل الملف الحالي بالطلب الجديد"}</span>
                   </button>
                 )}
               </div>
@@ -2173,8 +2137,8 @@ const handleFileParse = async (fileToParse?: File) => {
                           <tr>
                             <th className="p-3 text-center w-12">Import?</th>
                             <th className="p-3">Item Details</th>
-                            <th className="p-3 w-24">Price</th>
-                            <th className="p-3 w-24">Category</th>
+                            <th className="p-3 w-24">السعر</th>
+                            <th className="p-3 w-28">الفئة</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-850">
@@ -2217,12 +2181,35 @@ const handleFileParse = async (fileToParse?: File) => {
                                     className="text-[11px] text-slate-400 bg-transparent border-b border-transparent focus:border-slate-700 outline-none w-full"
                                   />
                                   {item.sizes && item.sizes.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mt-1.5" dir="rtl">
+                                    <div className="flex flex-col gap-1 mt-2" dir="rtl">
+                                      <span className="text-[9px] text-slate-500 font-bold">الأحجام والأسعار:</span>
                                       {item.sizes.map((sz: any, szIdx: number) => (
-                                        <span key={szIdx} className="inline-flex items-center gap-1 bg-[#1e293b] text-slate-300 text-[9px] font-bold px-2 py-0.5 rounded border border-slate-800">
-                                          <span>{sz.name}:</span>
-                                          <span className="text-[#f94c10] font-mono">{sz.price} {t("egp")}</span>
-                                        </span>
+                                        <div key={szIdx} className="flex items-center gap-1.5 bg-[#1e293b] px-2 py-1 rounded border border-slate-800">
+                                          <input
+                                            type="text"
+                                            value={sz.name}
+                                            onChange={(e) => {
+                                              const copy = [...extractedItems];
+                                              copy[idx].sizes[szIdx].name = e.target.value;
+                                              setExtractedItems(copy);
+                                            }}
+                                            className="text-[10px] text-slate-300 font-bold bg-transparent outline-none w-16 border-b border-slate-700 focus:border-orange-500"
+                                          />
+                                          <span className="text-slate-600 text-[9px]">:</span>
+                                          <input
+                                            type="number"
+                                            value={sz.price}
+                                            onChange={(e) => {
+                                              const copy = [...extractedItems];
+                                              copy[idx].sizes[szIdx].price = Number(e.target.value) || 0;
+                                              // أقل سعر يبقى الـ price الرئيسي
+                                              copy[idx].price = Math.min(...copy[idx].sizes.map((s: any) => s.price));
+                                              setExtractedItems(copy);
+                                            }}
+                                            className="text-[10px] text-[#f94c10] font-mono font-bold bg-transparent outline-none w-14 border-b border-slate-700 focus:border-orange-500 text-center"
+                                          />
+                                          <span className="text-[9px] text-slate-500">ج</span>
+                                        </div>
                                       ))}
                                     </div>
                                   )}
@@ -2243,16 +2230,25 @@ const handleFileParse = async (fileToParse?: File) => {
                                   </div>
                                 </td>
                                 <td className="p-3">
-                                  <input
-                                    type="text"
-                                    value={item.category}
+                                  <select
+                                    value={item.category?.toLowerCase?.() || item.category}
                                     onChange={(e) => {
                                       const copy = [...extractedItems];
                                       copy[idx].category = e.target.value;
                                       setExtractedItems(copy);
                                     }}
-                                    className="px-1.5 py-1 bg-slate-900 border border-slate-800 rounded outline-none w-20 text-center font-semibold"
-                                  />
+                                    className="px-1.5 py-1 bg-slate-900 border border-slate-800 rounded outline-none text-[10px] font-bold text-slate-200 cursor-pointer"
+                                  >
+                                    <option value="burgers">🍔 برجر</option>
+                                    <option value="pizza">🍕 بيتزا</option>
+                                    <option value="salads">🥗 سلطات</option>
+                                    <option value="sushi">🍣 سوشي</option>
+                                    <option value="ramen">🍜 رامن</option>
+                                    <option value="dessert">🍦 حلويات</option>
+                                    <option value="sides">🍟 مقبلات</option>
+                                    <option value="drinks">🥤 مشروبات</option>
+                                    <option value="offers">🎁 عروض</option>
+                                  </select>
                                 </td>
                               </tr>
                             );
@@ -2336,7 +2332,7 @@ const handleFileParse = async (fileToParse?: File) => {
                                   });
                                   if (res.ok) {
                                     await onRefreshData();
-                                    triggerSuccess(lang === 'ar' ? 'تم تحديث فئة الوجبة فورا بنجاح!' : 'Dish category updated successfully!');
+                                    triggerSuccess('تم تحديث فئة الوجبة فورا بنجاح!');
                                   }
                                 } catch (err) {
                                   console.error("Update dish category failed:", err);
@@ -2346,7 +2342,7 @@ const handleFileParse = async (fileToParse?: File) => {
                             >
                               {categoriesList.filter(c => c.id !== 'all').map(cat => (
                                 <option key={cat.id} value={cat.id}>
-                                  {lang === 'ar' ? `${cat.nameAr} ${cat.icon}` : `${cat.name} ${cat.icon}`}
+                                  {`${cat.nameAr || cat.name} ${cat.icon}`}
                                 </option>
                               ))}
                             </select>
@@ -2376,18 +2372,18 @@ const handleFileParse = async (fileToParse?: File) => {
                                 className="fixed inset-0 z-30"
                                 onClick={() => setActiveDishDropdownId(null)}
                               />
-                              <div className={`absolute ${lang === 'ar' ? 'left-0' : 'right-0'} mt-1 z-45 bg-white border border-slate-150 rounded-xl shadow-xl w-32 p-1 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100`}>
+                              <div className={`absolute ${'left-0'} mt-1 z-45 bg-white border border-slate-150 rounded-xl shadow-xl w-32 p-1 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100`}>
                                 <button
                                   type="button"
                                   onClick={() => {
                                     setActiveDishDropdownId(null);
                                     setDeleteConfirmDishId(item.id);
                                   }}
-                                  className={`w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer ${lang === 'ar' ? 'flex-row-reverse text-right' : ''
+                                  className={`w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer ${'flex-row-reverse text-right'
                                     }`}
                                 >
                                   <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                  <span>{lang === 'ar' ? 'حذف الصنف' : 'Delete Dish'}</span>
+                                  <span>{'حذف الصنف'}</span>
                                 </button>
                               </div>
                             </>
@@ -2556,7 +2552,7 @@ const handleFileParse = async (fileToParse?: File) => {
                             >
                               <option value="">-- اختر كابتن توصيل معتمد --</option>
                               {currentAdmin && (
-                                <option value={JSON.stringify({ name: `${currentAdmin.name} (آدمن)`, phone: currentAdmin.phone || '01095452533' })}>
+                                <option value={JSON.stringify({ name: `${currentAdmin.name} (آدمن)`, phone: currentAdmin.phone || '01016789012' })}>
                                   👑 نفسي ({currentAdmin.name} - الآدمن الحالي)
                                 </option>
                               )}
@@ -2975,7 +2971,7 @@ const handleFileParse = async (fileToParse?: File) => {
                     onChange={(e) => setWhatsappNumberSetting(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2 text-xs font-medium outline-none text-slate-800"
                   />
-                  <p className="text-[10px] text-slate-400">{isAr ? "مثال: 201095452533 (مع كود الدولة وبدون علامة +)" : "e.g., 201095452533 (with country code, no +)"}</p>
+                  <p className="text-[10px] text-slate-400">{isAr ? "مثال: 201016789012 (مع كود الدولة وبدون علامة +)" : "e.g., 201016789012 (with country code, no +)"}</p>
                 </div>
 
                 <div className="space-y-1.5">
@@ -3015,19 +3011,17 @@ const handleFileParse = async (fileToParse?: File) => {
       {/* Delete Confirm Modals */}
       {deleteConfirmRestId && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-105" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-105" dir={'rtl'}>
             <div className="flex items-center gap-3 text-red-600">
               <div className="bg-red-50 p-2.5 rounded-2xl">
                 <Trash2 className="h-6 w-6" />
               </div>
               <h3 className="font-extrabold text-sm sm:text-base text-slate-805">
-                {lang === 'ar' ? 'تأكيد إزالة المطعم' : 'Confirm Store Deletion'}
+                {'تأكيد إزالة المطعم'}
               </h3>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              {lang === 'ar'
-                ? 'هل أنت متأكد من حذف هذا المطعم نهائيًا من التطبيق؟ سيتم حذف جميع الأكلات وقوائم الطعام التابعة له ولا يمكن التراجع عن هذا الإجراء.'
-                : 'Are you sure you want to permanently delete this restaurant? This will remove all menu items associated with it and cannot be undone.'}
+              {'هل أنت متأكد من حذف هذا المطعم نهائيًا من التطبيق؟ سيتم حذف جميع الأكلات وقوائم الطعام التابعة له ولا يمكن التراجع عن هذا الإجراء.'}
             </p>
             <div className="flex gap-2 pt-2">
               <button
@@ -3038,14 +3032,14 @@ const handleFileParse = async (fileToParse?: File) => {
                 }}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm cursor-pointer shadow-sm transition-all"
               >
-                {lang === 'ar' ? 'نعم، احذف ⚠️' : 'Yes, Delete'}
+                {'نعم، احذف ⚠️'}
               </button>
               <button
                 type="button"
                 onClick={() => setDeleteConfirmRestId(null)}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs sm:text-sm cursor-pointer transition-all"
               >
-                {lang === 'ar' ? 'تراجع' : 'Cancel'}
+                {'تراجع'}
               </button>
             </div>
           </div>
@@ -3054,19 +3048,17 @@ const handleFileParse = async (fileToParse?: File) => {
 
       {deleteConfirmDishId && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-105" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-105" dir={'rtl'}>
             <div className="flex items-center gap-3 text-red-600">
               <div className="bg-red-50 p-2.5 rounded-2xl">
                 <Trash2 className="h-6 w-6" />
               </div>
               <h3 className="font-extrabold text-sm sm:text-base text-slate-805">
-                {lang === 'ar' ? 'تأكيد حذف الصنف' : 'Confirm Dish Deletion'}
+                {'تأكيد حذف الصنف'}
               </h3>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              {lang === 'ar'
-                ? 'هل أنت متأكد من رغبتك في حذف هذا الصنف من قائمة الطعام؟ هذا الإجراء فوري وسينعكس فورًا عند جميع المستخدمين.'
-                : 'Are you sure you want to delete this menu item? This action is immediate and will reflect across all client devices.'}
+              {'هل أنت متأكد من رغبتك في حذف هذا الصنف من قائمة الطعام؟ هذا الإجراء فوري وسينعكس فورًا عند جميع المستخدمين.'}
             </p>
             <div className="flex gap-2 pt-2">
               <button
@@ -3083,9 +3075,7 @@ const handleFileParse = async (fileToParse?: File) => {
                       });
                       if (res.ok) {
                         await onRefreshData();
-                        const successMsg = lang === 'ar'
-                          ? `تم إزالة "${itemToDelete.name}" بنجاح!`
-                          : `Removed ${itemToDelete.name} successfully!`;
+                        const successMsg = `تم إزالة "${itemToDelete.name}" بنجاح!`;
                         triggerSuccess(successMsg);
                       }
                     } catch (err) {
@@ -3096,14 +3086,14 @@ const handleFileParse = async (fileToParse?: File) => {
                 }}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm cursor-pointer shadow-sm transition-all"
               >
-                {lang === 'ar' ? 'نعم، احذف ⚠️' : 'Yes, Delete'}
+                {'نعم، احذف ⚠️'}
               </button>
               <button
                 type="button"
                 onClick={() => setDeleteConfirmDishId(null)}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs sm:text-sm cursor-pointer transition-all"
               >
-                {lang === 'ar' ? 'تراجع' : 'Cancel'}
+                {'تراجع'}
               </button>
             </div>
           </div>
