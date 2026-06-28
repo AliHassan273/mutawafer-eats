@@ -308,12 +308,6 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
     }
   };
 
-  const handleOpenRestaurant = (restaurant: Restaurant) => {
-    setSelectedRestaurant(restaurant);
-    setActiveView('restaurant');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   const handleAddToCart = (item: MenuItem, restaurantInstance: any, selectedSize?: any) => {
     setCart((prevCart) => {
       // Find matches where both itemId matches, and selectedSize is identical
