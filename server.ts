@@ -539,8 +539,17 @@ app.put("/api/orders/:id/status", authenticateToken, async (req, res) => {
 });
 
 // ── Restaurants ───────────────────────────────────────────────
+// server.ts
+
 app.get("/api/restaurants", async (_req, res) => {
-  res.json(await restaurants.all());
+  const restList = await restaurants.all();
+  // تطبيع كل مطعم
+  const normalized = restList.map((r: any) => ({
+    ...r,
+    menu: Array.isArray(r.menu) ? r.menu : [],
+    categories: Array.isArray(r.categories) ? r.categories : [],
+  }));
+  res.json(normalized);
 });
 
 app.post("/api/restaurants", authenticateToken, canManageRestaurants, async (req, res) => {
@@ -549,11 +558,19 @@ app.post("/api/restaurants", authenticateToken, canManageRestaurants, async (req
   res.status(201).json(newRest);
 });
 
+// server.ts
+
 app.put("/api/restaurants/:id", authenticateToken, canManageRestaurants, async (req, res) => {
   const { id } = req.params;
   const existing: any = await restaurants.get(id);
   if (!existing) return res.status(404).json({ error: "Restaurant not found" });
-  const updated = { ...existing, ...req.body, id };
+
+  const updated = {
+    ...existing,
+    ...req.body,
+    id,
+    menu: Array.isArray(req.body.menu) ? req.body.menu : (existing.menu || []),
+  };
   await restaurants.set(id, updated);
   res.json(updated);
 });

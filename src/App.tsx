@@ -216,9 +216,14 @@ const loadInitialData = async () => {
     if (res.ok) {
       const data = await res.json();
       if (data && data.length > 0) {
-        setRestaurants(data);
+        // ✅ تطبيع البيانات: تأكد من أن menu و categories مصفوفات
+        const normalized = data.map((rest: any) => ({
+          ...rest,
+          menu: Array.isArray(rest.menu) ? rest.menu : [],
+          categories: Array.isArray(rest.categories) ? rest.categories : [],
+        }));
+        setRestaurants(normalized);
       } else {
-        // إذا لم تكن هناك مطاعم في قاعدة البيانات، استخدم الـ default
         setRestaurants(RESTAURANTS);
       }
     } else {
@@ -230,6 +235,7 @@ const loadInitialData = async () => {
   } finally {
     setLoadingRestaurants(false);
   }
+
 
   try {
     // 2. Fetch Settings

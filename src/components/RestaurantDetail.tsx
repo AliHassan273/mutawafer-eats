@@ -1,3 +1,4 @@
+// RestaurantDetail.tsx
 import React, { useState } from 'react';
 import { ArrowLeft, Star, Clock, Truck, Plus, Minus, Search, Edit, Trash2, Sparkles } from 'lucide-react';
 import { Restaurant, MenuItem, CartItem, Review } from '../types';
@@ -90,6 +91,9 @@ export default function RestaurantDetail({
   onRefreshData,
   reviews,
 }: RestaurantDetailProps) {
+  // ✅ تأكد من أن المنيو مصفوفة دائماً
+  const menuItems = restaurant.menu || [];
+
   const [selectedSubCategory, setSelectedSubCategory] = useState('All');
   const [itemSearch, setItemSearch] = useState('');
 
@@ -131,7 +135,7 @@ export default function RestaurantDetail({
   const [isDishModalOpen, setIsDishModalOpen] = useState(false);
   const [editingDishId, setEditingDishId] = useState<string | null>(null);
   const [deleteConfirmDishId, setDeleteConfirmDishId] = useState<string | null>(null);
-  
+
   // Toast notifications state
   const [successToast, setSuccessToast] = useState("");
 
@@ -184,12 +188,12 @@ export default function RestaurantDetail({
   const handleSaveDish = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canModifyMenu) {
-      alert("عفوًا، لا تملك الصلاحية لتعديل محتوى المنيو.");
+      alert(isAr ? "عفوًا، لا تملك الصلاحية لتعديل محتوى المنيو." : "You don't have permission to modify menu.");
       return;
     }
 
     try {
-      let updatedMenu = [...restaurant.menu];
+      let updatedMenu = [...menuItems];
       const numericPrice = Number(dishForm.price) || 0;
       const numericOriginalPrice = dishForm.originalPrice ? Number(dishForm.originalPrice) : undefined;
 
@@ -200,16 +204,14 @@ export default function RestaurantDetail({
         originalPrice: numericOriginalPrice,
         category: dishForm.category.trim(),
         image: dishForm.image.trim() || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
-        sizes: dishForm.sizes
+        sizes: dishForm.sizes.map(s => ({ ...s, price: Number(s.price) || 0 }))
       };
 
       if (editingDishId) {
-        // Edit flow
-        updatedMenu = updatedMenu.map(d => 
+        updatedMenu = updatedMenu.map(d =>
           d.id === editingDishId ? { ...d, ...formattedDish } : d
         );
       } else {
-        // Create flow
         const newDish = {
           id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
           ...formattedDish
@@ -217,7 +219,6 @@ export default function RestaurantDetail({
         updatedMenu.push(newDish);
       }
 
-      // Commit changes over the PUT API
       const res = await fetch(`/api/restaurants/${restaurant.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -236,7 +237,7 @@ export default function RestaurantDetail({
       }
     } catch (err) {
       console.error(err);
-      alert("Error saving menu option.");
+      alert(isAr ? "حدث خطأ أثناء حفظ التعديلات." : "Error saving menu option.");
     }
   };
 
@@ -244,7 +245,7 @@ export default function RestaurantDetail({
     if (!canModifyMenu) return;
 
     try {
-      const updatedMenu = restaurant.menu.filter(d => d.id !== itemId);
+      const updatedMenu = menuItems.filter(d => d.id !== itemId);
 
       const res = await fetch(`/api/restaurants/${restaurant.id}`, {
         method: "PUT",
@@ -260,36 +261,35 @@ export default function RestaurantDetail({
         setSuccessToast(isAr ? "تم حذف الصنف بنجاح! ⚠️" : "Dish deleted successfully! ⚠️");
         setTimeout(() => setSuccessToast(""), 3000);
       } else {
-        alert("Failed to delete the selected product.");
+        alert(isAr ? "فشل حذف الصنف." : "Failed to delete the selected product.");
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  // Extract unique subcategories from the restaurant's menu
-  const menuCategories = ['All', ...Array.from(new Set(restaurant.menu.map(item => item.category)))];
+  // استخراج الفئات من المنيو
+  const menuCategories = ['All', ...Array.from(new Set(menuItems.map(item => item.category)))];
 
-  // Filter menu items by selected sub-category and search criteria
-  const filteredMenu = restaurant.menu.filter((item) => {
-    // Correct matchesCategory to check if 'All' or matches specific item category
+  // تصفية الأصناف
+  const filteredMenu = menuItems.filter((item) => {
     const matchesCategory = selectedSubCategory === 'All' || item.category === selectedSubCategory;
     const matchesSearch = item.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
-                          item.description.toLowerCase().includes(itemSearch.toLowerCase());
+                          (item.description && item.description.toLowerCase().includes(itemSearch.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
 
-  // Get current state of an item in the shopping cart
+  // دالة لمعرفة إذا كان الصنف في السلة
   const cartItemOf = (itemId: string, sizeId?: string) => {
-    return cart.find(c => 
-      c.menuItem.id === itemId && 
+    return cart.find(c =>
+      c.menuItem.id === itemId &&
       ((!sizeId && !c.selectedSize) || (c.selectedSize?.id === sizeId))
     );
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-6" dir={isAr ? 'rtl' : 'ltr'}>
-      
+
       {/* Back navigation button */}
       <button
         onClick={onBack}
@@ -304,8 +304,8 @@ export default function RestaurantDetail({
           <div className="flex items-center gap-2">
             <span className="p-1 px-2 bg-amber-100 rounded-lg text-amber-800 text-xs font-bold">🛠️ {isAr ? "تحرير القائمة" : "Menu Editor"}</span>
             <p className="text-xs font-bold text-slate-700 text-right sm:text-left">
-              {isAr 
-                ? `مرحباً يا معلم ${currentAdmin.name}! يمكنك تعديل الأصناف أو إضافة وجبات جديدة لهذا المطعم فورياً.` 
+              {isAr
+                ? `مرحباً يا معلم ${currentAdmin.name}! يمكنك تعديل الأصناف أو إضافة وجبات جديدة لهذا المطعم فورياً.`
                 : `Welcome ${currentAdmin.name}! You can modify existing items or add new dishes for this store.`}
             </p>
           </div>
@@ -333,7 +333,7 @@ export default function RestaurantDetail({
           <div>
             <h4 className="text-sm font-black text-slate-800">{isAr ? "عذراً، هذا المطعم مغلق حالياً ولا يستقبل طلبات جديدة! 🚫" : "Sorry, this restaurant is currently closed"}</h4>
             <p className="text-xs font-bold text-slate-500 mt-1 leading-normal">
-              {isAr 
+              {isAr
                 ? `المطعم خارج أوقات العمل الرسمية التي حددها الأدمن. نتشرف بخدمتكم اليوم خلال مواعيد العمل الرسمية: من ${restaurant.openTime} إلى ${restaurant.closeTime}.`
                 : `This store is currently offline outside corporate business hours: ${restaurant.openTime} to ${restaurant.closeTime}.`}
             </p>
@@ -344,14 +344,14 @@ export default function RestaurantDetail({
       {/* Restaurant Info Header Card */}
       <div className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-xs mb-8">
         <div className="relative h-48 sm:h-64 md:h-80 w-full bg-slate-100">
-          <img 
+          <img
             referrerPolicy="no-referrer"
-            src={restaurant.coverImage} 
-            alt={restaurant.name} 
+            src={restaurant.coverImage}
+            alt={restaurant.name}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-slate-900/10" />
-          
+
           <div className={`absolute bottom-6 ${isAr ? 'right-6 text-right' : 'left-6 text-left'} right-6 text-white`}>
             <h1 className="font-display font-black text-2xl sm:text-3xl md:text-4xl tracking-tight leading-tight">
               {restaurant.name}
@@ -434,7 +434,7 @@ export default function RestaurantDetail({
           <p className="text-slate-400 text-sm font-medium">
             {isAr ? 'ملقيناش أكلات مطابقة للبحث أو التثبيت.' : 'No menu items match your search or filter configuration.'}
           </p>
-          <button 
+          <button
             onClick={() => { setItemSearch(''); setSelectedSubCategory('All'); }}
             className="text-xs text-[#f94c10] font-bold mt-2 hover:underline cursor-pointer"
           >
@@ -448,20 +448,20 @@ export default function RestaurantDetail({
             const dishName = (LOCAL_DISH_STORE[lang] as any)?.[item.name] || item.name;
 
             return (
-              <div 
+              <div
                 key={item.id}
                 className="bg-white rounded-3xl p-4 border border-slate-100 flex gap-4 hover:shadow-xs transition-all relative overflow-hidden group"
               >
                 {/* Food Item Image */}
                 <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-2xl overflow-hidden bg-slate-50 shrink-0 relative">
-                  <img 
+                  <img
                     referrerPolicy="no-referrer"
-                    src={item.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80"} 
-                    alt={dishName} 
+                    src={item.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80"}
+                    alt={dishName}
                     className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
                     loading="lazy"
                   />
-                  
+
                   {/* Category Tag overlay */}
                   <span className={`absolute bottom-1 ${isAr ? 'right-1' : 'left-1'} bg-black/60 backdrop-blur-xxs text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase`}>
                     {(CATEGORIES_LABELS_MAP[lang] as any)?.[item.category] || item.category}
@@ -509,12 +509,12 @@ export default function RestaurantDetail({
                       <p className="text-[10px] font-black text-slate-550 mb-1" style={{ textAlign: isAr ? 'right' : 'left' }}>
                         {isAr ? "📐 الوحدات والأحجام المتوفرة:" : "📐 Available Units & Sizes:"}
                       </p>
-                   
+
                       {/* Prepend Base/Standard Unit if item has price */}
                       {item.price > 0 && (() => {
                         const addedForBase = cartItemOf(item.id);
                         return (
-                          <div 
+                          <div
                             className="flex items-center justify-between gap-2 bg-slate-50/70 p-1.5 px-2.5 rounded-xl border border-slate-100 hover:border-orange-100 transition-colors"
                           >
                             <div className="min-w-0" style={{ textAlign: isAr ? 'right' : 'left' }}>
@@ -566,7 +566,7 @@ export default function RestaurantDetail({
                                   <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
                                     {isAr ? 'مغلق' : 'Closed'}
                                   </span>
-                                   )
+                                )
                               )}
                             </div>
                           </div>
@@ -576,8 +576,8 @@ export default function RestaurantDetail({
                       {item.sizes.map((sz) => {
                         const addedForSize = cartItemOf(item.id, sz.id);
                         return (
-                          <div 
-                            key={sz.id} 
+                          <div
+                            key={sz.id}
                             className="flex items-center justify-between gap-2 bg-slate-50/70 p-1.5 px-2.5 rounded-xl border border-slate-100 hover:border-orange-100 transition-colors"
                           >
                             <div className="min-w-0" style={{ textAlign: isAr ? 'right' : 'left' }}>
@@ -706,8 +706,8 @@ export default function RestaurantDetail({
               <h3 className="font-display font-black text-sm sm:text-base text-slate-800 flex items-center gap-2">
                 <span className="p-1 px-1.5 bg-orange-100 rounded-lg text-[#f94c10]">🍔</span>
                 <span>
-                  {editingDishId 
-                    ? (isAr ? "تعديل بيانات وجبة قائمة الطعام" : "Edit Menu Item") 
+                  {editingDishId
+                    ? (isAr ? "تعديل بيانات وجبة قائمة الطعام" : "Edit Menu Item")
                     : (isAr ? "إضافة صنف وجبة جديد بالمنيو" : "Add New Menu Item")
                   }
                 </span>
@@ -715,227 +715,227 @@ export default function RestaurantDetail({
               <button
                 type="button"
                 onClick={() => setIsDishModalOpen(false)}
-                 className="text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer animate-none"
+                className="text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer animate-none"
               >
                 ✕
               </button>
             </div>
 
-             <form onSubmit={handleSaveDish} className="flex flex-col flex-grow min-h-0 overflow-hidden">
+            <form onSubmit={handleSaveDish} className="flex flex-col flex-grow min-h-0 overflow-hidden">
               {/* Scrollable inputs wrapper */}
               <div className="space-y-4 overflow-y-auto pr-1.5 pl-0.5 flex-grow pb-4 scrollbar-thin">
-              {/* Item Name */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-500">
-                  {isAr ? "اسم الوجبة بالصنف *" : "Dish Name *"}
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={dishForm.name}
-                  onChange={(e) => setDishForm({ ...dishForm, name: e.target.value })}
-                  placeholder={isAr ? "مثال: تشيكن رويال الأسطورية" : "e.g., Legendary Royal Chicken"}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
-                />
-              </div>
-
-              {/* Item Description */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-500">
-                  {isAr ? "المكونات ووصف الوجبة *" : "Description & Ingredients *"}
-                </label>
-                <textarea
-                  required
-                  value={dishForm.description}
-                  onChange={(e) => setDishForm({ ...dishForm, description: e.target.value })}
-                  placeholder={isAr ? "مثال: صدر دجاج مع طبقة جبنة فيلادلفيا، صوص رانش مدخن مع الخيار المخلل والتشيدر الذائبة..." : "Describe toppings, weights, etc."}
-                  rows={3}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all resize-none"
-                />
-              </div>
-
-              {/* Prices side by side */}
-              <div className="grid grid-cols-2 gap-4">
+                {/* Item Name */}
                 <div className="space-y-1">
                   <label className="block text-xs font-bold text-slate-500">
-                    {isAr ? "السعر الفعلي (بالجنيه) *" : "Active Price (EGP) *"}
+                    {isAr ? "اسم الوجبة بالصنف *" : "Dish Name *"}
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     required
-                    min="1"
-                    value={dishForm.price}
-                    onChange={(e) => setDishForm({ ...dishForm, price: e.target.value })}
+                    value={dishForm.name}
+                    onChange={(e) => setDishForm({ ...dishForm, name: e.target.value })}
+                    placeholder={isAr ? "مثال: تشيكن رويال الأسطورية" : "e.g., Legendary Royal Chicken"}
                     className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
                   />
                 </div>
+
+                {/* Item Description */}
                 <div className="space-y-1">
                   <label className="block text-xs font-bold text-slate-500">
-                    {isAr ? "السعر المشطوب (قبل الخصم)" : "Original Price (Strikeout)"}
+                    {isAr ? "المكونات ووصف الوجبة *" : "Description & Ingredients *"}
                   </label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder={isAr ? "اختياري" : "Optional"}
-                    value={dishForm.originalPrice}
-                    onChange={(e) => setDishForm({ ...dishForm, originalPrice: e.target.value })}
-                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
+                  <textarea
+                    required
+                    value={dishForm.description}
+                    onChange={(e) => setDishForm({ ...dishForm, description: e.target.value })}
+                    placeholder={isAr ? "مثال: صدر دجاج مع طبقة جبنة فيلادلفيا، صوص رانش مدخن مع الخيار المخلل والتشيدر الذائبة..." : "Describe toppings, weights, etc."}
+                    rows={3}
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all resize-none"
                   />
                 </div>
-              </div>
 
-              {/* Categories selection list */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-500">
-                  {isAr ? "فئة الطعام (القسم) *" : "Menu Category (Section) *"}
-                </label>
-                <select
-                  value={dishForm.category}
-                  onChange={(e) => setDishForm({ ...dishForm, category: e.target.value })}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-855 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
-                >
-                  <option value="Burgers">{isAr ? "برجر 🍔" : "Burgers"}</option>
-                  <option value="Pizza">{isAr ? "بيتزا 🍕" : "Pizza"}</option>
-                  <option value="Salads">{isAr ? "سلطات 🥗" : "Salads"}</option>
-                  <option value="Sushi">{isAr ? "سوشي 🍣" : "Sushi"}</option>
-                  <option value="Ramen">{isAr ? "رامين 🍜" : "Ramen"}</option>
-                  <option value="Dessert">{isAr ? "حلويات 🍰" : "Dessert"}</option>
-                  <option value="Sides">{isAr ? "المقبلات والجانبية 🍟" : "Sides"}</option>
-                  <option value="Drinks">{isAr ? "مشروبات فريش 🥤" : "Drinks"}</option>
-                </select>
-              </div>
-
-              {/* Dish Photo Image link */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-500">
-                  {isAr ? "صورة الوجبة (رابط ويب) *" : "Dish Web Photo Link *"}
-                </label>
-                <input
-                  type="url"
-                  required
-                  value={dishForm.image}
-                  onChange={(e) => setDishForm({ ...dishForm, image: e.target.value })}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
-                />
-                <p className="text-[9px] text-slate-400">
-                  {isAr 
-                    ? "يمكنك لصق رابط صورة جاهزة مباشرة لتمثيل الوجبة." 
-                    : "Paste any valid web URL of an image file."
-                  }
-                </p>
-              </div>
-
-              {/* Sizes / Units Management */}
-              <div className="space-y-2 border-t border-slate-100 pt-3">
-                <div className="flex justify-between items-center">
-                  <span className="block text-xs font-black text-slate-700">
-                    {isAr ? "📐 وحدات وأحجام الصنف المتوفرة" : "📐 Item Custom Portions/Sizes"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const sizeName = isAr ? "حجم جديد" : "New Size";
-                      setDishForm({
-                        ...dishForm,
-                        sizes: [
-                          ...dishForm.sizes,
-                          {
-                            id: `size_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-                            name: sizeName,
-                            price: Number(dishForm.price) || 100
-                          }
-                        ]
-                      });
-                    }}
-                   className="text-[10px] bg-orange-50 hover:bg-orange-100/80 text-[#f94c10] font-black px-2 py-1 rounded-lg border border-orange-100/50 cursor-pointer transition-all shrink-0"
-                  >
-                    {isAr ? "➕ إضافة حجم/وحدة" : "➕ Add Size"}
-                  </button>
+                {/* Prices side by side */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-500">
+                      {isAr ? "السعر الفعلي (بالجنيه) *" : "Active Price (EGP) *"}
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={dishForm.price}
+                      onChange={(e) => setDishForm({ ...dishForm, price: e.target.value })}
+                      className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-500">
+                      {isAr ? "السعر المشطوب (قبل الخصم)" : "Original Price (Strikeout)"}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder={isAr ? "اختياري" : "Optional"}
+                      value={dishForm.originalPrice}
+                      onChange={(e) => setDishForm({ ...dishForm, originalPrice: e.target.value })}
+                      className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
+                    />
+                  </div>
                 </div>
-                
-                {dishForm.sizes.length === 0 ? (
-                  <p className="text-[10px] text-slate-400 font-medium pb-1">
-                    {isAr 
-                      ? "لا توجد أحجام لهذا الصنف بعد. يتم استخدام السعر الرئيسي. (اضغط على إضافة حجم بالمنيو لتقسيمه)"
-                      : "No size variants added yet. Falls back to standard main price."
+
+                {/* Categories selection list */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-500">
+                    {isAr ? "فئة الطعام (القسم) *" : "Menu Category (Section) *"}
+                  </label>
+                  <select
+                    value={dishForm.category}
+                    onChange={(e) => setDishForm({ ...dishForm, category: e.target.value })}
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-855 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
+                  >
+                    <option value="Burgers">{isAr ? "برجر 🍔" : "Burgers"}</option>
+                    <option value="Pizza">{isAr ? "بيتزا 🍕" : "Pizza"}</option>
+                    <option value="Salads">{isAr ? "سلطات 🥗" : "Salads"}</option>
+                    <option value="Sushi">{isAr ? "سوشي 🍣" : "Sushi"}</option>
+                    <option value="Ramen">{isAr ? "رامين 🍜" : "Ramen"}</option>
+                    <option value="Dessert">{isAr ? "حلويات 🍰" : "Dessert"}</option>
+                    <option value="Sides">{isAr ? "المقبلات والجانبية 🍟" : "Sides"}</option>
+                    <option value="Drinks">{isAr ? "مشروبات فريش 🥤" : "Drinks"}</option>
+                  </select>
+                </div>
+
+                {/* Dish Photo Image link */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-500">
+                    {isAr ? "صورة الوجبة (رابط ويب) *" : "Dish Web Photo Link *"}
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    value={dishForm.image}
+                    onChange={(e) => setDishForm({ ...dishForm, image: e.target.value })}
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
+                  />
+                  <p className="text-[9px] text-slate-400">
+                    {isAr
+                      ? "يمكنك لصق رابط صورة جاهزة مباشرة لتمثيل الوجبة."
+                      : "Paste any valid web URL of an image file."
                     }
                   </p>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1 pb-1">
-                    {dishForm.sizes.map((sz, index) => (
-                      <div key={sz.id} className="grid grid-cols-12 gap-1.5 items-center bg-slate-50 p-2 rounded-xl border border-slate-100 relative">
-                        {/* Size Name inputs */}
-                        <div className="col-span-4">
-                          <input
-                            type="text"
-                            required
-                            placeholder={isAr ? "وسط / عائلي" : "e.g., Medium / Family"}
-                            value={sz.name}
-                            onChange={(e) => {
-                              const updated = [...dishForm.sizes];
-                              updated[index].name = e.target.value;
-                              setDishForm({ ...dishForm, sizes: updated });
-                            }}
-                            className="w-full text-[10.5px] bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 outline-none focus:border-[#f94c10]"
-                          />
-                        </div>
+                </div>
 
-                        {/* Size Price inputs */}
-                        <div className="col-span-3">
-                          <input
-                            type="number"
-                            required
-                            min="1"
-                            placeholder={isAr ? "سعر" : "Price"}
-                            value={sz.price || ''}
-                            onChange={(e) => {
-                              const updated = [...dishForm.sizes];
-                              updated[index].price = Number(e.target.value) || 0;
-                              setDishForm({ ...dishForm, sizes: updated });
-                            }}
-                            className="w-full text-[10.5px] bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 outline-none focus:border-[#f94c10]"
-                          />
-                        </div>
-
-                        {/* Optional strike price */}
-                        <div className="col-span-3">
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder={isAr ? "شطب" : "Strike"}
-                            value={sz.originalPrice || ''}
-                            onChange={(e) => {
-                              const updated = [...dishForm.sizes];
-                              updated[index].originalPrice = e.target.value ? Number(e.target.value) : undefined;
-                              setDishForm({ ...dishForm, sizes: updated });
-                            }}
-                            className="w-full text-[10.5px] bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 outline-none focus:border-[#f94c10]"
-                          />
-                        </div>
-
-                        {/* Delete single size button */}
-                        <div className="col-span-2 flex justify-center">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = dishForm.sizes.filter((_, idx) => idx !== index);
-                              setDishForm({ ...dishForm, sizes: updated });
-                            }}
-                            className="p-1 px-1.5 bg-red-50 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg cursor-pointer transition-colors text-[9px] font-bold"
-                            title={isAr ? "حذف" : "Delete"}
-                          >
-                            {isAr ? "حذف" : "Del"}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                {/* Sizes / Units Management - محسنة بالعربية */}
+                <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <div className="flex justify-between items-center">
+                    <span className="block text-xs font-black text-slate-700">
+                      {isAr ? "📐 وحدات وأحجام الصنف المتوفرة" : "📐 Item Custom Portions/Sizes"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sizeName = isAr ? "حجم جديد" : "New Size";
+                        setDishForm({
+                          ...dishForm,
+                          sizes: [
+                            ...dishForm.sizes,
+                            {
+                              id: `size_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+                              name: sizeName,
+                              price: Number(dishForm.price) || 100
+                            }
+                          ]
+                        });
+                      }}
+                      className="text-[10px] bg-orange-50 hover:bg-orange-100/80 text-[#f94c10] font-black px-2 py-1 rounded-lg border border-orange-100/50 cursor-pointer transition-all shrink-0"
+                    >
+                      {isAr ? "➕ إضافة حجم/وحدة" : "➕ Add Size"}
+                    </button>
                   </div>
-                )}
-                 </div>
+
+                  {dishForm.sizes.length === 0 ? (
+                    <p className="text-[10px] text-slate-400 font-medium pb-1">
+                      {isAr
+                        ? "لا توجد أحجام لهذا الصنف بعد. يتم استخدام السعر الرئيسي. (اضغط على إضافة حجم بالمنيو لتقسيمه)"
+                        : "No size variants added yet. Falls back to standard main price."
+                      }
+                    </p>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1 pb-1">
+                      {dishForm.sizes.map((sz, index) => (
+                        <div key={sz.id} className="grid grid-cols-12 gap-1.5 items-center bg-slate-50 p-2 rounded-xl border border-slate-100 relative">
+                          {/* Size Name inputs */}
+                          <div className="col-span-4">
+                            <input
+                              type="text"
+                              required
+                              placeholder={isAr ? "وسط / عائلي" : "e.g., Medium / Family"}
+                              value={sz.name}
+                              onChange={(e) => {
+                                const updated = [...dishForm.sizes];
+                                updated[index].name = e.target.value;
+                                setDishForm({ ...dishForm, sizes: updated });
+                              }}
+                              className="w-full text-[10.5px] bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 outline-none focus:border-[#f94c10]"
+                            />
+                          </div>
+
+                          {/* Size Price inputs */}
+                          <div className="col-span-3">
+                            <input
+                              type="number"
+                              required
+                              min="1"
+                              placeholder={isAr ? "سعر" : "Price"}
+                              value={sz.price || ''}
+                              onChange={(e) => {
+                                const updated = [...dishForm.sizes];
+                                updated[index].price = Number(e.target.value) || 0;
+                                setDishForm({ ...dishForm, sizes: updated });
+                              }}
+                              className="w-full text-[10.5px] bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 outline-none focus:border-[#f94c10]"
+                            />
+                          </div>
+
+                          {/* Optional strike price */}
+                          <div className="col-span-3">
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder={isAr ? "شطب" : "Strike"}
+                              value={sz.originalPrice || ''}
+                              onChange={(e) => {
+                                const updated = [...dishForm.sizes];
+                                updated[index].originalPrice = e.target.value ? Number(e.target.value) : undefined;
+                                setDishForm({ ...dishForm, sizes: updated });
+                              }}
+                              className="w-full text-[10.5px] bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 outline-none focus:border-[#f94c10]"
+                            />
+                          </div>
+
+                          {/* Delete single size button */}
+                          <div className="col-span-2 flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = dishForm.sizes.filter((_, idx) => idx !== index);
+                                setDishForm({ ...dishForm, sizes: updated });
+                              }}
+                              className="p-1 px-1.5 bg-red-50 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg cursor-pointer transition-colors text-[9px] font-bold"
+                              title={isAr ? "حذف" : "Delete"}
+                            >
+                              {isAr ? "حذف" : "Del"}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Submit / Cancel Buttons */}
-               <div className="flex gap-2 pt-3 border-t border-slate-100 shrink-0">
+              <div className="flex gap-2 pt-3 border-t border-slate-100 shrink-0">
                 <button
                   type="submit"
                   className="flex-1 bg-[#f94c10] hover:bg-[#e03d08] text-white font-extrabold py-2.5 rounded-xl text-xs sm:text-sm cursor-pointer transition-all shadow-sm"
@@ -970,8 +970,8 @@ export default function RestaurantDetail({
               </h3>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed text-right sm:text-left">
-              {isAr 
-                ? 'هل أنت متأكد من رغبتك في حذف هذا الصنف من قائمة الطعام؟ هذا الإجراء فوري وسينعكس فورًا عند جميع المستخدمين.' 
+              {isAr
+                ? 'هل أنت متأكد من رغبتك في حذف هذا الصنف من قائمة الطعام؟ هذا الإجراء فوري وسينعكس فورًا عند جميع المستخدمين.'
                 : 'Are you sure you want to delete this menu item? This action is immediate and will reflect across all client devices.'}
             </p>
             <div className="flex gap-2 pt-2">
