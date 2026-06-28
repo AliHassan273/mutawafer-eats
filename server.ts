@@ -712,33 +712,34 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { "User-Agent": "aistudio-build" } } });
 
-    const prompt = `أنت مساعد متخصص في استخراج قوائم طعام المطاعم لتطبيق مسافر إيتس.
+    const prompt = `أنت مساعد متخصص في قراءة صور وملفات قوائم طعام المطاعم واستخراجها لتطبيق مسافر إيتس.
 
-## القواعد الإلزامية:
+## قواعد اللغة — إلزامية:
+- name و description بالعربية حصراً.
+- أي اسم إنجليزي يُترجم فوراً: Crispy Chicken = دجاج مقرمش، Pizza Margherita = بيتزا مارجريتا.
+- ممنوع أي حرف إنجليزي في name أو description.
 
-### اللغة — إلزامي:
-- جميع قيم name و description يجب أن تكون باللغة العربية حصراً بدون استثناء.
-- إذا كان الاسم إنجليزياً مثل Crispy Chicken Burger اكتبه: برجر الدجاج المقرمش.
-- إذا كان Large Pepsi اكتبه: بيبسي كبير. ممنوع أي كلمة إنجليزية في name أو description.
+## قواعد الأحجام — إلزامية:
+- كثير من المناطق في المنيو تحتوي على جداول فيها أعمدة للأحجام مثل: ص/و/ك أو صغير/وسط/كبير أو S/M/L أو فردي/عائلي.
+- إذا رأيت صنفاً بأكثر من سعر (سواء في أعمدة أو صفوف متعددة)، اجمعها في صنف واحد مع sizes array.
+- sizes تحتوي على كل حجم واسمه وسعره.
+- price الرئيسي = أقل سعر في الأحجام.
+- ممنوع تكرار نفس الصنف كعناصر منفصلة — صنف واحد يضم كل أحجامه.
+- إذا الصنف بسعر واحد فقط، sizes تكون array فارغة [].
 
-### الأحجام — إلزامي:
-- إذا وجدت نفس الصنف بأحجام مختلفة (صغير/وسط/كبير أو فردي/عائلي أو S/M/L) اجمعها في صنف واحد.
-- استخدم حقل sizes كـ array فيه كل الأحجام [{name, price}].
-- الـ price الرئيسي = أقل سعر بين الأحجام.
-- ممنوع تكرار نفس الصنف كعناصر منفصلة بسبب الحجم.
+## مثال على جدول بأحجام (ص=صغير، و=وسط، ك=كبير):
+المنيو يقول: ميكس السوري | ص:170 | و:190 | ك:210
+الناتج الصح:
+{"name":"بيتزا ميكس السوري","description":"بيتزا إيطالية بمكس السوري الشهي","price":170,"category":"Pizza","sizes":[{"name":"صغير","price":170},{"name":"وسط","price":190},{"name":"كبير","price":210}]}
 
-### أمثلة:
-إذا في المنيو برجر صغير 30ج وبرجر كبير 50ج:
-{"name":"برجر","description":"برجر شهي طازج","price":30,"category":"Burgers","sizes":[{"name":"صغير","price":30},{"name":"كبير","price":50}]}
+## مثال على صنف بسعر واحد:
+{"name":"بطاطس","description":"بطاطس مقلية مقرمشة","price":70,"category":"Sides","sizes":[]}
 
-إذا صنف بدون أحجام:
-{"name":"بيتزا مارجريتا","description":"بيتزا إيطالية بصوص الطماطم والجبن","price":65,"category":"Pizza","sizes":[]}
-
-### الفئات المتاحة: Burgers, Pizza, Salads, Sushi, Ramen, Dessert, Sides, Drinks, Offers
+## الفئات المتاحة: Burgers, Pizza, Salads, Sushi, Ramen, Dessert, Sides, Drinks, Offers
 
 أخرج JSON array فقط بدون أي نص أو markdown.`;
     const finalPrompt = customInstructions?.trim()
-      ? `${prompt}\n\nAdditional instructions: "${customInstructions.trim()}"`
+      ? `${prompt}\n\n## تعليمات إضافية من المستخدم:\n${customInstructions.trim()}`
       : prompt;
 
     const callWithRetry = async (params: any, retries = 4, delayMs = 1500) => {
@@ -808,9 +809,13 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
       }
 
       response = await callWithRetry({
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         contents: { parts: [{ text: `Here is the CSV/sheet content:\n\`\`\`csv\n${spreadsheetContent}\n\`\`\`` }, { text: finalPrompt }] },
-        config: { responseMimeType: "application/json", responseSchema: schema },
+        config: {
+          systemInstruction: "أنت مساعد يستخرج قوائم الطعام. اللغة العربية إلزامية. الأحجام المختلفة تُجمع في صنف واحد مع sizes array.",
+          responseMimeType: "application/json",
+          responseSchema: schema,
+        },
       });
     } else {
       const supported = ["image/png","image/jpeg","image/webp","image/heic","image/heif","image/gif","application/pdf","text/plain","text/csv","text/html"];
@@ -824,9 +829,13 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
       }
 
       response = await callWithRetry({
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         contents: { parts: [{ inlineData: { data: fileData, mimeType: finalMimeType } }, { text: finalPrompt }] },
-        config: { responseMimeType: "application/json", responseSchema: schema },
+        config: {
+          systemInstruction: "أنت مساعد يستخرج قوائم الطعام. اللغة العربية إلزامية. الأحجام المختلفة تُجمع في صنف واحد مع sizes array.",
+          responseMimeType: "application/json",
+          responseSchema: schema,
+        },
       });
     }
 
