@@ -7,13 +7,13 @@ import * as XLSX from "xlsx";
 import crypto from "crypto";
 import {
   admins, users, restaurants, orders, reviews,
-  settings, setSetting, getSetting
+  settings
 } from "./src/db.ts";
 import {
   hashPassword, comparePassword,
   authenticateToken, isPrimaryAdmin,
   canManageRestaurants, canManageMenu,
-  generateToken   // ✅ دالة مركزية جديدة بدل تكرار jwt.sign
+  generateToken
 } from "./src/auth";
 import { initDB } from "./src/db.ts";
 
@@ -28,7 +28,7 @@ declare global {
 console.log(process.env.TURSO_DATABASE_URL);
 
 const app  = express();
-const PORT = Number(process.env.PORT) || 3001;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.set("trust proxy", 1);
 
@@ -153,9 +153,8 @@ app.use((req, res, next) => {
 // 🏭  INITIALIZE DEFAULT DATA
 // ────────────────────────────────────────────────────────────
 (async function init() {
-  await initDB(); // أو await initTables();
+  await initDB();
 
-  // ✅ أنشئ الأدمن الافتراضي بس لو مش موجود — لا تـ overwrite البيانات الموجودة
   const existingAdmin = await admins.get("admin_primary");
   if (!existingAdmin) {
     await admins.set("admin_primary", {
@@ -184,7 +183,7 @@ async function getSettings() {
       whatsappNumber: "201095452533", deliveryPricingType: "area",
       distanceBaseFee: 10, distanceFeePerKm: 5,
       deliveryCommissionType: "flat", deliveryCommissionValue: 15,
-      aboutUsContent: "تطبيق مسافر...", deliveryOptions: [], coupons: [], categories: [],
+      aboutUsContent: "تطبيق متوفر إيتس هو المنصة الرائدة لتوصيل الطعام الفاخر والوجبات الطازجة بأقصى سرعة واحترافية.", deliveryOptions: [], coupons: [], categories: [],
     };
     await settings.set("main", defaults);
     return defaults;
@@ -195,21 +194,13 @@ async function getSettings() {
 // ============================================================
 // 🧾  حساب سعر الطلب server-side
 // ============================================================
-// ❌ المشكلة القديمة:
-//    const order = req.body;
-//    orders.set(order.id, order);
-//    → المستخدم يبعت totalAmount=0 ويشتري مجاناً!
-//
-// ✅ الحل: السيرفر يحسب السعر بنفسه من بيانات المطاعم المحفوظة
-//    ولا يثق بأي سعر يجي من الـ frontend.
-// ============================================================
 async function calculateOrderTotal(
   items: Array<{ menuItem: { id: string }; quantity: number }>,
   restaurantId: string,
   deliveryFee: number
 ): Promise<{ subtotal: number; total: number; validatedItems: any[] } | null> {
 
-  const restaurant: any = await restaurants.get(restaurantId); // ✅ await
+  const restaurant: any = await restaurants.get(restaurantId);
   if (!restaurant) return null;
 
   const menu: any[] = restaurant.menu || [];
@@ -219,7 +210,6 @@ async function calculateOrderTotal(
   for (const cartItem of items) {
     const menuItem = menu.find((m: any) => m.id === cartItem.menuItem.id);
     if (!menuItem) {
-      // صنف غير موجود في المطعم — نرفض الطلب كله
       return null;
     }
     const qty = Math.max(1, Math.floor(cartItem.quantity));
@@ -247,26 +237,18 @@ app.put("/api/settings", authenticateToken, isPrimaryAdmin, async (req, res) => 
 
 // ── Admins ───────────────────────────────────────────────────
 app.get("/api/admins", authenticateToken, isPrimaryAdmin, async (_req, res) => {
-  // ✅ لا نرسل الـ password في القائمة
   const safeAdmins = (await admins.all()).map(({ password, ...rest }: any) => rest);
   res.json(safeAdmins);
 });
 
-// server.ts - داخل route PUT /api/admins
-
 app.put("/api/admins", authenticateToken, isPrimaryAdmin, async (req, res) => {
   const adminsList: any[] = req.body;
 
-  // 1. الحصول على قائمة الأدمن الحالية من قاعدة البيانات
   const currentAdmins = await admins.all();
-
-  // 2. استخراج معرفات الأدمن المطلوب الاحتفاظ بها
   const idsToKeep = new Set(adminsList.map(a => a.id).filter(Boolean));
 
-  // 3. حذف الأدمن الموجودين حالياً ولكن غير موجودين في القائمة الجديدة
   for (const existing of currentAdmins) {
     if (!idsToKeep.has(existing.id)) {
-      // لا تسمح بحذف الأدمن الأساسي
       if (existing.role === 'primary') {
         console.warn(`⛔️ Cannot delete primary admin: ${existing.id}`);
         continue;
@@ -276,18 +258,15 @@ app.put("/api/admins", authenticateToken, isPrimaryAdmin, async (req, res) => {
     }
   }
 
-  // 4. تحديث أو إدراج الأدمن الموجودين في القائمة الجديدة
   for (const admin of adminsList) {
     if (!admin.id) continue;
 
     const existing = await admins.get(admin.id);
     if (!existing) {
-      // أدمن جديد – تشفير كلمة المرور
       const hashedPassword = admin.password
         ? await hashPassword(admin.password)
         : await hashPassword("123456");
 
-      // تحويل الصلاحيات من boolean إلى 0/1
       await admins.set(admin.id, {
         id: admin.id,
         name: admin.name,
@@ -299,7 +278,6 @@ app.put("/api/admins", authenticateToken, isPrimaryAdmin, async (req, res) => {
         canUseAIScanner: admin.canUseAIScanner ? 1 : 0,
       });
     } else {
-      // أدمن موجود – تحديث البيانات مع الاحتفاظ بكلمة المرور القديمة
       const updated = {
         ...existing,
         name: admin.name || existing.name,
@@ -308,7 +286,7 @@ app.put("/api/admins", authenticateToken, isPrimaryAdmin, async (req, res) => {
         canManageRestaurants: admin.canManageRestaurants !== undefined ? (admin.canManageRestaurants ? 1 : 0) : existing.canManageRestaurants,
         canManageMenu: admin.canManageMenu !== undefined ? (admin.canManageMenu ? 1 : 0) : existing.canManageMenu,
         canUseAIScanner: admin.canUseAIScanner !== undefined ? (admin.canUseAIScanner ? 1 : 0) : existing.canUseAIScanner,
-        password: existing.password, // الاحتفاظ بالكلمة القديمة
+        password: existing.password,
       };
       await admins.set(admin.id, updated);
     }
@@ -316,10 +294,11 @@ app.put("/api/admins", authenticateToken, isPrimaryAdmin, async (req, res) => {
 
   res.json({ success: true });
 });
+
 // ── Admin Login ───────────────────────────────────────────────
 app.post("/api/admins/login", async (req, res) => {
   const { email, password } = req.body;
-    if (!email || !password)
+  if (!email || !password)
     return res.status(400).json({ error: "البريد والرقم السري مطلوبان" });
   console.log('[Login] Attempt for:', email);
 
@@ -338,19 +317,27 @@ app.post("/api/admins/login", async (req, res) => {
   }
 
   const token = generateToken({
-  id: found.id,
-  email: found.email,
-  role: found.role,
-  canManageRestaurants: found.canManageRestaurants === 1 || found.canManageRestaurants === true,
-  canManageMenu: found.canManageMenu === 1 || found.canManageMenu === true,
-  canUseAIScanner: found.canUseAIScanner === 1 || found.canUseAIScanner === true,
-});
+    id: found.id,
+    email: found.email,
+    role: found.role,
+    canManageRestaurants: found.canManageRestaurants === 1 || found.canManageRestaurants === true,
+    canManageMenu: found.canManageMenu === 1 || found.canManageMenu === true,
+    canUseAIScanner: found.canUseAIScanner === 1 || found.canUseAIScanner === true,
+  });
 
   console.log('[Login] Token generated successfully');
   res.json({
     success: true,
     token,
-    admin: { id: found.id, name: found.name, email: found.email, role: found.role }
+    admin: {
+      id: found.id,
+      name: found.name,
+      email: found.email,
+      role: found.role,
+      canManageRestaurants: found.canManageRestaurants === 1 || found.canManageRestaurants === true,
+      canManageMenu: found.canManageMenu === 1 || found.canManageMenu === true,
+      canUseAIScanner: found.canUseAIScanner === 1 || found.canUseAIScanner === true
+    }
   });
 });
 
@@ -371,12 +358,22 @@ app.post("/api/admins/register", authenticateToken, isPrimaryAdmin, async (req, 
     canManageRestaurants: 1, canManageMenu: 1, canUseAIScanner: 1,
   };
   await admins.set(newAdmin.id, newAdmin);
-  res.status(201).json({ success: true, admin: { id: newAdmin.id, name: newAdmin.name, email: newAdmin.email } });
+  res.status(201).json({
+    success: true,
+    admin: {
+      id: newAdmin.id,
+      name: newAdmin.name,
+      email: newAdmin.email,
+      role: newAdmin.role,
+      canManageRestaurants: true,
+      canManageMenu: true,
+      canUseAIScanner: true
+    }
+  });
 });
 
 // ── Users ─────────────────────────────────────────────────────
 app.get("/api/users", authenticateToken, async (_req, res) => {
-  // ✅ لا نرسل الـ password hash للمستخدمين
   const safeUsers = (await users.all()).map(({ password, ...rest }: any) => rest);
   res.json(safeUsers);
 });
@@ -400,7 +397,6 @@ app.post("/api/users/register", async (req, res) => {
   };
   await users.set(newUser.id, newUser);
 
-  // ✅ لا نرسل الـ password في الـ response
   res.status(201).json({
     success: true,
     user: { id: newUser.id, name: newUser.name, email: newUser.email, phone: newUser.phone, role: newUser.role, status: newUser.status }
@@ -418,10 +414,8 @@ app.post("/api/users/login", async (req, res) => {
   const isMatch = await comparePassword(password, found.password);
   if (!isMatch) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
 
-  // ✅ استخدام generateToken المركزي
   const token = generateToken({ id: found.id, phone: found.phone, role: found.role || "customer" });
 
-  // ✅ لا نرسل الـ password مطلقاً
   res.json({
     success: true,
     token,
@@ -432,7 +426,7 @@ app.post("/api/users/login", async (req, res) => {
 // ── Captains ──────────────────────────────────────────────────
 app.get("/api/captains", authenticateToken, isPrimaryAdmin, async (_req, res) => {
   const captains = (await users.all()).filter((u: any) => u.role === "captain")
-    .map(({ password, ...rest }: any) => rest); // ✅ بدون password
+    .map(({ password, ...rest }: any) => rest);
   res.json(captains);
 });
 
@@ -462,24 +456,9 @@ app.get("/api/orders", authenticateToken, async (req, res) => {
   res.json(allOrders.filter((o: any) => o.userId === req.user?.id));
 });
 
-// ============================================================
-// ✅ POST /api/orders — مع حساب الأسعار server-side
-// ============================================================
-// ❌ الكود القديم (سطر 109 في server.ts الأصلي):
-//    app.post("/api/orders", orderLimiter);
-//    ← كان route فارغ مكرر — حُذف الآن
-//
-// ❌ الكود القديم (سطر 467):
-//    const order = req.body;
-//    orders.set(order.id, order);
-//    ← السيرفر يثق بكل حاجة جاية من الـ client!
-//
-// ✅ الآن: السيرفر يحسب السعر بنفسه ولا يقبل totalAmount من الـ client
-// ============================================================
 app.post("/api/orders", authenticateToken, orderLimiter, async (req, res) => {
   const body = req.body;
 
-  // 1. التحقق من وجود الحقول الأساسية
   if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
     return res.status(400).json({ error: "الطلب يجب أن يحتوي على أصناف." });
   }
@@ -487,7 +466,6 @@ app.post("/api/orders", authenticateToken, orderLimiter, async (req, res) => {
     return res.status(400).json({ error: "معرّف المطعم مطلوب." });
   }
 
-  // 2. حساب السعر من الـ database (لا نثق بـ body.total أو body.subtotal)
   const deliveryFee = typeof body.deliveryFee === "number" ? body.deliveryFee : 0;
   const calculated  = await calculateOrderTotal(body.items, body.restaurantId, deliveryFee);
 
@@ -497,17 +475,16 @@ app.post("/api/orders", authenticateToken, orderLimiter, async (req, res) => {
     });
   }
 
-  // 3. بناء الطلب بالبيانات الموثوقة من الـ server
   const newOrder: any = {
     id:              crypto.randomUUID(),
-    userId:          req.user.id,           // من الـ JWT (موثوق)
+    userId:          req.user.id,
     restaurantId:    body.restaurantId,
     restaurant:      await restaurants.get(body.restaurantId),
     items:           calculated.validatedItems,
-    subtotal:        calculated.subtotal,   // ✅ محسوب server-side
+    subtotal:        calculated.subtotal,
     deliveryFee:     deliveryFee,
-    discount:        0,                     // TODO: تطبيق الكوبونات هنا لاحقاً
-    total:           calculated.total,      // ✅ محسوب server-side
+    discount:        0,
+    total:           calculated.total,
     status:          "Received",
     createdAt:       new Date().toISOString(),
     customerName:    body.customerName    || "",
@@ -539,11 +516,9 @@ app.put("/api/orders/:id/status", authenticateToken, async (req, res) => {
 });
 
 // ── Restaurants ───────────────────────────────────────────────
-// server.ts
-
 app.get("/api/restaurants", async (_req, res) => {
   const restList = await restaurants.all();
-  // تطبيع كل مطعم
+  // تطبيع البيانات: تأكد من أن menu و categories مصفوفات
   const normalized = restList.map((r: any) => ({
     ...r,
     menu: Array.isArray(r.menu) ? r.menu : [],
@@ -558,19 +533,13 @@ app.post("/api/restaurants", authenticateToken, canManageRestaurants, async (req
   res.status(201).json(newRest);
 });
 
-// server.ts
-
 app.put("/api/restaurants/:id", authenticateToken, canManageRestaurants, async (req, res) => {
   const { id } = req.params;
   const existing: any = await restaurants.get(id);
   if (!existing) return res.status(404).json({ error: "Restaurant not found" });
-
-  const updated = {
-    ...existing,
-    ...req.body,
-    id,
-    menu: Array.isArray(req.body.menu) ? req.body.menu : (existing.menu || []),
-  };
+  const updated = { ...existing, ...req.body, id };
+  // تأكد من أن menu مصفوفة
+  if (!Array.isArray(updated.menu)) updated.menu = [];
   await restaurants.set(id, updated);
   res.json(updated);
 });
@@ -610,8 +579,182 @@ app.post("/api/reviews", authenticateToken, async (req, res) => {
 // ────────────────────────────────────────────────────────────
 // 🤖  GEMINI / LOCAL PARSER
 // ────────────────────────────────────────────────────────────
-// (كود الـ parser لم يتغير — فقط نقلناه كما هو)
 
+// قائمة كلمات الأحجام (معطلة للبحث في النص)
+const sizeKeywords = [
+  // Arabic with "ال" prefix (long ones first)
+  { key: "الصغير جدا", id: "xsmall" },
+  { key: "الصغير جداً", id: "xsmall" },
+  { key: "الكبير جدا", id: "xlarge" },
+  { key: "الكبير جداً", id: "xlarge" },
+  { key: "الصغير", id: "small" },
+  { key: "الوسط", id: "medium" },
+  { key: "الكبير", id: "large" },
+  { key: "العائلي", id: "family" },
+  { key: "العائلية", id: "family" },
+  { key: "النصف", id: "half" },
+  { key: "النص", id: "half" },
+  { key: "الربع", id: "quarter" },
+  { key: "الكامل", id: "whole" },
+
+  // Arabic without "ال" prefix
+  { key: "صغير جدا", id: "xsmall" },
+  { key: "صغير جداً", id: "xsmall" },
+  { key: "كبير جدا", id: "xlarge" },
+  { key: "كبير جداً", id: "xlarge" },
+  { key: "صغير", id: "small" },
+  { key: "وسط", id: "medium" },
+  { key: "كبير", id: "large" },
+  { key: "عائلي", id: "family" },
+  { key: "عائلية", id: "family" },
+  { key: "ربع كيلو", id: "quarter_kg" },
+  { key: "نصف كيلو", id: "half_kg" },
+  { key: "كيلو", id: "one_kg" },
+  { key: "ربع", id: "quarter" },
+  { key: "نصف", id: "half" },
+  { key: "نص", id: "half" },
+  { key: "كامل", id: "whole" },
+  { key: "كاملة", id: "whole" },
+  { key: "سنجل", id: "single" },
+  { key: "دبل", id: "double" },
+  { key: "تربل", id: "triple" },
+
+  // English sizes
+  { key: "extra large", id: "xlarge" },
+  { key: "double", id: "double" },
+  { key: "single", id: "single" },
+  { key: "triple", id: "triple" },
+  { key: "quarter", id: "quarter" },
+  { key: "small", id: "small" },
+  { key: "medium", id: "medium" },
+  { key: "large", id: "large" },
+  { key: "family", id: "family" },
+  { key: "half", id: "half" },
+  { key: "whole", id: "whole" },
+  { key: "full", id: "whole" },
+  { key: "xxl", id: "xxlarge" },
+  { key: "xl", id: "xlarge" },
+  { key: "lg", id: "large" },
+  { key: "md", id: "medium" },
+  { key: "sm", id: "small" }
+];
+
+/**
+ * استخراج اسم الحجم من اسم الصنف
+ * @returns { baseName, sizeName, sizeId }
+ */
+function extractSize(name: string): { baseName: string, sizeName: string, sizeId: string } {
+  const nameLower = name.toLowerCase();
+  for (const item of sizeKeywords) {
+    const index = nameLower.indexOf(item.key.toLowerCase());
+    if (index !== -1) {
+      const beforeChar = index > 0 ? nameLower[index - 1] : " ";
+      const afterChar = index + item.key.length < nameLower.length ? nameLower[index + item.key.length] : " ";
+      const boundaries = /[\s\-\/\,\(\)]/;
+      if (boundaries.test(beforeChar) && boundaries.test(afterChar)) {
+        let base = name.substring(0, index) + name.substring(index + item.key.length);
+        base = base.replace(/[\-\/\,\(\)]/g, " ").replace(/\s+/g, " ").trim();
+        base = base.replace(/^[\-\/\,\(\)\s\.\_]+|[\-\/\,\(\)\s\.\_]+$/g, "").trim();
+        return {
+          baseName: base,
+          sizeName: item.key,
+          sizeId: item.id
+        };
+      }
+    }
+  }
+  return { baseName: name, sizeName: "", sizeId: "" };
+}
+
+/**
+ * تجميع الأصناف المتشابهة التي تختلف فقط بالحجم
+ * @param items قائمة الأصناف المستخرجة (قد تحتوي على sizes مسبقاً)
+ * @returns قائمة مجمعة بحيث كل صنف يحوي مصفوفة sizes
+ */
+function groupMenuItemsBySizes(items: any[]): any[] {
+  if (!Array.isArray(items)) return [];
+  const grouped: { [key: string]: any } = {};
+
+  items.forEach(item => {
+    if (!item || !item.name) return;
+    const { baseName, sizeName, sizeId } = extractSize(item.name);
+
+    // استخدام baseName كمفتاح، وإذا لم يوجد حجم استخدم الاسم كاملاً
+    const key = baseName || item.name;
+
+    if (!grouped[key]) {
+      grouped[key] = {
+        name: key,
+        description: item.description || "",
+        price: item.price || 0,
+        category: item.category || "Sides",
+        sizes: []
+      };
+    }
+
+    // إذا كان للصنف sizes مضمّنة من Gemini، ندمجها
+    if (item.sizes && Array.isArray(item.sizes)) {
+      item.sizes.forEach((sz: any) => {
+        if (!sz || !sz.name) return;
+        const exists = grouped[key].sizes.some((s: any) => s.name === sz.name);
+        if (!exists) {
+          grouped[key].sizes.push({
+            id: sz.id || sz.name.toLowerCase().replace(/\s+/g, "_"),
+            name: sz.name,
+            price: Number(sz.price) || item.price
+          });
+        }
+      });
+    }
+
+    // إذا كان هناك حجم مستخرج من الاسم، نضيفه
+    if (sizeName) {
+      const exists = grouped[key].sizes.some((s: any) => s.name === sizeName);
+      if (!exists) {
+        grouped[key].sizes.push({
+          id: sizeId,
+          name: sizeName,
+          price: Number(item.price)
+        });
+      }
+    }
+
+    // تحديث الوصف إذا كان موجوداً ولم يكن موجوداً سابقاً
+    if (item.description && !grouped[key].description) {
+      grouped[key].description = item.description;
+    }
+  });
+
+  // معالجة الناتج: ترتيب الأحجام حسب السعر، وتعيين السعر الأساسي كأقل سعر
+  return Object.values(grouped).map((item: any) => {
+    if (item.sizes && item.sizes.length > 0) {
+      // إزالة التكرارات حسب الاسم
+      const uniqueSizes: any[] = [];
+      const seenNames = new Set();
+      item.sizes.forEach((sz: any) => {
+        const nameKey = sz.name.toLowerCase().trim();
+        if (!seenNames.has(nameKey)) {
+          seenNames.add(nameKey);
+          uniqueSizes.push(sz);
+        }
+      });
+      // ترتيب حسب السعر تصاعدياً
+      uniqueSizes.sort((a, b) => a.price - b.price);
+      // تعيين السعر الأساسي كأقل سعر
+      item.price = uniqueSizes[0].price;
+      item.sizes = uniqueSizes;
+    } else {
+      // إذا لم يوجد أحجام، نحذف المفتاح sizes
+      delete item.sizes;
+    }
+    return item;
+  });
+}
+
+/**
+ * تحليل ملفات Excel/CSV محلياً (بدون Gemini)
+ * مع تطبيق تجميع الأحجام
+ */
 function parseSpreadsheetLocally(fileDataBase64: string, isCsv: boolean): any[] {
   try {
     const buffer = Buffer.from(fileDataBase64, "base64");
@@ -665,7 +808,7 @@ function parseSpreadsheetLocally(fileDataBase64: string, isCsv: boolean): any[] 
 
     const startIndex = headerIdx !== -1 ? headerIdx + 1 : 0;
     const categoriesSeed = ["Burgers","Pizza","Salads","Sushi","Ramen","Dessert","Sides","Drinks","Offers"];
-    const items: any[] = [];
+    const unmergedItems: any[] = [];
 
     for (let i = startIndex; i < rows.length; i++) {
       const row = rows[i];
@@ -698,14 +841,15 @@ function parseSpreadsheetLocally(fileDataBase64: string, isCsv: boolean): any[] 
         else if (n.includes("عرض")  || n.includes("وجبة")    || n.includes("offer")) category = "Offers";
       }
 
-      items.push({
+      unmergedItems.push({
         name: rawName,
         description: rawDesc || `${rawName} - وجبة شهية غنية بالمكونات الطازجة.`,
         price: cleanPrice,
         category,
       });
     }
-    return items;
+
+    return groupMenuItemsBySizes(unmergedItems);
   } catch (err) {
     console.error("Local spreadsheet fallback parser error:", err);
     return [];
@@ -743,13 +887,33 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { "User-Agent": "aistudio-build" } } });
 
-    const prompt = `You are a helpful assistant specialized in reading restaurant menus and extracting them as menu items for 'Mutafer Eats'.
-CRITICAL REQUIREMENT:
-If a dish or item is available in multiple portion sizes or variations (such as 'صغير' / 'وسط' / 'كبير' or 'ربع' / 'نصف' / 'كامل' or by weight like 'ثمن كيلو' / 'ربع كيلو' / 'نصف كيلو' / 'كيلو'), you MUST group them into a SINGLE menu item. Do NOT create separate menu items for each size variation.
-Instead, extract it as one item, set the top-level 'price' to the price of the first/smallest/base size variation, and list all the sizes with their respective names and prices in the 'sizes' array field.
-Extract all available dishes, meals, or drinks with: name, description, price (float of the base/smallest size), category (one of: Burgers, Pizza, Salads, Sushi, Ramen, Dessert, Sides, Drinks, Offers), and sizes (if applicable). Output ONLY a valid JSON array matching the schema.`;
+    // تعليمات Gemini بالعربية مع التركيز على تجميع الأحجام
+    const prompt = `أنت مساعد ذكي متخصص في قراءة قوائم الطعام (منيو المطاعم) واستخراج الأصناف لتطبيق 'متوفر إيتس'.
+تعليمات مهمة جداً:
+- إذا كان الصنف متوفراً بأحجام أو مقاسات متعددة (مثل: صغير/وسط/كبير، أو ربع/نصف/كامل، أو حسب الوزن مثل ربع كيلو/نصف كيلو/كيلو)، فيجب دمجها في صنف واحد.
+- لا تنشئ أصنافاً منفصلة لكل حجم.
+- استخرج الصنف كعنصر واحد، واجعل السعر الأساسي (price) هو سعر أصغر حجم (أو الحجم الافتراضي)، وضع قائمة الأحجام مع أسمائها وأسعارها في حقل sizes (مصفوفة).
+- استخرج جميع الأطباق والمشروبات المتوفرة مع: الاسم (name)، وصف (description)، السعر (price، رقم عشري)، الفئة (category، واحدة من: Burgers, Pizza, Salads, Sushi, Ramen, Dessert, Sides, Drinks, Offers)، والأحجام (sizes، مصفوفة اختيارية).
+- أخرج فقط مصفوفة JSON صالحة بدون أي نصوص إضافية أو تنسيق ماركداون.
+- استخدم اللغة العربية في الأسماء والأوصاف إن أمكن، وإذا كانت البيانات بالإنجليزية يمكنك ترجمتها للعربية.
+
+مثال على الصيغة المطلوبة:
+[
+  {
+    "name": "بيتزا سجق",
+    "description": "بيتزا بالسجق الإيطالي والجبنة الموزاريلا",
+    "price": 120,
+    "category": "Pizza",
+    "sizes": [
+      { "id": "small", "name": "صغير", "price": 120 },
+      { "id": "medium", "name": "وسط", "price": 150 },
+      { "id": "large", "name": "كبير", "price": 180 }
+    ]
+  }
+]`;
+
     const finalPrompt = customInstructions?.trim()
-      ? `${prompt}\n\nAdditional instructions: "${customInstructions.trim()}"`
+      ? `${prompt}\n\nتعليمات إضافية من المستخدم: "${customInstructions.trim()}"`
       : prompt;
 
     const callWithRetry = async (params: any, retries = 4, delayMs = 1500) => {
@@ -774,19 +938,19 @@ Extract all available dishes, meals, or drinks with: name, description, price (f
       items: {
         type: Type.OBJECT,
         properties: {
-          name:        { type: Type.STRING, description: "Item name (e.g., 'بيتزا سجق')." },
-          description: { type: Type.STRING, description: "Short appetizing description" },
-          price:       { type: Type.NUMBER, description: "Numeric price. Set this to the price of the first/smallest size if sizes are available." },
-          category:    { type: Type.STRING, description: "Category (one of: Burgers, Pizza, Salads, Sushi, Ramen, Dessert, Sides, Drinks, Offers)" },
+          name:        { type: Type.STRING, description: "اسم الصنف (بالعربية إن أمكن)" },
+          description: { type: Type.STRING, description: "وصف مختصر وجذاب للصنف" },
+          price:       { type: Type.NUMBER, description: "السعر الأساسي (أقل سعر في حال وجود أحجام)" },
+          category:    { type: Type.STRING, description: "الفئة، واحدة من: Burgers, Pizza, Salads, Sushi, Ramen, Dessert, Sides, Drinks, Offers" },
           sizes: {
             type: Type.ARRAY,
-            description: "List of different sizes or variants for this item (e.g., 'صغير', 'وسط', 'كبير', or 'ربع', 'نصف', 'كامل'). If the item has no sizes/variations, omit this field or leave empty.",
+            description: "قائمة الأحجام المتوفرة لهذا الصنف (اختياري)",
             items: {
               type: Type.OBJECT,
               properties: {
-                id:    { type: Type.STRING, description: "Unique string ID for the size (e.g., 'sm', 'md', 'lg')" },
-                name:  { type: Type.STRING, description: "Size/variant name, e.g., 'صغير', 'وسط', 'كبير', 'نصف كيلو', 'كيلو'" },
-                price: { type: Type.NUMBER, description: "Numeric price for this size" }
+                id:    { type: Type.STRING, description: "معرف فريد للحجم (مثل: small, medium, large)" },
+                name:  { type: Type.STRING, description: "اسم الحجم (مثل: صغير، وسط، كبير، ربع كيلو، نصف كيلو، كيلو)" },
+                price: { type: Type.NUMBER, description: "سعر هذا الحجم" }
               },
               required: ["id", "name", "price"]
             }
@@ -821,7 +985,7 @@ Extract all available dishes, meals, or drinks with: name, description, price (f
 
       response = await callWithRetry({
         model: "gemini-3.5-flash",
-        contents: { parts: [{ text: `Here is the CSV/sheet content:\n\`\`\`csv\n${spreadsheetContent}\n\`\`\`` }, { text: finalPrompt }] },
+        contents: { parts: [{ text: `هذا هو محتوى الملف النصي/الإكسل:\n\`\`\`csv\n${spreadsheetContent}\n\`\`\`` }, { text: finalPrompt }] },
         config: { responseMimeType: "application/json", responseSchema: schema },
       });
     } else {
@@ -844,7 +1008,8 @@ Extract all available dishes, meals, or drinks with: name, description, price (f
 
     const text    = (response?.text || "[]").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
     const parsed  = JSON.parse(text);
-    res.json({ success: true, items: parsed, menuItems: parsed });
+    const grouped = groupMenuItemsBySizes(parsed);
+    res.json({ success: true, items: grouped, menuItems: grouped });
 
   } catch (error: any) {
     console.error("Gemini Parsing Error:", error);
@@ -875,10 +1040,9 @@ async function startServer() {
     const { default: serveStatic } = await import("serve-static");
     app.use(serveStatic(distPath));
 
-    // حطه قبل الـ catch-all route اللي بيرجع index.html
-app.get("/sitemap.xml", (_req, res) => {
-  res.header("Content-Type", "application/xml");
-  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+    app.get("/sitemap.xml", (_req, res) => {
+      res.header("Content-Type", "application/xml");
+      res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://mutawafer-eats-production.up.railway.app/</loc>
@@ -886,7 +1050,7 @@ app.get("/sitemap.xml", (_req, res) => {
     <priority>1.0</priority>
   </url>
 </urlset>`);
-});
+    });
 
     app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html")));
   }

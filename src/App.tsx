@@ -62,15 +62,7 @@ const RESTAURANT_NAMES_MAP: Record<string, string> = {
 };
 
 export default function App() {
-const [lang, setLang] = useState<Language>(() => {
-  const saved = localStorage.getItem('mutafer_eats_lang') as Language | null;
-  if (saved && (saved === 'ar' || saved === 'en')) {
-    return saved;
-  }
-  // إذا لم يكن هناك قيمة مخزنة، نضع العربية كافتراضي ونخزنها
-  localStorage.setItem('mutafer_eats_lang', 'ar');
-  return 'ar';
-});
+  const [lang, setLang] = useState<Language>('ar');
 
 // ثم أضف useEffect لتحديث localStorage عند تغيير اللغة:
 useEffect(() => {
