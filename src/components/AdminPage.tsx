@@ -1,3 +1,4 @@
+// AdminPage.tsx
 import React, { useState, useRef } from "react";
 import {
   Building2, Plus, Trash2, Edit2, Upload, Sparkles, Check,
@@ -7,9 +8,12 @@ import {
 import { Restaurant, MenuItem, Review } from "../types";
 import { fetchWithRetry } from "../utils/fetchHelper";
 import { saveToken } from '../utils/fetchHelper';
+import { getTranslation, Language } from '../translations'; // ✅ استيراد دالة الترجمة والنوع
 
+// تعريف واجهة props مع إضافة lang
 interface AdminPageProps {
   restaurants: Restaurant[];
+  lang: Language; // ✅ إضافة lang
   onBack: () => void;
   onRefreshData: () => Promise<void>;
   onAdminLogin?: (admin: any, token?: string) => void;
@@ -17,7 +21,7 @@ interface AdminPageProps {
   reviews?: Review[];
 }
 
-const t = (key: any, params?: any) => getTranslation(key, lang, params);
+// ✅ إزالة التعريف الخاطئ لـ t من هنا
 
 const RESTAURANT_NAMES_MAP: Record<string, string> = {
   'Big Bun Burger Bar': 'برجر بار بيج بن 🍔',
@@ -28,34 +32,9 @@ const RESTAURANT_NAMES_MAP: Record<string, string> = {
 };
 
 export default function AdminPage({ restaurants, lang, onBack, onRefreshData, onAdminLogin, onAdminLogout, reviews }: AdminPageProps) {
-  // ✅ ترجمات عربية ثابتة
-  const translations: Record<string, string> = {
-    egp: "ج",
-    backToHome: "الرئيسية",
-    adminTitle: "لوحة التحكم",
-    adminDesc: "إدارة المطاعم والمنيو والطلبات",
-    cancel: "إلغاء",
-    addRestaurant: "إضافة مطعم",
-    editRestaurant: "تعديل المطعم",
-    restaurantName: "اسم المطعم",
-    coverImageUrl: "رابط صورة الغلاف",
-    categoryTags: "التصنيفات",
-    promoText: "نص العرض",
-    deliveryTime: "وقت التوصيل",
-    deliveryFee: "رسوم التوصيل",
-    placeOrder: "حفظ",
-    uploadMenuPrompt: "ارفع صورة أو ملف المنيو",
-    uploadMenuDesc: "PNG، JPG، PDF، Excel، CSV",
-    analyzeLoading: "جاري التحليل بالذكاء الاصطناعي...",
-    dragDropFile: "اسحب الملف هنا أو اضغط للاختيار",
-    analysisResults: "الأطباق المستخرجة بالذكاء الاصطناعي",
-    restaurantSelect: "سيُضاف إلى",
-    approveImport: "استيراد المحدد",
-    addedSuccess: "✅ تم الاستيراد بنجاح!",
-    statusSaved: "✅ تم الحفظ",
-    statusDeleted: "🗑️ تم الحذف",
-  };
-  const t = (key: string) => translations[key] ?? key;
+  // ✅ تعريف isAr و t داخل المكون
+  const isAr = lang === 'ar';
+  const t = (key: string, params?: any) => getTranslation(key as any, lang, params);
 
   // Navigation / Tab selection
   const [selectedRestId, setSelectedRestId] = useState<string>(restaurants[0]?.id || "");
@@ -626,7 +605,6 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
 
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-
   // ✅ Selected active restaurant instance helper (آمن)
   const activeRestaurant = restaurants.find((r) => r.id === selectedRestId);
 
@@ -992,7 +970,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
 
   // إذا لم يكن هناك مشرف مسجل دخول، نعرض نموذج الدخول
   if (!currentAdmin) {
-      return (
+    return (
       <div className="max-w-7xl mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[70vh]" dir={isAr ? "rtl" : "ltr"}>
         <div className="w-full max-w-md bg-white rounded-[32px] p-6 sm:p-8 shadow-xl border border-slate-100 space-y-6">
           <div className="text-center space-y-2">
@@ -1166,7 +1144,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
   // MAIN ADMIN DASHBOARD (بعد تسجيل الدخول)
   // ============================================================
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8" dir={"rtl"}>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8" dir={isAr ? "rtl" : "ltr"}>
 
       {/* Header and Back Button */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-5">
@@ -1824,7 +1802,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                     >
                       <button
                         type="button"
-                        className={`flex-1 font-semibold text-xs truncate max-w-[150px] cursor-pointer ${'text-right'
+                        className={`flex-1 font-semibold text-xs truncate max-w-[150px] cursor-pointer ${isAr ? 'text-right' : 'text-left'
                           }`}
                       >
                         {rest.name}
@@ -1848,18 +1826,18 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                               className="fixed inset-0 z-30"
                               onClick={() => setActiveStoreDropdownId(null)}
                             />
-                            <div className={`absolute ${'left-0'} mt-1 z-45 bg-white border border-slate-150 rounded-xl shadow-xl w-32 p-1 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100`}>
+                            <div className={`absolute ${isAr ? 'left-0' : 'right-0'} mt-1 z-45 bg-white border border-slate-150 rounded-xl shadow-xl w-32 p-1 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100`}>
                               <button
                                 type="button"
                                 onClick={() => {
                                   handleSetEditRestaurant(rest);
                                   setActiveStoreDropdownId(null);
                                 }}
-                                className={`w-full text-left px-2.5 py-1.5 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer ${'flex-row-reverse text-right'
+                                className={`w-full text-left px-2.5 py-1.5 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer ${isAr ? 'flex-row-reverse text-right' : ''
                                   }`}
                               >
                                 <Edit2 className="h-3.5 w-3.5 text-[#f94c10]" />
-                                <span>{'تعديل المطعم'}</span>
+                                <span>{isAr ? 'تعديل المطعم' : 'Edit Store'}</span>
                               </button>
                               <button
                                 type="button"
@@ -1867,11 +1845,11 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                                   setDeleteConfirmRestId(rest.id);
                                   setActiveStoreDropdownId(null);
                                 }}
-                                className={`w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer ${'flex-row-reverse text-right'
+                                className={`w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer ${isAr ? 'flex-row-reverse text-right' : ''
                                   }`}
                               >
                                 <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                <span>{'حذف المطعم'}</span>
+                                <span>{isAr ? 'حذف المطعم' : 'Delete Store'}</span>
                               </button>
                             </div>
                           </>
@@ -1925,7 +1903,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase font-black text-slate-500">{'فئة الطعام (القسم) *'}</label>
+                    <label className="text-[10px] uppercase font-black text-slate-500">{isAr ? 'فئة الطعام (القسم) *' : 'Food Category (Section) *'}</label>
                     <select
                       value={manualItemForm.category}
                       onChange={(e) => setManualItemForm({ ...manualItemForm, category: e.target.value })}
@@ -1933,7 +1911,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                     >
                       {categoriesList.filter(c => c.id !== 'all').map(cat => (
                         <option key={cat.id} value={cat.id || cat.name}>
-                          {cat.nameAr || cat.name}
+                          {isAr ? cat.nameAr : cat.name}
                         </option>
                       ))}
                     </select>
@@ -1973,17 +1951,17 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
               <div className="z-10 relative bg-slate-950/40 border border-slate-800 rounded-2xl p-4 space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-orange-400 mb-1">
-                    {"🏪 اختر المطعم المستهدف لإضافة الأصناف إليه"}
+                    {isAr ? "🏪 اختر المطعم المستهدف لإضافة الأصناف إليه" : "🏪 Choose Target Restaurant to Add Items to"}
                   </label>
                   <p className="text-[10px] text-slate-400 mb-3">
-                    {"اضغط على المطعم بالأسفل لاختياره مباشرة كوجهة للأصناف المستخرجة بالذكاء الاصطناعي."}
+                    {isAr ? "اضغط على المطعم بالأسفل لاختياره مباشرة كوجهة للأصناف المستخرجة بالذكاء الاصطناعي." : "Click on a restaurant below to set it as target for extracted AI items."}
                   </p>
                 </div>
 
                 <div
                   id="ai-target-restaurant-selector"
                   className="grid grid-cols-2 sm:grid-cols-3 gap-2.5"
-                  style={{ direction: 'rtl' }}
+                  style={{ direction: isAr ? 'rtl' : 'ltr' }}
                 >
                   {restaurants.map(r => {
                     const displayRestName = RESTAURANT_NAMES_MAP[r.name] || r.name;
@@ -2021,7 +1999,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                   >
                     <span className="text-xl mb-1 text-orange-400 group-hover:scale-110 transition-transform">➕</span>
                     <span className="text-[11px] font-bold text-orange-400 group-hover:text-orange-300">
-                      {'إضافة مطعم جديد...'}
+                      {isAr ? 'إضافة مطعم جديد...' : 'Add New Restaurant...'}
                     </span>
                   </button>
                 </div>
@@ -2033,14 +2011,14 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                       const val = e.target.value;
                       if (val === "NEW_STORE") {
                         handleScrollToRestaurantForm();
-                        triggerSuccess('نموذج المطعم مفعل بالأعلى!');
+                        triggerSuccess(isAr ? 'نموذج المطعم مفعل بالأعلى!' : 'New restaurant form activated at the top!');
                       } else {
                         setSelectedRestId(val);
                       }
                     }}
                     className="flex-1 text-xs bg-slate-900 border border-slate-850 rounded-xl px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-bold"
                   >
-                    <option value="" disabled>{'-- اختر مطعماً --'}</option>
+                    <option value="" disabled>{isAr ? '-- اختر مطعماً --' : '-- Choose a restaurant --'}</option>
                     {restaurants.map(r => {
                       const displayRestName = RESTAURANT_NAMES_MAP[r.name] || r.name;
                       return (
@@ -2048,7 +2026,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                       );
                     })}
                     <option value="NEW_STORE" className="text-orange-400 font-bold">
-                      {'➕ إضافة مطعم جديد...'}
+                      {isAr ? '➕ إضافة مطعم جديد...' : '➕ Add New Store...'}
                     </option>
                   </select>
 
@@ -2057,7 +2035,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                     onClick={handleScrollToRestaurantForm}
                     className="bg-[#f94c10] hover:bg-[#d83f0c] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5"
                   >
-                    <span>{"اضافة مطعم جديد"}</span>
+                    <span>{isAr ? "اضافة مطعم جديد" : "Add Restaurant"}</span>
                   </button>
                 </div>
               </div>
@@ -2065,19 +2043,23 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
               {/* AI Custom prompt customInstructions input field */}
               <div className="z-10 relative bg-slate-950/40 border border-slate-800 rounded-2xl p-4 space-y-2">
                 <label className="block text-xs font-bold text-orange-400">
-                  {"📝 توجيهات خاصة بالذكاء الاصطناعي (اختياري)"}
+                  {isAr ? "📝 توجيهات خاصة بالذكاء الاصطناعي (اختياري)" : "📝 Custom AI Prompt / Instructions (Optional)"}
                 </label>
                 <textarea
                   value={customInstructions}
                   onChange={(e) => setCustomInstructions(e.target.value)}
                   placeholder={
-                    "مثال: 'ترجم أسماء الوجبات فقط للغة العربية'، 'قم بزيادة كافة الأسعار بمعدل 15%'، أو 'استخرج الوجبات النباتية فحسب'..."
+                    isAr
+                      ? "مثال: 'ترجم أسماء الوجبات فقط للغة العربية'، 'قم بزيادة كافة الأسعار بمعدل 15%'، أو 'استخرج الوجبات النباتية فحسب'..."
+                      : "e.g., 'Translate all item names to Arabic', 'Increase all prices by 15%', 'Only extract chicken dishes'..."
                   }
                   rows={2}
                   className="w-full text-xs bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all resize-none"
                 />
                 <p className="text-[10px] text-slate-400">
-                  {"سيقوم نظام Gemini بتطبيق هذه التعليمات أثناء قراءة المنيو أو الكشف المرفوع أدناه."}
+                  {isAr
+                    ? "سيقوم نظام Gemini بتطبيق هذه التعليمات أثناء قراءة المنيو أو الكشف المرفوع أدناه."
+                    : "Gemini will apply these custom conditions when parsing your attached file below."}
                 </p>
                 {selectedFile && !aiLoading && (
                   <button
@@ -2086,7 +2068,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                     className="mt-1 flex items-center gap-1.5 text-[11px] font-black tracking-wide text-orange-400 hover:text-orange-350 cursor-pointer transition-all uppercase"
                   >
                     <Sparkles size={13} className="animate-pulse text-orange-400" />
-                    <span>{"إعادة تحليل الملف الحالي بالطلب الجديد"}</span>
+                    <span>{isAr ? "إعادة تحليل الملف الحالي بالطلب الجديد" : "Re-run AI Analysis with New prompt"}</span>
                   </button>
                 )}
               </div>
@@ -2168,8 +2150,8 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                           <tr>
                             <th className="p-3 text-center w-12">Import?</th>
                             <th className="p-3">Item Details</th>
-                            <th className="p-3 w-24">السعر</th>
-                            <th className="p-3 w-28">الفئة</th>
+                            <th className="p-3 w-24">Price</th>
+                            <th className="p-3 w-24">Category</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-850">
@@ -2212,35 +2194,12 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                                     className="text-[11px] text-slate-400 bg-transparent border-b border-transparent focus:border-slate-700 outline-none w-full"
                                   />
                                   {item.sizes && item.sizes.length > 0 && (
-                                    <div className="flex flex-col gap-1 mt-2" dir="rtl">
-                                      <span className="text-[9px] text-slate-500 font-bold">الأحجام والأسعار:</span>
+                                    <div className="flex flex-wrap gap-1 mt-1.5" dir="rtl">
                                       {item.sizes.map((sz: any, szIdx: number) => (
-                                        <div key={szIdx} className="flex items-center gap-1.5 bg-[#1e293b] px-2 py-1 rounded border border-slate-800">
-                                          <input
-                                            type="text"
-                                            value={sz.name}
-                                            onChange={(e) => {
-                                              const copy = [...extractedItems];
-                                              copy[idx].sizes[szIdx].name = e.target.value;
-                                              setExtractedItems(copy);
-                                            }}
-                                            className="text-[10px] text-slate-300 font-bold bg-transparent outline-none w-16 border-b border-slate-700 focus:border-orange-500"
-                                          />
-                                          <span className="text-slate-600 text-[9px]">:</span>
-                                          <input
-                                            type="number"
-                                            value={sz.price}
-                                            onChange={(e) => {
-                                              const copy = [...extractedItems];
-                                              copy[idx].sizes[szIdx].price = Number(e.target.value) || 0;
-                                              // أقل سعر يبقى الـ price الرئيسي
-                                              copy[idx].price = Math.min(...copy[idx].sizes.map((s: any) => s.price));
-                                              setExtractedItems(copy);
-                                            }}
-                                            className="text-[10px] text-[#f94c10] font-mono font-bold bg-transparent outline-none w-14 border-b border-slate-700 focus:border-orange-500 text-center"
-                                          />
-                                          <span className="text-[9px] text-slate-500">ج</span>
-                                        </div>
+                                        <span key={szIdx} className="inline-flex items-center gap-1 bg-[#1e293b] text-slate-300 text-[9px] font-bold px-2 py-0.5 rounded border border-slate-800">
+                                          <span>{sz.name}:</span>
+                                          <span className="text-[#f94c10] font-mono">{sz.price} {t("egp")}</span>
+                                        </span>
                                       ))}
                                     </div>
                                   )}
@@ -2261,25 +2220,16 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                                   </div>
                                 </td>
                                 <td className="p-3">
-                                  <select
-                                    value={item.category?.toLowerCase?.() || item.category}
+                                  <input
+                                    type="text"
+                                    value={item.category}
                                     onChange={(e) => {
                                       const copy = [...extractedItems];
                                       copy[idx].category = e.target.value;
                                       setExtractedItems(copy);
                                     }}
-                                    className="px-1.5 py-1 bg-slate-900 border border-slate-800 rounded outline-none text-[10px] font-bold text-slate-200 cursor-pointer"
-                                  >
-                                    <option value="burgers">🍔 برجر</option>
-                                    <option value="pizza">🍕 بيتزا</option>
-                                    <option value="salads">🥗 سلطات</option>
-                                    <option value="sushi">🍣 سوشي</option>
-                                    <option value="ramen">🍜 رامن</option>
-                                    <option value="dessert">🍦 حلويات</option>
-                                    <option value="sides">🍟 مقبلات</option>
-                                    <option value="drinks">🥤 مشروبات</option>
-                                    <option value="offers">🎁 عروض</option>
-                                  </select>
+                                    className="px-1.5 py-1 bg-slate-900 border border-slate-800 rounded outline-none w-20 text-center font-semibold"
+                                  />
                                 </td>
                               </tr>
                             );
@@ -2363,7 +2313,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                                   });
                                   if (res.ok) {
                                     await onRefreshData();
-                                    triggerSuccess('تم تحديث فئة الوجبة فورا بنجاح!');
+                                    triggerSuccess(isAr ? 'تم تحديث فئة الوجبة فورا بنجاح!' : 'Dish category updated successfully!');
                                   }
                                 } catch (err) {
                                   console.error("Update dish category failed:", err);
@@ -2373,7 +2323,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                             >
                               {categoriesList.filter(c => c.id !== 'all').map(cat => (
                                 <option key={cat.id} value={cat.id}>
-                                  {`${cat.nameAr || cat.name} ${cat.icon}`}
+                                  {isAr ? `${cat.nameAr} ${cat.icon}` : `${cat.name} ${cat.icon}`}
                                 </option>
                               ))}
                             </select>
@@ -2403,18 +2353,18 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                                 className="fixed inset-0 z-30"
                                 onClick={() => setActiveDishDropdownId(null)}
                               />
-                              <div className={`absolute ${'left-0'} mt-1 z-45 bg-white border border-slate-150 rounded-xl shadow-xl w-32 p-1 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100`}>
+                              <div className={`absolute ${isAr ? 'left-0' : 'right-0'} mt-1 z-45 bg-white border border-slate-150 rounded-xl shadow-xl w-32 p-1 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100`}>
                                 <button
                                   type="button"
                                   onClick={() => {
                                     setActiveDishDropdownId(null);
                                     setDeleteConfirmDishId(item.id);
                                   }}
-                                  className={`w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer ${'flex-row-reverse text-right'
+                                  className={`w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer ${isAr ? 'flex-row-reverse text-right' : ''
                                     }`}
                                 >
                                   <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                  <span>{'حذف الصنف'}</span>
+                                  <span>{isAr ? 'حذف الصنف' : 'Delete Dish'}</span>
                                 </button>
                               </div>
                             </>
@@ -3042,17 +2992,19 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
       {/* Delete Confirm Modals */}
       {deleteConfirmRestId && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-105" dir={'rtl'}>
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-105" dir={isAr ? 'rtl' : 'ltr'}>
             <div className="flex items-center gap-3 text-red-600">
               <div className="bg-red-50 p-2.5 rounded-2xl">
                 <Trash2 className="h-6 w-6" />
               </div>
               <h3 className="font-extrabold text-sm sm:text-base text-slate-805">
-                {'تأكيد إزالة المطعم'}
+                {isAr ? 'تأكيد إزالة المطعم' : 'Confirm Store Deletion'}
               </h3>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              {'هل أنت متأكد من حذف هذا المطعم نهائيًا من التطبيق؟ سيتم حذف جميع الأكلات وقوائم الطعام التابعة له ولا يمكن التراجع عن هذا الإجراء.'}
+              {isAr
+                ? 'هل أنت متأكد من حذف هذا المطعم نهائيًا من التطبيق؟ سيتم حذف جميع الأكلات وقوائم الطعام التابعة له ولا يمكن التراجع عن هذا الإجراء.'
+                : 'Are you sure you want to permanently delete this restaurant? This will remove all menu items associated with it and cannot be undone.'}
             </p>
             <div className="flex gap-2 pt-2">
               <button
@@ -3063,14 +3015,14 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                 }}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm cursor-pointer shadow-sm transition-all"
               >
-                {'نعم، احذف ⚠️'}
+                {isAr ? 'نعم، احذف ⚠️' : 'Yes, Delete'}
               </button>
               <button
                 type="button"
                 onClick={() => setDeleteConfirmRestId(null)}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs sm:text-sm cursor-pointer transition-all"
               >
-                {'تراجع'}
+                {isAr ? 'تراجع' : 'Cancel'}
               </button>
             </div>
           </div>
@@ -3079,17 +3031,19 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
 
       {deleteConfirmDishId && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-105" dir={'rtl'}>
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-105" dir={isAr ? 'rtl' : 'ltr'}>
             <div className="flex items-center gap-3 text-red-600">
               <div className="bg-red-50 p-2.5 rounded-2xl">
                 <Trash2 className="h-6 w-6" />
               </div>
               <h3 className="font-extrabold text-sm sm:text-base text-slate-805">
-                {'تأكيد حذف الصنف'}
+                {isAr ? 'تأكيد حذف الصنف' : 'Confirm Dish Deletion'}
               </h3>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              {'هل أنت متأكد من رغبتك في حذف هذا الصنف من قائمة الطعام؟ هذا الإجراء فوري وسينعكس فورًا عند جميع المستخدمين.'}
+              {isAr
+                ? 'هل أنت متأكد من رغبتك في حذف هذا الصنف من قائمة الطعام؟ هذا الإجراء فوري وسينعكس فورًا عند جميع المستخدمين.'
+                : 'Are you sure you want to delete this menu item? This action is immediate and will reflect across all client devices.'}
             </p>
             <div className="flex gap-2 pt-2">
               <button
@@ -3106,7 +3060,9 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                       });
                       if (res.ok) {
                         await onRefreshData();
-                        const successMsg = `تم إزالة "${itemToDelete.name}" بنجاح!`;
+                        const successMsg = isAr
+                          ? `تم إزالة "${itemToDelete.name}" بنجاح!`
+                          : `Removed ${itemToDelete.name} successfully!`;
                         triggerSuccess(successMsg);
                       }
                     } catch (err) {
@@ -3117,14 +3073,14 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                 }}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm cursor-pointer shadow-sm transition-all"
               >
-                {'نعم، احذف ⚠️'}
+                {isAr ? 'نعم، احذف ⚠️' : 'Yes, Delete'}
               </button>
               <button
                 type="button"
                 onClick={() => setDeleteConfirmDishId(null)}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs sm:text-sm cursor-pointer transition-all"
               >
-                {'تراجع'}
+                {isAr ? 'تراجع' : 'Cancel'}
               </button>
             </div>
           </div>
