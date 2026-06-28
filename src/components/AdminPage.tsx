@@ -1826,7 +1826,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
                               className="fixed inset-0 z-30"
                               onClick={() => setActiveStoreDropdownId(null)}
                             />
-                            <div className={`absolute ${isAr ? 'left-0' : 'right-0'} mt-1 z-45 bg-white border border-slate-150 rounded-xl shadow-xl w-32 p-1 overflow-visible animate-in fade-in slide-in-from-top-1 duration-100`}>
+                            <div className={`absolute ${isAr ? 'left-0' : 'right-0'} mt-1 z-45 bg-white border border-slate-150 rounded-xl shadow-xl min-w-[130px] max-w-[220px] p-1 overflow-visible whitespace-nowrap animate-in fade-in slide-in-from-top-1 duration-100`}>
                               <button
                                 type="button"
                                 onClick={() => {
