@@ -743,7 +743,11 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { "User-Agent": "aistudio-build" } } });
 
-    const prompt = `You are a helpful assistant specialized in reading restaurant menus and extracting them as menu items for 'Mutafer Eats'. Extract all available dishes, meals, or drinks with: name, description, price (float), category (one of: Burgers, Pizza, Salads, Sushi, Ramen, Dessert, Sides, Drinks, Offers). Output ONLY a valid JSON array with no markdown.`;
+    const prompt = `You are a helpful assistant specialized in reading restaurant menus and extracting them as menu items for 'Mutafer Eats'.
+CRITICAL REQUIREMENT:
+If a dish or item is available in multiple portion sizes or variations (such as 'صغير' / 'وسط' / 'كبير' or 'ربع' / 'نصف' / 'كامل' or by weight like 'ثمن كيلو' / 'ربع كيلو' / 'نصف كيلو' / 'كيلو'), you MUST group them into a SINGLE menu item. Do NOT create separate menu items for each size variation.
+Instead, extract it as one item, set the top-level 'price' to the price of the first/smallest/base size variation, and list all the sizes with their respective names and prices in the 'sizes' array field.
+Extract all available dishes, meals, or drinks with: name, description, price (float of the base/smallest size), category (one of: Burgers, Pizza, Salads, Sushi, Ramen, Dessert, Sides, Drinks, Offers), and sizes (if applicable). Output ONLY a valid JSON array matching the schema.`;
     const finalPrompt = customInstructions?.trim()
       ? `${prompt}\n\nAdditional instructions: "${customInstructions.trim()}"`
       : prompt;
@@ -770,10 +774,23 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
       items: {
         type: Type.OBJECT,
         properties: {
-          name:        { type: Type.STRING, description: "Item name" },
+          name:        { type: Type.STRING, description: "Item name (e.g., 'بيتزا سجق')." },
           description: { type: Type.STRING, description: "Short appetizing description" },
-          price:       { type: Type.NUMBER, description: "Numeric price" },
-          category:    { type: Type.STRING, description: "Category" },
+          price:       { type: Type.NUMBER, description: "Numeric price. Set this to the price of the first/smallest size if sizes are available." },
+          category:    { type: Type.STRING, description: "Category (one of: Burgers, Pizza, Salads, Sushi, Ramen, Dessert, Sides, Drinks, Offers)" },
+          sizes: {
+            type: Type.ARRAY,
+            description: "List of different sizes or variants for this item (e.g., 'صغير', 'وسط', 'كبير', or 'ربع', 'نصف', 'كامل'). If the item has no sizes/variations, omit this field or leave empty.",
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id:    { type: Type.STRING, description: "Unique string ID for the size (e.g., 'sm', 'md', 'lg')" },
+                name:  { type: Type.STRING, description: "Size/variant name, e.g., 'صغير', 'وسط', 'كبير', 'نصف كيلو', 'كيلو'" },
+                price: { type: Type.NUMBER, description: "Numeric price for this size" }
+              },
+              required: ["id", "name", "price"]
+            }
+          }
         },
         required: ["name", "description", "price", "category"],
       },
@@ -827,7 +844,7 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
 
     const text    = (response?.text || "[]").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
     const parsed  = JSON.parse(text);
-    res.json({ success: true, items: parsed });
+    res.json({ success: true, items: parsed, menuItems: parsed });
 
   } catch (error: any) {
     console.error("Gemini Parsing Error:", error);

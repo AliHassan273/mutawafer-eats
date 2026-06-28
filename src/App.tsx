@@ -62,8 +62,20 @@ const RESTAURANT_NAMES_MAP: Record<string, string> = {
 };
 
 export default function App() {
-  const [lang, setLang] = useState<Language>('ar'); // Default to Egyptian Arabic!
-  const [address, setAddress] = useState('قطعة ٩٢، إطلالة النيل بالزمالك');
+const [lang, setLang] = useState<Language>(() => {
+  const saved = localStorage.getItem('mutafer_eats_lang') as Language | null;
+  if (saved && (saved === 'ar' || saved === 'en')) {
+    return saved;
+  }
+  // إذا لم يكن هناك قيمة مخزنة، نضع العربية كافتراضي ونخزنها
+  localStorage.setItem('mutafer_eats_lang', 'ar');
+  return 'ar';
+});
+
+// ثم أضف useEffect لتحديث localStorage عند تغيير اللغة:
+useEffect(() => {
+  localStorage.setItem('mutafer_eats_lang', lang);
+}, [lang]);  const [address, setAddress] = useState('قطعة ٩٢، إطلالة النيل بالزمالك');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [restPageIndex, setRestPageIndex] = useState(0);
