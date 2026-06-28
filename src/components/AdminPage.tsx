@@ -620,72 +620,87 @@ const handleDeleteAdmin = async (adminId: string, name: string) => {
     setTimeout(() => setSuccessMsg(null), 4000);
   };
 
-  const handleFileParse = async (fileToParse?: File) => {
-    if (currentAdmin && !currentAdmin.canUseAIScanner) {
-      setAiError("عفوًا! هذا الموظف أو المشرف لا يملك الصلاحية الأمنية لاستخدام ماسح الذكاء الاصطناعي على النظام.");
-      return;
-    }
-    const file = fileToParse || selectedFile;
-    if (!file) {
-      setAiError(lang === "ar" ? "يرجى سحب وإفلات صورة المنيو أو كشف الـ Excel، أو الضغط لتحديد الملف أولاً." : "Please select or drop a menu image or Excel sheet first.");
-      return;
-    }
+// AdminPage.tsx
 
-    if (fileToParse) {
-      setSelectedFile(fileToParse);
-      setFileName(fileToParse.name);
-    }
+const handleFileParse = async (fileToParse?: File) => {
+  // التحقق من صلاحية استخدام AI Scanner
+  if (currentAdmin && !currentAdmin.canUseAIScanner) {
+    setAiError("عفوًا! هذا الموظف أو المشرف لا يملك الصلاحية الأمنية لاستخدام ماسح الذكاء الاصطناعي على النظام.");
+    return;
+  }
 
-    setAiLoading(true);
-    setAiError(null);
-    setAiWarning(null);
-    setExtractedItems([]);
+  const file = fileToParse || selectedFile;
+  if (!file) {
+    setAiError(lang === "ar" ? "يرجى سحب وإفلات صورة المنيو أو كشف الـ Excel، أو الضغط لتحديد الملف أولاً." : "Please select or drop a menu image or Excel sheet first.");
+    return;
+  }
 
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const dataUrl = reader.result as string;
-        const base64Content = dataUrl.split(",")[1];
-        const mimeType = file.type;
+  setAiLoading(true);
+  setAiError(null);
+  setAiWarning(null);
+  setExtractedItems([]);
 
-        const response = await fetchWithRetry("/api/gemini/parse-menu", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileData: base64Content,
-            mimeType,
-            fileName: file.name,
-            customInstructions: customInstructions
-          })
+  try {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      const base64Content = dataUrl.split(",")[1];
+      const mimeType = file.type;
+
+      // التحقق من صيغة الملف المدعومة
+      const supportedTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif", "image/gif", "application/pdf", "text/plain", "text/csv", "text/html"];
+      if (!supportedTypes.includes(mimeType) && !file.name.match(/\.(xlsx?|csv)$/i)) {
+        setAiError("صيغة الملف غير مدعومة. يرجى رفع صورة (PNG/JPEG/WEBP) أو ملف Excel/CSV أو PDF.");
+        setAiLoading(false);
+        return;
+      }
+
+      const response = await fetchWithRetry("/api/gemini/parse-menu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileData: base64Content,
+          mimeType,
+          fileName: file.name,
+          customInstructions: customInstructions
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success && Array.isArray(data.items)) {
+        setExtractedItems(data.items);
+        setAiWarning(data.warning || null);
+        const autoSelect: Record<number, boolean> = {};
+        data.items.forEach((_, idx) => {
+          autoSelect[idx] = true;
         });
-
-        const data = await response.json();
-        if (data.success && Array.isArray(data.items)) {
-          setExtractedItems(data.items);
-          setAiWarning(data.warning || null);
-          const autoSelect: Record<number, boolean> = {};
-          data.items.forEach((_, idx) => {
-            autoSelect[idx] = true;
-          });
-          setSelectedImportItems(autoSelect);
-          triggerSuccess(lang === "ar" ? "تم بحمد الله استخراج عناصر المنيو بنجاح!" : "Gemini successfully extracted menu options!");
+        setSelectedImportItems(autoSelect);
+        triggerSuccess(lang === "ar" ? "تم بحمد الله استخراج عناصر المنيو بنجاح!" : "Gemini successfully extracted menu options!");
+      } else {
+        // محاولة استخدام الـ fallback المحلي إذا كان متاحاً
+        if (data.isLocalFallback) {
+          setExtractedItems(data.items || []);
+          setAiWarning(data.warning || "تم الاستخراج محلياً (بدون Gemini)");
+          triggerSuccess("تم استخراج الأصناف محلياً!");
         } else {
-          setAiError(data.error || "Failed to analyze menu document.");
+          setAiError(data.error || "فشل تحليل الملف. تأكد من صحة المحتوى.");
         }
-        setAiLoading(false);
-      };
-
-      reader.onerror = () => {
-        setAiError("Failed to load binary file stream.");
-        setAiLoading(false);
-      };
-    } catch (err: any) {
-      setAiError(err.message || "Something went wrong during parsing.");
+      }
       setAiLoading(false);
-    }
-  };
+    };
 
+    reader.onerror = () => {
+      setAiError("فشل قراءة الملف. تأكد من أنه ليس تالفاً.");
+      setAiLoading(false);
+    };
+  } catch (err: any) {
+    console.error("File parsing error:", err);
+    setAiError(err.message || "حدث خطأ غير متوقع أثناء المعالجة.");
+    setAiLoading(false);
+  }
+};
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();

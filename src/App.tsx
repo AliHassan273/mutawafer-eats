@@ -207,60 +207,75 @@ export default function App() {
   const t = (key: any, params?: any) => getTranslation(key, lang, params);
 
   // Synchronize dynamic lists and settings on load
-  const loadInitialData = async () => {
-    try {
-      // 1. Fetch Restaurants
-      const res = await fetchWithRetry('/api/restaurants');
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.length > 0) {
-          setRestaurants(data);
-        } else {
-          setRestaurants(RESTAURANTS);
-        }
+// App.tsx
+
+const loadInitialData = async () => {
+  try {
+    // 1. Fetch Restaurants
+    const res = await fetchWithRetry('/api/restaurants');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.length > 0) {
+        setRestaurants(data);
       } else {
+        // إذا لم تكن هناك مطاعم في قاعدة البيانات، استخدم الـ default
         setRestaurants(RESTAURANTS);
       }
-    } catch {
+    } else {
       setRestaurants(RESTAURANTS);
-    } finally {
-      setLoadingRestaurants(false);
     }
+  } catch (error) {
+    console.error("Error loading restaurants:", error);
+    setRestaurants(RESTAURANTS);
+  } finally {
+    setLoadingRestaurants(false);
+  }
 
-    try {
-      // 2. Fetch Settings
-      const setRes = await fetchWithRetry('/api/settings');
-      if (setRes.ok) {
-        const setData = await setRes.json();
-        if (setData) setSettings(setData);
-      }
-    } catch (err) {
-      console.error("Error fetching settings:", err);
+  try {
+    // 2. Fetch Settings
+    const setRes = await fetchWithRetry('/api/settings');
+    if (setRes.ok) {
+      const setData = await setRes.json();
+      if (setData) setSettings(setData);
     }
+  } catch (err) {
+    console.error("Error fetching settings:", err);
+  }
 
-    try {
-      // 3. Fetch orders
-      const ordRes = await fetchWithRetry('/api/orders');
-      if (ordRes.ok) {
-        const ordData = await ordRes.json();
-        setOrders(ordData);
-      }
-    } catch (err) {
-      console.error("Error fetching orders:", err);
+  try {
+    // 3. Fetch orders
+    const ordRes = await fetchWithRetry('/api/orders');
+    if (ordRes.ok) {
+      const ordData = await ordRes.json();
+      setOrders(ordData);
     }
+  } catch (err) {
+    console.error("Error fetching orders:", err);
+  }
 
-    try {
-      // 4. Fetch reviews
-      const revRes = await fetchWithRetry('/api/reviews');
-      if (revRes.ok) {
-        const revData = await revRes.json();
-        setReviews(revData);
-      }
-    } catch (err) {
-      console.error("Error fetching reviews:", err);
+  try {
+    // 4. Fetch reviews
+    const revRes = await fetchWithRetry('/api/reviews');
+    if (revRes.ok) {
+      const revData = await revRes.json();
+      setReviews(revData);
     }
-  };
+  } catch (err) {
+    console.error("Error fetching reviews:", err);
+  }
+};
 
+const handleOpenRestaurant = (restaurant: Restaurant) => {
+  // تأكد من أن المطعم موجود في القائمة الحالية
+  const found = restaurants.find(r => r.id === restaurant.id);
+  if (!found) {
+    console.warn("Restaurant not found in current list, but opening anyway.");
+    // يمكنك إعادة تحميل البيانات هنا إذا أردت
+  }
+  setSelectedRestaurant(found || restaurant);
+  setActiveView('restaurant');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
   useEffect(() => {
     loadInitialData();
   }, []);
