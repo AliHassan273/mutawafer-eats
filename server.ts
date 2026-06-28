@@ -712,15 +712,31 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { "User-Agent": "aistudio-build" } } });
 
-    const prompt = `أنت مساعد متخصص في قراءة قوائم طعام المطاعم واستخراجها كأصناف منظمة لتطبيق مسافر إيتس.
+    const prompt = `أنت مساعد متخصص في استخراج قوائم طعام المطاعم لتطبيق مسافر إيتس.
 
-قواعد مهمة:
-- استخرج كل الأصناف والوجبات والمشروبات المتاحة.
-- اللغة الأساسية للأسماء والأوصاف هي العربية. لو الأسماء إنجليزي، اكتبها بالعربية.
-- لكل صنف: name (الاسم)، description (وصف شهي قصير)، price (سعر افتراضي كرقم)، category (واحدة من: Burgers, Pizza, Salads, Sushi, Ramen, Dessert, Sides, Drinks, Offers).
-- إذا كان الصنف الواحد له أحجام أو أنواع مختلفة بأسعار مختلفة (مثل: صغير/كبير، فردي/عائلي)، اجمعها في صنف واحد مع حقل sizes كـ array من [{name, price}]. الـ price الرئيسي يكون أقل سعر.
-- لا تكرر نفس الصنف بأحجام منفصلة — صنف واحد فيه كل الأحجام.
-- أخرج JSON فقط بدون markdown.`;
+## القواعد الإلزامية:
+
+### اللغة — إلزامي:
+- جميع قيم name و description يجب أن تكون باللغة العربية حصراً بدون استثناء.
+- إذا كان الاسم إنجليزياً مثل Crispy Chicken Burger اكتبه: برجر الدجاج المقرمش.
+- إذا كان Large Pepsi اكتبه: بيبسي كبير. ممنوع أي كلمة إنجليزية في name أو description.
+
+### الأحجام — إلزامي:
+- إذا وجدت نفس الصنف بأحجام مختلفة (صغير/وسط/كبير أو فردي/عائلي أو S/M/L) اجمعها في صنف واحد.
+- استخدم حقل sizes كـ array فيه كل الأحجام [{name, price}].
+- الـ price الرئيسي = أقل سعر بين الأحجام.
+- ممنوع تكرار نفس الصنف كعناصر منفصلة بسبب الحجم.
+
+### أمثلة:
+إذا في المنيو برجر صغير 30ج وبرجر كبير 50ج:
+{"name":"برجر","description":"برجر شهي طازج","price":30,"category":"Burgers","sizes":[{"name":"صغير","price":30},{"name":"كبير","price":50}]}
+
+إذا صنف بدون أحجام:
+{"name":"بيتزا مارجريتا","description":"بيتزا إيطالية بصوص الطماطم والجبن","price":65,"category":"Pizza","sizes":[]}
+
+### الفئات المتاحة: Burgers, Pizza, Salads, Sushi, Ramen, Dessert, Sides, Drinks, Offers
+
+أخرج JSON array فقط بدون أي نص أو markdown.`;
     const finalPrompt = customInstructions?.trim()
       ? `${prompt}\n\nAdditional instructions: "${customInstructions.trim()}"`
       : prompt;
@@ -753,7 +769,7 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
           category:    { type: Type.STRING, description: "الفئة" },
           sizes: {
             type: Type.ARRAY,
-            description: "الأحجام أو الأنواع المختلفة للصنف (اختياري)",
+            description: "الأحجام أو الأنواع المختلفة. مصفوفة فارغة [] إذا لم يكن للصنف أحجام. لا تتركها فارغة إذا وجدت أحجام مختلفة في المنيو.",
             items: {
               type: Type.OBJECT,
               properties: {
@@ -764,7 +780,7 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
             },
           },
         },
-        required: ["name", "description", "price", "category"],
+        required: ["name", "description", "price", "category", "sizes"],
       },
     };
 
