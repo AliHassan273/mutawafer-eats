@@ -17,6 +17,8 @@ interface AdminPageProps {
   reviews?: Review[];
 }
 
+const t = (key: any, params?: any) => getTranslation(key, lang, params);
+
 const RESTAURANT_NAMES_MAP: Record<string, string> = {
   'Big Bun Burger Bar': 'برجر بار بيج بن 🍔',
   'Green Leaf Salads': 'سلطة الورقة الخضرا 🥗',
