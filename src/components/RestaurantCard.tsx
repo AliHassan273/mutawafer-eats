@@ -1,12 +1,11 @@
 import React from 'react';
 import { Star, Truck, ShieldCheck, Flame } from 'lucide-react';
 import { Restaurant, Review } from '../types';
-import { Language, getTranslation } from '../translations';
+import { lang, getTranslation } from '../translations';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
   onClick: () => void;
-  lang: Language;
   reviews?: Review[];
   key?: React.Key;
 }
@@ -50,8 +49,11 @@ export function isRestaurantOpen(openTime?: string, closeTime?: string): boolean
   }
 }
 
-export default function RestaurantCard({ restaurant, onClick, lang, reviews }: RestaurantCardProps) {
-  const t = (key: any, params?: any) => getTranslation(key, lang, params);
+export default function RestaurantCard({
+ restaurant, onClick, reviews }: RestaurantCardProps) {
+  const isAr = lang === 'ar';
+
+  const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
 
   const displayName = (LOCAL_STORE[lang] as any)?.[restaurant.name] || restaurant.name;
   
@@ -68,20 +70,17 @@ export default function RestaurantCard({ restaurant, onClick, lang, reviews }: R
 
   // Localize categories list
   const getLocalizedCategories = () => {
-  // ✅ تأكد من وجود categories، وإلا استخدم مصفوفة فارغة
-  const cats = restaurant.categories || [];
-  return cats.map((c) => {
-    if (lang === 'ar') {
+    const cats = restaurant.categories || [];
+    return cats.map((c) => {
       if (c === 'burgers') return 'برجر';
       if (c === 'pizza') return 'بيتزا';
       if (c === 'salads') return 'سلطات';
       if (c === 'sushi') return 'سوشي';
       if (c === 'ramen') return 'رامين';
       if (c === 'dessert') return 'حلويات';
-    }
-    return c;
-  }).join(' • ');
-};
+      return c;
+    }).join(' • ');
+  };
 
   return (
     <div 
@@ -91,7 +90,7 @@ export default function RestaurantCard({ restaurant, onClick, lang, reviews }: R
           ? "hover:border-slate-200 hover:shadow-lg hover:-translate-y-1 cursor-pointer group" 
           : "opacity-75 cursor-not-allowed"
       }`}
-      dir={lang === 'ar' ? 'rtl' : 'ltr'}
+      dir={'rtl'}
     >
       {/* Cover Image Wrapper */}
       <div className="relative aspect-16/10 w-full overflow-hidden bg-slate-100">
@@ -108,19 +107,17 @@ export default function RestaurantCard({ restaurant, onClick, lang, reviews }: R
           <div className="absolute inset-0 bg-slate-900/75 flex flex-col items-center justify-center text-center p-3 z-20">
             <span className="text-xl">🔒</span>
             <span className="text-white font-black text-xs mt-1 bg-red-650 px-3 py-1 rounded-full shadow-xs">
-              {lang === 'ar' ? 'مغلق حالياً 🚪' : 'CLOSED NOW'}
+              {'مغلق حالياً 🚪'}
             </span>
             <span className="text-slate-300 text-[10px] font-bold mt-1.5 bg-slate-800/80 px-2 py-0.5 rounded-md leading-normal">
-              {lang === 'ar' 
-                ? `مواعيد العمل: من ${restaurant.openTime} إلى ${restaurant.closeTime}`
-                : `Hours: ${restaurant.openTime} to ${restaurant.closeTime}`}
+              {`مواعيد العمل: من ${restaurant.openTime} إلى ${restaurant.closeTime}`}
             </span>
           </div>
         )}
 
         {/* Dynamic Badge Overlays */}
         {restaurant.promo && (
-          <div className={`absolute top-4 ${lang === 'ar' ? 'right-4' : 'left-4'} z-10 shrink-0`}>
+          <div className={`absolute top-4 ${'right-4'} z-10 shrink-0`}>
             {restaurant.promo === 'FREE DELIVERY' ? (
               <span className="inline-flex items-center gap-1.5 bg-white text-slate-800 text-[10px] font-bold px-3 py-1.5 rounded-full shadow-xs uppercase tracking-wide">
                 <Truck className="h-3.5 w-3.5 text-green-500" />
@@ -136,7 +133,7 @@ export default function RestaurantCard({ restaurant, onClick, lang, reviews }: R
         )}
 
         {/* Soft tag for ETA / distance */}
-        <div className={`absolute bottom-4 ${lang === 'ar' ? 'right-4' : 'left-4'} bg-slate-900/50 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-lg`}>
+        <div className={`absolute bottom-4 ${'right-4'} bg-slate-900/50 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-lg`}>
           {restaurant.distance} {t('km')} • {restaurant.deliveryTime}
         </div>
       </div>

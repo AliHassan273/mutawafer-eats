@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { X, User, Mail, Phone, Lock, Eye, EyeOff, Check } from 'lucide-react';
-import { Language, getTranslation } from '../translations';
 import { saveToken } from '../utils/fetchHelper';
+import { lang, getTranslation } from '../translations';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  lang: Language;
   onSuccess: (user: { id: string; name: string; email: string; phone: string; role?: string; status?: string }) => void;
   initialMode?: 'login' | 'register';
 }
 
-export default function AuthModal({ isOpen, onClose, lang, onSuccess, initialMode = 'login' }: AuthModalProps) {
+export default function AuthModal({
+ isOpen, onClose, onSuccess, initialMode = 'login' }: AuthModalProps) {
+  const isAr = lang === 'ar';
+  const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
+
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -25,7 +28,6 @@ export default function AuthModal({ isOpen, onClose, lang, onSuccess, initialMod
 
   if (!isOpen) return null;
 
-  const isAr = lang === 'ar';
 
   const resetForm = () => {
     setName('');

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Phone, User, CreditCard, ShoppingBag, ShieldCheck } from 'lucide-react';
 import { CartItem, Restaurant } from '../types';
-import { Language, getTranslation } from '../translations';
+import { lang, getTranslation } from '../translations';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -22,7 +22,6 @@ interface CheckoutModalProps {
     vodafoneFee?: number,
     doorstepDelivery?: boolean
   ) => void;
-  lang: Language;
   currentUser: { id: string; name: string; email: string; phone: string; role?: string } | null;
   settings?: any;
   restaurant?: Restaurant;
@@ -65,6 +64,7 @@ const DISH_NAMES_MAP = {
 };
 
 export default function CheckoutModal({
+
   isOpen,
   onClose,
   cart,
@@ -73,11 +73,13 @@ export default function CheckoutModal({
   deliveryOptions,
   currentAddress,
   onPlaceOrder,
-  lang,
   currentUser,
   settings,
   restaurant,
 }: CheckoutModalProps) {
+  const isAr = lang === 'ar';
+  const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
+
   const [name, setName] = useState(currentUser?.name || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
   const [notes, setNotes] = useState('');
@@ -150,7 +152,7 @@ export default function CheckoutModal({
             // Call OpenStreetMap Nominatim reverse geocoder free API
             const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
             const res = await fetch(url, {
-              headers: { 'Accept-Language': isAr ? 'ar' : 'en' }
+              headers: { 'Accept-Language': 'ar' }
             });
             if (res.ok) {
               const data = await res.json();
@@ -235,8 +237,6 @@ export default function CheckoutModal({
 
   if (!isOpen) return null;
 
-  const t = (key: any, params?: any) => getTranslation(key, lang, params);
-  const isAr = lang === 'ar';
 
   const isDistancePricing = settings?.deliveryPricingType === 'distance';
   const activeDeliveryFee = isDistancePricing
@@ -634,7 +634,7 @@ export default function CheckoutModal({
                       : `1. Transfer ${(subtotal + activeDeliveryFee + vodafoneFee - discount).toFixed(0)} EGP to our wallet:`}
                   </p>
                   <div className="bg-white border border-red-100 rounded-xl p-2.5 text-center font-mono text-sm font-black text-red-600 tracking-wider">
-                    {settings?.whatsappNumber || "01095452533"}
+                    {settings?.whatsappNumber || "01016789012"}
                   </div>
                   <p className="text-[10px] text-red-600">
                     💡 {isAr 

@@ -7,6 +7,7 @@ import {
 import { Restaurant, MenuItem, Review } from "../types";
 import { fetchWithRetry } from "../utils/fetchHelper";
 import { saveToken } from '../utils/fetchHelper';
+import { lang } from '../translations';
 
 interface AdminPageProps {
   restaurants: Restaurant[];
@@ -25,7 +26,7 @@ const RESTAURANT_NAMES_MAP: Record<string, string> = {
   'Sweet Delight Desserts': 'حلويات البهجة والسرور 🍦',
 };
 
-export default function AdminPage({ restaurants, lang, onBack, onRefreshData, onAdminLogin, onAdminLogout, reviews }: AdminPageProps) {
+export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminLogin, onAdminLogout, reviews }: AdminPageProps) {
   // ✅ ترجمات عربية ثابتة
   const translations: Record<string, string> = {
     egp: "ج",
@@ -54,7 +55,7 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
     statusDeleted: "🗑️ تم الحذف",
   };
   const t = (key: string) => translations[key] ?? key;
-  const isAr = lang === 'ar';
+  const isAr = lang === 'ar'; // ✅ التطبيق عربي بالكامل
 
   // Navigation / Tab selection
   const [selectedRestId, setSelectedRestId] = useState<string>(restaurants[0]?.id || "");
@@ -588,10 +589,6 @@ export default function AdminPage({ restaurants, lang, onBack, onRefreshData, on
 
   const [activeStoreDropdownId, setActiveStoreDropdownId] = useState<string | null>(null);
   const [activeDishDropdownId, setActiveDishDropdownId] = useState<string | null>(null);
-  // قائمة مراجع الأزرار
-const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-// إحداثيات القائمة المنسدلة
-const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number; restId: string } | null>(null);
 
   const [restForm, setRestForm] = useState({
     name: "",
@@ -1672,14 +1669,31 @@ const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number; res
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-600">{t("coverImageUrl")}</label>
-            <input
-              type="text"
-              placeholder="https://images.unsplash.com/..."
-              value={restForm.coverImage}
-              onChange={(e) => setRestForm({ ...restForm, coverImage: e.target.value })}
-              className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2.5 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-orange-500"
-            />
+            <label className="text-xs font-bold text-slate-600">صورة الغلاف</label>
+            <div className="flex items-center gap-3">
+              <label className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-150 rounded-xl px-4 py-2.5 cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition-all">
+                <span className="text-lg">🖼️</span>
+                <span className="text-xs text-slate-500 truncate">
+                  {restForm._coverFile ? restForm._coverFile.name : "اختر صورة للغلاف..."}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => setRestForm({ ...restForm, coverImage: ev.target?.result as string, _coverFile: file });
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </label>
+              {restForm.coverImage && (
+                <img src={restForm.coverImage} alt="preview" className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0" />
+              )}
+            </div>
+            <p className="text-[10px] text-slate-400">لو ما اخترتش صورة هيستخدم صورة اللوجو الافتراضية</p>
           </div>
 
           <div className="space-y-1">
@@ -1834,73 +1848,57 @@ const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number; res
                       </button>
 
                       <div className="relative">
-<button
-  type="button"
-  onClick={(e) => {
-    e.stopPropagation();
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveStoreDropdownId(activeStoreDropdownId === rest.id ? null : rest.id);
+                          }}
+                          data-rest-menu={rest.id}
+                          className="p-1 rounded-full hover:bg-slate-200/60 text-slate-500 cursor-pointer transition-all flex items-center justify-center"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
 
-    const rect = e.currentTarget.getBoundingClientRect();
-
-    setDropdownPos({
-      top: rect.bottom + 5,
-      right: window.innerWidth - rect.right,
-      restId: rest.id,
-    });
-
-    setActiveStoreDropdownId(rest.id);
-  }}
-  className="p-2 rounded-full hover:bg-slate-100 cursor-pointer"
->
-  <MoreVertical className="h-5 w-5" />
-</button>
-
-{activeStoreDropdownId === rest.id &&
- dropdownPos &&
- dropdownPos.restId === rest.id && (
-  <>
-    <div
-      className="fixed inset-0 z-[9998]"
-      onClick={() => {
-        setDropdownPos(null);
-        setActiveStoreDropdownId(null);
-      }}
-    />
-
-    <div
-      className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl min-w-[150px] p-1"
-      style={{
-        top: `${dropdownPos.top}px`,
-        right: `${dropdownPos.right}px`,
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => {
-          handleSetEditRestaurant(rest);
-          setDropdownPos(null);
-          setActiveStoreDropdownId(null);
-        }}
-        className="w-full flex flex-row-reverse items-center gap-2 text-right px-3 py-2 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700"
-      >
-        <Edit2 className="h-4 w-4 text-orange-500" />
-        <span>تعديل المطعم</span>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => {
-          setDeleteConfirmRestId(rest.id);
-          setDropdownPos(null);
-          setActiveStoreDropdownId(null);
-        }}
-        className="w-full flex flex-row-reverse items-center gap-2 text-right px-3 py-2 hover:bg-red-50 rounded-lg text-xs font-bold text-red-600"
-      >
-        <Trash2 className="h-4 w-4 text-red-500" />
-        <span>حذف المطعم</span>
-      </button>
-    </div>
-  </>
-)}                      </div>
+                        {activeStoreDropdownId === rest.id && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-[9998]"
+                              onClick={() => setActiveStoreDropdownId(null)}
+                            />
+                            <div className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl w-36 p-1 animate-in fade-in duration-100"
+                              style={{
+                                top: (() => { const b = document.querySelector(`[data-rest-menu="${rest.id}"]`); return b ? b.getBoundingClientRect().bottom + 4 + window.scrollY : 0; })(),
+                                right: (() => { const b = document.querySelector(`[data-rest-menu="${rest.id}"]`); return b ? window.innerWidth - b.getBoundingClientRect().right : 0; })(),
+                              }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleSetEditRestaurant(rest);
+                                  setActiveStoreDropdownId(null);
+                                }}
+                                className={`w-full text-left px-2.5 py-1.5 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer ${'flex-row-reverse text-right'
+                                  }`}
+                              >
+                                <Edit2 className="h-3.5 w-3.5 text-[#f94c10]" />
+                                <span>{'تعديل المطعم'}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDeleteConfirmRestId(rest.id);
+                                  setActiveStoreDropdownId(null);
+                                }}
+                                className={`w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer ${'flex-row-reverse text-right'
+                                  }`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                <span>{'حذف المطعم'}</span>
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -2416,6 +2414,7 @@ const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number; res
                               e.stopPropagation();
                               setActiveDishDropdownId(activeDishDropdownId === item.id ? null : item.id);
                             }}
+                            data-dish-menu={item.id}
                             className="p-1.5 rounded-full hover:bg-slate-200 text-slate-500 cursor-pointer transition-all flex items-center justify-center"
                           >
                             <MoreVertical className="h-4 w-4" />
@@ -2427,7 +2426,7 @@ const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number; res
                                 className="fixed inset-0 z-30"
                                 onClick={() => setActiveDishDropdownId(null)}
                               />
-                              <div className={`absolute ${'left-0'} mt-1 z-45 bg-white border border-slate-150 rounded-xl shadow-xl w-32 p-1 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100`}>
+                              <div className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl w-36 p-1 animate-in fade-in duration-100" style={{top: (() => { const b = document.querySelector(`[data-dish-menu="${item.id}"]`); return b ? b.getBoundingClientRect().bottom + 4 : 0; })(), right: (() => { const b = document.querySelector(`[data-dish-menu="${item.id}"]`); return b ? window.innerWidth - b.getBoundingClientRect().right : 0; })()}}>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -3154,6 +3153,7 @@ const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number; res
           </div>
         </div>
       )}
+
     </div>
   );
 }

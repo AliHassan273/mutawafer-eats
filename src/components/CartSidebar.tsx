@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Trash2, Plus, Minus, Tag, Check, AlertCircle, ShoppingBag } from 'lucide-react';
 import { CartItem } from '../types';
-import { Language, getTranslation } from '../translations';
+import { lang, getTranslation } from '../translations';
 
 interface CartSidebarProps {
   isOpen: boolean;
@@ -10,7 +10,6 @@ interface CartSidebarProps {
   onAddToCart: (item: any, restaurantInstance: any, selectedSize?: any) => void;
   onRemoveFromCart: (itemId: string, selectedSizeId?: string, forceRemoveAll?: boolean) => void;
   onCheckout: (appliedPromo: string, discountValue: number) => void;
-  lang: Language;
   coupons?: { id: string; code: string; discountType: 'percentage' | 'flat'; discountValue: number; minOrder: number; isActive: boolean }[];
 }
 
@@ -51,15 +50,18 @@ const DISH_NAMES_MAP = {
 };
 
 export default function CartSidebar({
+
   isOpen,
   onClose,
   cart,
   onAddToCart,
   onRemoveFromCart,
   onCheckout,
-  lang,
   coupons,
 }: CartSidebarProps) {
+  const isAr = lang === 'ar';
+  const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
+
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState('');
   const [promoError, setPromoError] = useState('');
@@ -67,8 +69,6 @@ export default function CartSidebar({
 
   if (!isOpen) return null;
 
-  const t = (key: any, params?: any) => getTranslation(key, lang, params);
-  const isAr = lang === 'ar';
 
   // Compute pricing totals
   const subtotal = cart.reduce((total, item) => total + ((item.selectedSize ? item.selectedSize.price : item.menuItem.price) * item.quantity), 0);

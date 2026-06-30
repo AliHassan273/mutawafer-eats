@@ -1,26 +1,26 @@
 import React from 'react';
 import { Clock, MapPin, ChevronRight, CheckCircle2, Star, RefreshCw, ShoppingBag } from 'lucide-react';
 import { Order, Review } from '../types';
-import { Language } from '../translations';
+import { lang } from '../translations';
 
 interface MyOrdersPageProps {
   orders: Order[];
   currentUser: { id: string; name: string; email: string; phone: string; role?: string } | null;
   onOrderClick: (order: Order) => void;
-  lang: Language;
   onBack: () => void;
   reviews?: Review[];
 }
 
 export default function MyOrdersPage({
+
   orders,
   currentUser,
   onOrderClick,
-  lang,
   onBack,
   reviews = [],
 }: MyOrdersPageProps) {
   const isAr = lang === 'ar';
+
 
   const t = (arText: string, enText: string) => (isAr ? arText : enText);
 

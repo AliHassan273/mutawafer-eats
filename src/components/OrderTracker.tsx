@@ -1,21 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Clock, MapPin, Phone, MessageSquare, Check, RotateCw, Bike, ChefHat, CheckCircle2, Star } from 'lucide-react';
 import { Order } from '../types';
-import { Language, getTranslation } from '../translations';
+import { lang } from '../translations';
+import { fetchWithRetry } from '../utils/fetchHelper';
 
 interface OrderTrackerProps {
   order: Order;
   onBack: () => void;
   onUpdateStatus: (orderId: string, status: 'Pending' | 'Received' | 'Preparing' | 'OutForDelivery' | 'Delivered') => void;
-  lang: Language;
 }
 
-export default function OrderTracker({ order, onBack, onUpdateStatus, lang }: OrderTrackerProps) {
+export default function OrderTracker({
+ order, onBack, onUpdateStatus }: OrderTrackerProps) {
+  const isAr = lang === 'ar';
+
   // We'll simulate courier position along a route path from restaurant to customer.
   // Coordinates range from 0 (at restaurant) to 1 (arrived at destination).
   const [courierProgress, setCourierProgress] = useState(0);
   const [countdownMinutes, setCountdownMinutes] = useState(order.eta);
-  const [whatsappNumber, setWhatsappNumber] = useState("201095452533");
+  const [whatsappNumber, setWhatsappNumber] = useState("201016789012");
   const [currentOrder, setCurrentOrder] = useState<Order>(order);
   const [courierContactActiveMessage, setCourierContactActiveMessage] = useState('');
 
@@ -42,9 +45,8 @@ export default function OrderTracker({ order, onBack, onUpdateStatus, lang }: Or
         comment: reviewComment,
       };
 
-      const res = await fetch('/api/reviews', {
+      const res = await fetchWithRetry('/api/reviews', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       if (res.ok) {
@@ -64,7 +66,7 @@ export default function OrderTracker({ order, onBack, onUpdateStatus, lang }: Or
 
   // Load WhatsApp settings
   useEffect(() => {
-    fetch('/api/settings')
+    fetchWithRetry('/api/settings')
       .then(res => res.json())
       .then(data => {
         if (data && data.whatsappNumber) {
@@ -76,25 +78,51 @@ export default function OrderTracker({ order, onBack, onUpdateStatus, lang }: Or
 
   // Poll for status updates from backend database every 3 seconds
   useEffect(() => {
-    const pollInterval = setInterval(() => {
-      fetch('/api/orders')
-        .then(res => res.json())
-        .then((ordersList: Order[]) => {
-          const freshOrder = ordersList.find(o => o.id === order.id);
-          if (freshOrder) {
-            if (freshOrder.status !== currentOrder.status) {
-              onUpdateStatus(order.id, freshOrder.status);
-            }
-            // Deep update the currentOrder reference to fetch things like reviewed flag
-            setCurrentOrder(prev => {
-              if (JSON.stringify(prev) !== JSON.stringify(freshOrder)) {
-                return freshOrder;
-              }
-              return prev;
-            });
+    let consecutiveFailures = 0;
+    const poll = async () => {
+      try {
+        const res = await fetchWithRetry('/api/orders');
+        if (!res.ok) {
+          console.error('Order poll non-ok response', res.status);
+          consecutiveFailures++;
+          return;
+        }
+
+        const data = await res.json();
+        let ordersList: Order[] = [];
+
+        if (Array.isArray(data)) ordersList = data;
+        else if (data && Array.isArray((data as any).orders)) ordersList = (data as any).orders;
+        else if (data && typeof data === 'object' && data.id) ordersList = [data as any];
+        else {
+          console.warn('Unexpected orders payload while polling:', data);
+          consecutiveFailures++;
+          return;
+        }
+
+        consecutiveFailures = 0;
+        const freshOrder = ordersList.find(o => o.id === order.id) || null;
+        if (freshOrder) {
+          if (freshOrder.status !== currentOrder.status) {
+            onUpdateStatus(order.id, freshOrder.status);
           }
-        })
-        .catch(err => console.error("Error polling order status:", err));
+          setCurrentOrder(prev => {
+            if (JSON.stringify(prev) !== JSON.stringify(freshOrder)) return freshOrder;
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.error('Error polling order status:', err);
+        consecutiveFailures++;
+      }
+    };
+
+    // initial immediate poll then interval
+    poll();
+    const pollInterval = setInterval(() => {
+      // if many consecutive failures, slow down polling to reduce noise
+      if (consecutiveFailures >= 5) return;
+      poll();
     }, 3000);
 
     return () => clearInterval(pollInterval);
@@ -147,8 +175,6 @@ ${itemsText}
     window.open(waUrl, "_blank");
   };
 
-  const t = (key: any, params?: any) => getTranslation(key, lang, params);
-  const isAr = lang === 'ar';
 
   // Coordinates for Restaurant (Start) and Home (End) in an SVG grid (300 x 200)
   const restX = 60;

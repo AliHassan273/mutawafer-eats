@@ -17,11 +17,9 @@ import MyOrdersPage from './components/MyOrdersPage';
 import BestSellersAndReviews from './components/BestSellersAndReviews';
 import { RESTAURANTS, CATEGORIES } from './data';
 import { Restaurant, MenuItem, CartItem, Order, Review } from './types';
-import { Language, getTranslation } from './translations';
+import { lang, getTranslation } from './translations';
 import { useMemo } from 'react';
 
-// داخل App.tsx، بعد تعريف useState للغة (lang)
-const t = (key: any, params?: any) => getTranslation(key, lang, params);
 
 const DISH_NAMES_MAP: Record<string, string> = {
   'The Original Big Bun': 'برجر بيج بن الأصلي 🍔',
@@ -65,12 +63,7 @@ const RESTAURANT_NAMES_MAP: Record<string, string> = {
 };
 
 export default function App() {
-  const [lang, setLang] = useState<Language>('ar');
-
-// ثم أضف useEffect لتحديث localStorage عند تغيير اللغة:
-useEffect(() => {
-  localStorage.setItem('mutafer_eats_lang', lang);
-}, [lang]);  const [address, setAddress] = useState('قطعة ٩٢، إطلالة النيل بالزمالك');
+  const [address, setAddress] = useState('قطعة ٩٢، إطلالة النيل بالزمالك');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [restPageIndex, setRestPageIndex] = useState(0);
@@ -93,6 +86,8 @@ useEffect(() => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  // translation helper used throughout the app
+  const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
   const [settings, setSettings] = useState<{
     whatsappNumber: string;
     deliveryPricingType?: 'area' | 'distance';
@@ -105,7 +100,7 @@ useEffect(() => {
     coupons?: { id: string; code: string; discountType: 'percentage' | 'flat'; discountValue: number; minOrder: number; isActive: boolean }[];
     categories?: { id: string; name: string; nameAr: string; icon: string }[];
   }>({
-    whatsappNumber: "201095452533",
+    whatsappNumber: "201016789012",
     deliveryPricingType: "area",
     distanceBaseFee: 10,
     distanceFeePerKm: 5,
@@ -211,95 +206,69 @@ useEffect(() => {
     return popularList.slice(0, 4);
   }, [orders, restaurants]);
 
-  const t = (key: any, params?: any) => getTranslation(key, lang, params);
 
   // Synchronize dynamic lists and settings on load
-// App.tsx
-
-const loadInitialData = async () => {
-  try {
-    // 1. Fetch Restaurants
-    const res = await fetchWithRetry('/api/restaurants');
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.length > 0) {
-        // ✅ تطبيع البيانات: تأكد من أن menu و categories مصفوفات
-        const normalized = data.map((rest: any) => ({
-          ...rest,
-          menu: Array.isArray(rest.menu) ? rest.menu : [],
-          categories: Array.isArray(rest.categories) ? rest.categories : [],
-        }));
-        setRestaurants(normalized);
+  const loadInitialData = async () => {
+    try {
+      // 1. Fetch Restaurants
+      const res = await fetchWithRetry('/api/restaurants');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          setRestaurants(data);
+        } else {
+          setRestaurants(RESTAURANTS);
+        }
       } else {
         setRestaurants(RESTAURANTS);
       }
-    } else {
+    } catch {
       setRestaurants(RESTAURANTS);
+    } finally {
+      setLoadingRestaurants(false);
     }
-  } catch (error) {
-    console.error("Error loading restaurants:", error);
-    setRestaurants(RESTAURANTS);
-  } finally {
-    setLoadingRestaurants(false);
-  }
 
-
-  try {
-    // 2. Fetch Settings
-    const setRes = await fetchWithRetry('/api/settings');
-    if (setRes.ok) {
-      const setData = await setRes.json();
-      if (setData) setSettings(setData);
+    try {
+      // 2. Fetch Settings
+      const setRes = await fetchWithRetry('/api/settings');
+      if (setRes.ok) {
+        const setData = await setRes.json();
+        if (setData) setSettings(setData);
+      }
+    } catch (err) {
+      console.error("Error fetching settings:", err);
     }
-  } catch (err) {
-    console.error("Error fetching settings:", err);
-  }
 
-  try {
-    // 3. Fetch orders
-    const ordRes = await fetchWithRetry('/api/orders');
-    if (ordRes.ok) {
-      const ordData = await ordRes.json();
-      setOrders(ordData);
+    try {
+      // 3. Fetch orders
+      const ordRes = await fetchWithRetry('/api/orders');
+      if (ordRes.ok) {
+        const ordData = await ordRes.json();
+        setOrders(ordData);
+      }
+    } catch (err) {
+      console.error("Error fetching orders:", err);
     }
-  } catch (err) {
-    console.error("Error fetching orders:", err);
-  }
 
-  try {
-    // 4. Fetch reviews
-    const revRes = await fetchWithRetry('/api/reviews');
-    if (revRes.ok) {
-      const revData = await revRes.json();
-      setReviews(revData);
+    try {
+      // 4. Fetch reviews
+      const revRes = await fetchWithRetry('/api/reviews');
+      if (revRes.ok) {
+        const revData = await revRes.json();
+        setReviews(revData);
+      }
+    } catch (err) {
+      console.error("Error fetching reviews:", err);
     }
-  } catch (err) {
-    console.error("Error fetching reviews:", err);
-  }
-};
+  };
 
-const handleOpenRestaurant = (restaurant: Restaurant) => {
-  // تأكد من أن المطعم موجود في القائمة الحالية
-  const found = restaurants.find(r => r.id === restaurant.id);
-  if (!found) {
-    console.warn("Restaurant not found in current list, but opening anyway.");
-    // يمكنك إعادة تحميل البيانات هنا إذا أردت
-  }
-  setSelectedRestaurant(found || restaurant);
-  setActiveView('restaurant');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-};
   useEffect(() => {
     loadInitialData();
   }, []);
 
   // Update default address automatically based on selected language
   useEffect(() => {
-    if (lang === 'ar') {
-      setAddress('قطعة ٩٢، إطلالة النيل بالزمالك');
-    } else {
-      setAddress('Plot 92, Zamalek Nile View');
-    }
+    setAddress('قطعة ٩٢، إطلالة النيل بالزمالك');
   }, [lang]);
 
 
@@ -309,6 +278,12 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
     if (activeView !== 'home') {
       setActiveView('home');
     }
+  };
+
+  const handleOpenRestaurant = (restaurant: Restaurant) => {
+    setSelectedRestaurant(restaurant);
+    setActiveView('restaurant');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleAddToCart = (item: MenuItem, restaurantInstance: any, selectedSize?: any) => {
@@ -795,9 +770,7 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border border-slate-700/50 text-white text-xs font-semibold py-3.5 px-6 rounded-2xl shadow-2xl flex items-center gap-2.5 animate-bounce">
           <span className="bg-[#f94c10] text-white h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold">✓</span>
           <span>
-            {lang === 'ar' 
-              ? `تم نسخ الكود "${copiedPromoToast}". حطه في الحساب عشان تاخد الخصم يا معلم!` 
-              : `Promo code "${copiedPromoToast}" copied successfully.`}
+            {`تم نسخ الكود "${copiedPromoToast}". حطه في الحساب عشان تاخد الخصم يا معلم!`}
           </span>
         </div>
       )}
@@ -815,8 +788,6 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
           setSelectedOrder(ord);
           setActiveView('tracker');
         }}
-        lang={lang}
-        setLang={setLang}
         activeView={activeView}
         setActiveView={setActiveView}
         currentUser={currentUser}
@@ -834,14 +805,12 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
             <CategoryList 
               selectedCategory={selectedCategory} 
               onSelectCategory={handleSelectCategory} 
-              lang={lang}
               categories={settings.categories}
             />
 
             {/* Twin Promo Boxes */}
             <PromoBanners 
               onPromoCopy={handlePromoCopyNotification} 
-              lang={lang}
             />
 
             {/* Popular Restaurants / Search By Dish Section */}
@@ -850,27 +819,22 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                 {searchQuery ? (
                   // Search By Item/Dish Grid instead of listing restaurants
                   <div className="space-y-6">
-                    <div className={`flex items-center justify-between border-b border-slate-100 pb-3 ${lang === 'ar' ? 'flex-row-reverse' : ''}`}>
+                    <div className={`flex items-center justify-between border-b border-slate-100 pb-3 ${'flex-row-reverse'}`}>
                       <h2 className="text-lg md:text-xl font-extrabold text-slate-800 tracking-tight font-display">
-                        {lang === 'ar' 
-                          ? `نتائج البحث عن الاصناف: "${searchQuery}" (${matchingDishes.length})` 
-                          : `Dish search results for "${searchQuery}" (${matchingDishes.length})`
-                        }
+                        {`نتائج البحث عن الاصناف: "${searchQuery}" (${matchingDishes.length})`}
                       </h2>
                       <button 
                         onClick={() => setSearchQuery('')}
                         className="text-xs font-bold text-slate-500 hover:text-orange-550 transition-colors cursor-pointer"
                       >
-                        {lang === 'ar' ? 'إلغاء البحث ✕' : 'Clear search ✕'}
+                        {'إلغاء البحث ✕'}
                       </button>
                     </div>
 
                     {matchingDishes.length === 0 ? (
                       <div className="text-center py-20 bg-white border border-slate-100 rounded-3xl p-8 space-y-4">
                         <p className="text-slate-400 font-bold text-sm">
-                          {lang === 'ar' 
-                            ? 'لم نجد أي صنف أو طبق بهذا الاسم. جرب أكلات تانية يا غالي! 🍕' 
-                            : 'No matching food items or dishes found. Try another meal description!'}
+                          'لم نجد أي صنف أو طبق بهذا الاسم. جرب أكلات تانية يا غالي! 🍕'
                         </p>
                         <button 
                           onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}
@@ -890,7 +854,7 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                             >
                               {isOffer && (
                                 <div className="absolute top-3 right-3 bg-red-500 text-white font-black text-[10px] px-2.5 py-1 rounded-full z-10 shadow-sm uppercase shrink-0">
-                                  {lang === 'ar' ? 'خصم فعال 🔥' : 'Offer active 🔥'}
+                                  {'خصم فعال 🔥'}
                                 </div>
                               )}
                               
@@ -904,7 +868,7 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                                   />
                                 </div>
 
-                                <div className="space-y-1" style={{ textAlign: lang === 'ar' ? 'right' : 'left' }}>
+                                <div className="space-y-1" style={{ textAlign: 'right' }}>
                                   <div className="flex justify-between items-start gap-2">
                                     <h3 className="font-bold text-sm text-slate-800 line-clamp-1 group-hover:text-orange-550 transition-colors">
                                       {item.name}
@@ -927,9 +891,7 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                                   >
                                     <span className="text-sm">🏬</span>
                                     <span>
-                                      {lang === 'ar' 
-                                        ? `من مطعم: ${restaurant.name} (اضغط للذهاب)` 
-                                        : `From: ${restaurant.name} (click to visit)`}
+                                      {`من مطعم: ${restaurant.name} (اضغط للذهاب)`}
                                     </span>
                                   </button>
                                 </div>
@@ -939,7 +901,7 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                                 onClick={() => handleAddToCart(item, restaurant)}
                                 className="w-full bg-[#f94c10] hover:bg-orange-600 active:scale-95 text-white font-extrabold text-xs py-2.5 px-4 rounded-xl mt-4 flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-sm"
                               >
-                                <span>{lang === 'ar' ? 'أضف للسلة 🛒' : 'Add to Cart 🛒'}</span>
+                                <span>{'أضف للسلة 🛒'}</span>
                               </button>
                             </div>
                           );
@@ -952,19 +914,17 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                     {selectedCategory !== 'all' ? (
                       /* Category Dishes Section - Show dishes list */
                       <div className="space-y-6">
-                        <div className={`flex items-center justify-between border-b border-rose-100 pb-3 ${lang === 'ar' ? 'flex-row-reverse' : ''}`}>
-                          <div className={`flex items-center gap-3 ${lang === 'ar' ? 'flex-row-reverse' : ''}`}>
+                        <div className={`flex items-center justify-between border-b border-rose-100 pb-3 ${'flex-row-reverse'}`}>
+                          <div className={`flex items-center gap-3 ${'flex-row-reverse'}`}>
                             <span className="text-3xl p-2 bg-rose-50 rounded-2xl shrink-0">
                               {getCategoryIcon(selectedCategory)}
                             </span>
                             <div>
                               <h2 className="text-lg md:text-xl font-extrabold text-slate-800 tracking-tight font-display">
-                                {lang === 'ar' ? `أشهى وجبات: ${getCategoryArLabel(selectedCategory)}` : `${selectedCategory} Delicacies`}
+                                {`أشهى وجبات: ${getCategoryArLabel(selectedCategory)}`}
                               </h2>
                               <p className="text-[11px] text-slate-400 font-bold">
-                                {lang === 'ar' 
-                                  ? `تصفح ألذ الأكلات المتوفرة في فئة ${getCategoryArLabel(selectedCategory)} من مختلف المطاعم` 
-                                  : `Explore gourmet ${selectedCategory} recipes prepared by top chefs`}
+                                {`تصفح ألذ الأكلات المتوفرة في فئة ${getCategoryArLabel(selectedCategory)} من مختلف المطاعم`}
                               </p>
                             </div>
                           </div>
@@ -973,7 +933,7 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                             onClick={() => setSelectedCategory('all')}
                             className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-black text-xs py-1.5 px-4 rounded-full transition-all cursor-pointer hover:scale-102 shrink-0"
                           >
-                            {lang === 'ar' ? 'عرض كل المطاعم 🏬' : 'View All Stores 🏬'}
+                            {'عرض كل المطاعم 🏬'}
                           </button>
                         </div>
 
@@ -981,13 +941,13 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                           <div className="text-center py-12 bg-slate-50/50 rounded-3xl border border-slate-100 space-y-3">
                             <span className="text-4xl block">🥗🔍</span>
                             <p className="text-sm font-bold text-slate-500">
-                              {lang === 'ar' ? 'عفواً، لا توجد وجبات نشطة في هذا القسم حالياً.' : 'No active dishes found in this category.'}
+                              {'عفواً، لا توجد وجبات نشطة في هذا القسم حالياً.'}
                             </p>
                             <button
                               onClick={() => setSelectedCategory('all')}
                               className="text-[#f94c10] hover:underline font-black text-xs cursor-pointer"
                             >
-                              {lang === 'ar' ? 'البدء بالتصفح من جديد ↺' : 'Restart Browsing ↺'}
+                              {'البدء بالتصفح من جديد ↺'}
                             </button>
                           </div>
                         ) : (
@@ -1005,7 +965,7 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                                 >
                                   {isOffer && (
                                     <div className="absolute top-3 right-3 bg-red-500 text-white font-black text-[10px] px-2.5 py-1 rounded-full z-10 shadow-sm uppercase shrink-0">
-                                      {lang === 'ar' ? 'عرض خاص 🎁' : 'Offer 🎁'}
+                                      {'عرض خاص 🎁'}
                                     </div>
                                   )}
                                   
@@ -1021,13 +981,13 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                                       {!isRestOpen && (
                                         <div className="absolute inset-0 bg-slate-900/70 flex items-center justify-center text-center p-2 z-10">
                                           <span className="text-white font-black text-[10px] bg-red-600 px-2 py-0.5 rounded-full">
-                                            {lang === 'ar' ? 'مغلق حالياً 🚪' : 'CLOSED NOW'}
+                                            {'مغلق حالياً 🚪'}
                                           </span>
                                         </div>
                                       )}
                                     </div>
 
-                                    <div className="space-y-1" style={{ textAlign: lang === 'ar' ? 'right' : 'left' }}>
+                                    <div className="space-y-1" style={{ textAlign: 'right' }}>
                                       <div className="flex justify-between items-start gap-2">
                                         <h3 className="font-bold text-sm text-slate-800 line-clamp-1 group-hover:text-orange-550 transition-colors">
                                           {translatedName}
@@ -1049,9 +1009,7 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                                       >
                                         <span className="text-xs">🏬</span>
                                         <span className="line-clamp-1">
-                                          {lang === 'ar' 
-                                            ? `${restaurant.name} (اضغط للذهاب)` 
-                                            : `From: ${restaurant.name}`}
+                                          {`${restaurant.name} (اضغط للذهاب)`}
                                         </span>
                                       </button>
                                     </div>
@@ -1060,7 +1018,7 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                                   <button
                                     onClick={() => {
                                       if (!isRestOpen) {
-                                        alert(lang === 'ar' ? 'هذا المطعم مغلق حالياً' : 'This restaurant is closed right now');
+                                        alert('هذا المطعم مغلق حالياً');
                                         return;
                                       }
                                       handleAddToCart(item, restaurant);
@@ -1074,8 +1032,8 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                                   >
                                     <span>
                                       {isRestOpen 
-                                        ? (lang === 'ar' ? 'طلب فوري 🛒' : 'Add to Cart 🛒') 
-                                        : (lang === 'ar' ? 'مغلق حالياً 🔒' : 'Closed 🔒')}
+                                        ? ('طلب فوري 🛒') 
+                                        : ('مغلق حالياً 🔒')}
                                     </span>
                                   </button>
                                 </div>
@@ -1087,13 +1045,11 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                     ) : (
                       /* Traditional Restaurant list slider replaced with beautiful horizontal scroll */
                       <>
-                        <div className={`flex items-center justify-between mb-4 ${lang === 'ar' ? 'flex-row-reverse' : ''}`}>
+                        <div className={`flex items-center justify-between mb-4 ${'flex-row-reverse'}`}>
                           <h2 className="text-lg md:text-xl font-extrabold text-slate-800 tracking-tight font-display">
                             {selectedCategory === 'all' 
                               ? t('popularRestaurants') 
-                              : (lang === 'ar' 
-                                  ? `مطاعم فئة الـ "${selectedCategory === 'offers' ? 'عروض ممتازة' : selectedCategory}" المتوفرة` 
-                                  : `Popular Restaurants in ${selectedCategory}`)
+                              : `مطاعم فئة الـ "${selectedCategory === 'offers' ? 'عروض ممتازة' : selectedCategory}" المتوفرة`
                             }
                           </h2>
                           
@@ -1128,7 +1084,7 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                         {loadingRestaurants ? (
                           <div className="text-center py-20 flex flex-col items-center justify-center gap-3">
                             <span className="animate-spin rounded-full h-8 w-8 border-4 border-[#f94c10] border-t-transparent" />
-                            <p className="text-xs font-bold text-slate-500">{lang === 'ar' ? 'جاري شحن المطاعم والأجهزة...' : 'Loading food servers...'}</p>
+                            <p className="text-xs font-bold text-slate-500">{'جاري شحن المطاعم والأجهزة...'}</p>
                           </div>
                         ) : filteredRestaurants.length === 0 ? (
                           <div className="text-center py-16 bg-white border border-slate-100 rounded-3xl p-8 space-y-3" style={{ textAlign: 'center' }}>
@@ -1167,7 +1123,6 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                                   <RestaurantCard
                                     restaurant={restaurant}
                                     onClick={() => handleOpenRestaurant(restaurant)}
-                                    lang={lang}
                                     reviews={reviews}
                                   />
                                 </div>
@@ -1179,15 +1134,15 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                               <h3 
                                 id="restaurant-list-directory"
                                 className="text-sm font-black text-slate-700 mb-4 flex items-center gap-1.5" 
-                                style={{ textAlign: lang === 'ar' ? 'right' : 'left', direction: lang === 'ar' ? 'rtl' : 'ltr' }}
+                                style={{ textAlign: 'right', direction: 'rtl' }}
                               >
                                 <span>🏬</span>
-                                <span>{lang === 'ar' ? 'قائمة المتاجر والمطاعم المسجلة المتوفرة حالياً' : 'All Registered Stores & Restaurant Directory'}</span>
+                                <span>{'قائمة المتاجر والمطاعم المسجلة المتوفرة حالياً'}</span>
                               </h3>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3" style={{ direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3" style={{ direction: 'rtl' }}>
                                 {restaurants.map((rest) => {
                                   const isRestOpen = isRestaurantOpen(rest.openTime, rest.closeTime);
-                                  const displayRestName = (lang === 'ar' ? RESTAURANT_NAMES_MAP[rest.name] || rest.name : rest.name);
+                                  const displayRestName = RESTAURANT_NAMES_MAP[rest.name] || rest.name;
                                   return (
                                     <button
                                       key={`dir-${rest.id}`}
@@ -1204,7 +1159,7 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                                       <span className={`text-[9px] font-black mt-1 px-1.5 py-0.5 rounded-full ${
                                         isRestOpen ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
                                       }`}>
-                                        {isRestOpen ? (lang === 'ar' ? 'مفتوح 🟢' : 'Open 🟢') : (lang === 'ar' ? 'مغلق 🔴' : 'Closed 🔴')}
+                                        {isRestOpen ? ('مفتوح 🟢') : ('مغلق 🔴')}
                                       </span>
                                     </button>
                                   );
@@ -1227,7 +1182,6 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                 reviews={reviews}
                 onAddToCart={handleAddToCart}
                 onOpenRestaurant={handleOpenRestaurant}
-                lang={lang}
               />
             )}
           </div>
@@ -1243,7 +1197,6 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
             cart={cart}
             onAddToCart={handleAddToCart}
             onRemoveFromCart={handleRemoveFromCart}
-            lang={lang}
             onRefreshData={loadInitialData}
             reviews={reviews}
           />
@@ -1257,7 +1210,6 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
               window.scrollTo({ top: 0, behavior: 'instant' });
             }}
             onUpdateStatus={handleUpdateOrderStatus}
-            lang={lang}
           />
         )}
 
@@ -1269,7 +1221,6 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
               window.scrollTo({ top: 0, behavior: 'instant' });
             }}
             onRefreshData={loadInitialData} 
-            lang={lang}
             onAdminLogin={handleAdminAuthSuccess}
             onAdminLogout={handleLogout}
             reviews={reviews}
@@ -1284,14 +1235,13 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                     id: currentUser.id,
                     name: currentUser.role === 'primary' || currentUser.role === 'admin' ? `${currentUser.name} (آدمن)` : currentUser.name,
                     email: currentUser.email,
-                    phone: currentUser.phone || '201095452533',
+                    phone: currentUser.phone || '01016789012',
                     role: 'captain'
                   }
-                : { id: 'temp_cap', name: lang === 'ar' ? 'كابتن مسافر التجريبي 🛵' : 'Demo Captain Explorer 🛵', email: 'captain@mutafer.com', phone: '01012345678', role: 'captain' }
+                : { id: 'temp_cap', name: 'كابتن مسافر التجريبي 🛵', email: 'captain@mutafer.com', phone: '01012345678', role: 'captain' }
             }
             orders={orders}
             onUpdateStatus={handleUpdateOrderStatus}
-            lang={lang}
             onBack={() => {
               setActiveView('home');
               window.scrollTo({ top: 0, behavior: 'instant' });
@@ -1311,7 +1261,6 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
               setActiveView('tracker');
               window.scrollTo({ top: 0, behavior: 'instant' });
             }}
-            lang={lang}
             onBack={() => {
               setActiveView('home');
               window.scrollTo({ top: 0, behavior: 'instant' });
@@ -1321,17 +1270,17 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
         )}
 
         {activeView === 'about' && (
-          <div className="max-w-3xl mx-auto px-4 py-12 animate-in fade-in duration-200" style={{ direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
+          <div className="max-w-3xl mx-auto px-4 py-12 animate-in fade-in duration-200" style={{ direction: 'rtl' }}>
             <div className="bg-white border border-slate-100 rounded-[32px] p-8 md:p-12 shadow-xl space-y-8 relative overflow-hidden">
                {/* Elegant visual brand logo */}
                <div className="flex flex-col items-center text-center space-y-4">
-                 <Logo size="lg" lang={lang} />
+                 <Logo size="lg" />
                  <div>
                    <h1 className="font-display font-extrabold text-2xl md:text-3xl text-slate-800">
-                     {lang === 'ar' ? 'تطبيق متوفر إيتس' : 'Mutafer Eats'}
+                     {'تطبيق متوفر إيتس'}
                    </h1>
                    <p className="text-xs font-bold text-[#f94c10] uppercase tracking-widest mt-1">
-                     {lang === 'ar' ? 'سرعة التوصيل • متعة الطعام' : 'Elite Delivery • Divine Tastes'}
+                     {'سرعة التوصيل • متعة الطعام'}
                    </p>
                  </div>
                </div>
@@ -1339,7 +1288,7 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                {/* Mission details */}
                <div className="prose prose-slate max-w-none text-slate-650 text-sm md:text-base leading-relaxed text-center space-y-6">
                  <p className="font-medium whitespace-pre-wrap">
-                   {settings.aboutUsContent || (lang === 'ar' ? 'تطبيق مسافر هو المنصة الرائدة لتوصيل الطعام الفاخر والوجبات الطازجة بأقصى سرعة واحترافية.' : 'Mutafer Eats is your ultimate gourmet delivery platform.')}
+                   {settings.aboutUsContent || ('تطبيق مسافر هو المنصة الرائدة لتوصيل الطعام الفاخر والوجبات الطازجة بأقصى سرعة واحترافية.')}
                  </p>
                </div>
 
@@ -1347,15 +1296,15 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                <div className="grid grid-cols-3 gap-3 border-t border-slate-100 pt-8 text-center">
                  <div className="space-y-1">
                    <p className="text-xl md:text-2xl font-black text-[#f94c10]">١٠٠٪</p>
-                   <p className="text-[10px] md:text-xs text-slate-400 font-bold">{lang === 'ar' ? 'كباتن معتمدين' : 'Verified Captains'}</p>
+                   <p className="text-[10px] md:text-xs text-slate-400 font-bold">{'كباتن معتمدين'}</p>
                  </div>
                  <div className="space-y-1">
                    <p className="text-xl md:text-2xl font-black text-[#f94c10]">١٥-٢٥</p>
-                   <p className="text-[10px] md:text-xs text-slate-400 font-bold">{lang === 'ar' ? 'دقيقة توصيل' : 'Min Delivery'}</p>
+                   <p className="text-[10px] md:text-xs text-slate-400 font-bold">{'دقيقة توصيل'}</p>
                  </div>
                  <div className="space-y-1">
                    <p className="text-xl md:text-2xl font-black text-[#f94c10]">٢٤/٧</p>
-                   <p className="text-[10px] md:text-xs text-slate-400 font-bold">{lang === 'ar' ? 'خدمة متميزة' : 'Elite Support'}</p>
+                   <p className="text-[10px] md:text-xs text-slate-400 font-bold">{'خدمة متميزة'}</p>
                  </div>
                </div>
 
@@ -1365,7 +1314,7 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
                    onClick={() => setActiveView('home')}
                    className="bg-[#f94c10] hover:bg-[#e03d08] text-white font-extrabold text-xs py-3 px-8 rounded-full transition-all shadow-md cursor-pointer hover:scale-102"
                  >
-                   {lang === 'ar' ? 'الرجوع للرئيسية 🗺️' : 'Back to Home 🗺️'}
+                   {'الرجوع للرئيسية 🗺️'}
                  </button>
                </div>
             </div>
@@ -1381,7 +1330,6 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
         onAddToCart={(itm, rest, size) => handleAddToCart(itm, rest, size)}
         onRemoveFromCart={handleRemoveFromCart}
         onCheckout={handleInitiateCheckout}
-        lang={lang}
         coupons={settings.coupons}
       />
 
@@ -1396,7 +1344,6 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
           deliveryOptions={settings.deliveryOptions}
           currentAddress={address}
           onPlaceOrder={handleFinalizeOrder}
-          lang={lang}
           currentUser={currentUser}
           settings={settings}
           restaurant={restaurants.find(r => r.id === cart[0]?.restaurantId)}
@@ -1408,7 +1355,6 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
         <AuthModal
           isOpen={isAuthOpen}
           onClose={() => setIsAuthOpen(false)}
-          lang={lang}
           initialMode={authMode}
           onSuccess={handleAuthSuccess}
         />
@@ -1418,10 +1364,10 @@ const handleOpenRestaurant = (restaurant: Restaurant) => {
       {cartItemsCount > 0 && !isCartOpen && !isCheckoutOpen && activeView !== 'tracker' && (
         <button
           onClick={() => setIsCartOpen(true)}
-          className={`fixed bottom-6 ${lang === 'ar' ? 'left-6' : 'right-6'} z-30 bg-[#f94c10] hover:bg-[#e03d08] text-white py-3.5 px-5 rounded-full shadow-2xl flex items-center gap-2 hover:scale-105 active:scale-95 transition-all cursor-pointer font-display font-black text-xs sm:text-sm`}
+          className={`fixed bottom-6 ${'left-6'} z-30 bg-[#f94c10] hover:bg-[#e03d08] text-white py-3.5 px-5 rounded-full shadow-2xl flex items-center gap-2 hover:scale-105 active:scale-95 transition-all cursor-pointer font-display font-black text-xs sm:text-sm`}
         >
           <ShoppingBag className="h-5 w-5" />
-          <span>{lang === 'ar' ? `سلة الأكل (${cartItemsCount})` : `Basket (${cartItemsCount})`}</span>
+          <span>{`سلة الأكل (${cartItemsCount})`}</span>
         </button>
       )}
     </div>

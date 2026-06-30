@@ -1,21 +1,20 @@
 import React from 'react';
 import { Star, MessageSquare, ShoppingBag, ArrowRight } from 'lucide-react';
 import { MenuItem, Restaurant, Review } from '../types';
+import { lang } from '../translations';
 
 interface BestSellersAndReviewsProps {
   bestSellers: { item: MenuItem; count?: number; restaurant: Restaurant }[];
   reviews: Review[];
   onAddToCart: (item: MenuItem, restaurant: Restaurant) => void;
-  onOpenRestaurant: (restaurant: Restaurant) => void;
-  lang: 'ar' | 'en';
-}
+  onOpenRestaurant: (restaurant: Restaurant) => void;}
 
 export default function BestSellersAndReviews({
+
   bestSellers,
   reviews,
   onAddToCart,
   onOpenRestaurant,
-  lang,
 }: BestSellersAndReviewsProps) {
   const isAr = lang === 'ar';
 

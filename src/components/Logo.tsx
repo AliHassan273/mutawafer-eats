@@ -1,6 +1,10 @@
 import React from 'react';
+import { lang } from '../translations';
 
-export default function Logo({ size = 'md', lang = 'ar' }: { size?: 'sm' | 'md' | 'lg', lang?: 'ar' | 'en' }) {
+export default function Logo({
+ size = 'md' }: { size?: 'sm' | 'md' | 'lg'}) {
+  const isAr = lang === 'ar';
+
   const dimensions = {
     sm: 'h-10 w-10',
     md: 'h-14 w-14 sm:h-16 sm:w-16',
@@ -107,7 +111,7 @@ export default function Logo({ size = 'md', lang = 'ar' }: { size?: 'sm' | 'md' 
             paintOrder="stroke"
             className="select-none tracking-tight font-extrabold"
           >
-            {lang === 'ar' ? 'متوفر' : 'Mutafer'}
+            {'متوفر'}
           </text>
 
           {/* Subtitle tag "الغالي للغوالي" */}
@@ -123,7 +127,7 @@ export default function Logo({ size = 'md', lang = 'ar' }: { size?: 'sm' | 'md' 
             opacity="0.95"
             filter="url(#subPopShadow)"
           >
-            {lang === 'ar' ? 'الغالي للغوالي' : 'Premium delivery'}
+            {'الغالي للغوالي'}
           </text>
         </g>
 

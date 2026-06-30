@@ -1,6 +1,9 @@
 import express from "express";
 import path from "path";
+import net from "net";
 import { createServer as createViteServer } from "vite";
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { GoogleGenAI, Type } from "@google/genai";
 import * as dotenv from "dotenv";
 import * as XLSX from "xlsx";
@@ -44,11 +47,11 @@ app.use((req, res, next) => {
   res.setHeader(
     "Content-Security-Policy",
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com; " +
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://unpkg.com; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; " +
     "font-src 'self' data: https://fonts.gstatic.com; " +
     "img-src 'self' data: blob: *; " +
-    "connect-src 'self' ws://localhost:* https://*.googleapis.com https://api.mutafer.com; " +
+    "connect-src 'self' ws://localhost:* https://*.googleapis.com https://api.mutafer.com https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://unpkg.com; " +
     "frame-src 'self'; " +
     "object-src 'none'"
   );
@@ -299,10 +302,14 @@ app.post("/api/admins/login", async (req, res) => {
 
   // ✅ استخدام generateToken المركزي بدل jwt.sign المكرر
   const token = generateToken({
-    id: found.id, email: found.email, role: found.role,
-    canManageRestaurants: !!found.canManageRestaurants,
-    canManageMenu: !!found.canManageMenu,
-    canUseAIScanner: !!found.canUseAIScanner,
+    id:    found.id,
+    email: found.email,
+    // ✅ primary admin دايماً role: 'primary' — حتى لو الـ DB مش محدث
+    role:  found.role || (found.id === 'admin_primary' ? 'primary' : 'editor'),
+    // ✅ primary admin عنده كل الصلاحيات تلقائياً
+    canManageRestaurants: found.role === 'primary' || found.id === 'admin_primary' ? true : !!found.canManageRestaurants,
+    canManageMenu:        found.role === 'primary' || found.id === 'admin_primary' ? true : !!found.canManageMenu,
+    canUseAIScanner:      found.role === 'primary' || found.id === 'admin_primary' ? true : !!found.canUseAIScanner,
   });
 
   // ✅ لا نرسل الـ password مطلقاً في الـ response
@@ -418,9 +425,8 @@ app.delete("/api/captains/:id", authenticateToken, isPrimaryAdmin, async (req, r
 // ── Orders ────────────────────────────────────────────────────
 app.get("/api/orders", authenticateToken, async (req, res) => {
   const allOrders = await orders.all();
-  if (req.user?.role === "admin" || req.user?.role === "primary") {
-    return res.json(allOrders);
-  }
+  const isAdmin = req.user?.role === "admin" || req.user?.role === "primary" || req.user?.id === "admin_primary";
+  if (isAdmin) return res.json(allOrders);
   res.json(allOrders.filter((o: any) => o.userId === req.user?.id));
 });
 
@@ -866,9 +872,85 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
 // ────────────────────────────────────────────────────────────
 // 🚀  START SERVER
 // ────────────────────────────────────────────────────────────
+async function findAvailablePort(startPort: number, maxAttempts = 20): Promise<number> {
+  const hosts = ["0.0.0.0", "127.0.0.1", "::1"];
+
+  for (let port = startPort; port < startPort + maxAttempts; port++) {
+    let allFree = true;
+
+    for (const host of hosts) {
+      const free = await new Promise<boolean>((resolve) => {
+        const tester = net.createServer();
+        tester.once("error", () => resolve(false));
+        tester.once("listening", () => tester.close(() => resolve(true)));
+        tester.listen({ port, host, exclusive: true });
+      });
+
+      if (!free) {
+        allFree = false;
+        break;
+      }
+    }
+
+    if (allFree) return port;
+  }
+  return startPort;
+}
+
+async function createViteServerWithHmr(preferredPort: number, maxAttempts = 50) {
+  for (let port = preferredPort; port < preferredPort + maxAttempts; port++) {
+    const hmrOptions: any = { protocol: 'ws', host: '127.0.0.1', port, clientPort: port };
+    try {
+      const viteServer = await createViteServer({
+        configFile: false,
+        plugins: [react(), tailwindcss()],
+        resolve: {
+          alias: {
+            '@': path.resolve(process.cwd()),
+          },
+        },
+        server: {
+          middlewareMode: true,
+          host: '127.0.0.1',
+          watch: process.env.DISABLE_HMR === 'true' ? null : {},
+          hmr: hmrOptions,
+        },
+        appType: "spa"
+      });
+      console.log(`ℹ️ Vite HMR websocket listening on ws://127.0.0.1:${port}`);
+      return viteServer;
+    } catch (error: any) {
+      const isEaddrInUse = error?.code === 'EADDRINUSE' || (error?.message || '').includes('EADDRINUSE');
+      if (!isEaddrInUse) throw error;
+      console.log(`⚠️ HMR port ${port} is busy. Trying next available port...`);
+    }
+  }
+  throw new Error(`Unable to bind a Vite HMR port near ${preferredPort}`);
+}
+
+async function listenOnPort(port: number, maxAttempts = 20) {
+  for (let current = port; current < port + maxAttempts; current++) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const server = app.listen(current, "0.0.0.0", () => resolve());
+        server.once("error", reject);
+      });
+      return current;
+    } catch (error: any) {
+      if (error?.code !== 'EADDRINUSE') throw error;
+    }
+  }
+  throw new Error(`Unable to bind any port between ${port} and ${port + maxAttempts - 1}`);
+}
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
+    const preferredPort = process.env.VITE_HMR_PORT ? Number(process.env.VITE_HMR_PORT) : Number(process.env.HMR_PORT || 24678);
+    const hmrPort = await findAvailablePort(preferredPort, 50);
+    if (hmrPort !== preferredPort) {
+      console.log(`⚠️ HMR port ${preferredPort} was busy. Using ${hmrPort} instead.`);
+    }
+    const vite = await createViteServerWithHmr(hmrPort, 50);
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
@@ -891,9 +973,12 @@ app.get("/sitemap.xml", (_req, res) => {
     app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html")));
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Mutafer Eats server running on port ${PORT}`);
-  });
+  const bindPort = process.env.NODE_ENV !== "production" ? await listenOnPort(PORT, 20) : PORT;
+  if (bindPort !== PORT) {
+    console.log(`⚠️ Port ${PORT} was busy. Listening on ${bindPort} instead.`);
+  }
+
+  console.log(`🚀 Mutafer Eats server running on port ${bindPort}`);
 }
 
 startServer();

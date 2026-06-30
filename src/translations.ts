@@ -1,6 +1,20 @@
 // Translation dictionary for Mutafer Eats localization into Egyptian Arabic
 export type Language = 'en' | 'ar';
 
+// Runtime language switcher (default to Arabic). Persisted in localStorage when available.
+let _initialLang: Language = 'ar';
+if (typeof window !== 'undefined') {
+  const saved = localStorage.getItem('mutafer_lang');
+  if (saved === 'en' || saved === 'ar') _initialLang = saved as Language;
+}
+
+export let lang: Language = _initialLang;
+
+export function setLang(l: Language) {
+  lang = l;
+  if (typeof window !== 'undefined') localStorage.setItem('mutafer_lang', l);
+}
+
 export const TRANSLATIONS = {
   en: {
     // Header & Navigation

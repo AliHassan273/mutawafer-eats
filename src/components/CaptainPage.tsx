@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Clock, MapPin, Bike, User, Phone, CheckCircle, Flame, DollarSign, LogOut, Check, ShieldAlert } from 'lucide-react';
 import { Order, CartItem, Review } from '../types';
-import { Language } from '../translations';
+import { lang, getTranslation } from '../translations';
+import { fetchWithRetry } from '../utils/fetchHelper';
 
 interface CaptainPageProps {
   currentUser: { id: string; name: string; email?: string; phone: string; role: string };
@@ -12,7 +13,6 @@ interface CaptainPageProps {
     courierName?: string,
     courierPhone?: string
   ) => void;
-  lang: Language;
   onBack: () => void;
   onLogout: () => void;
   onRefreshData?: () => Promise<void>;
@@ -20,18 +20,20 @@ interface CaptainPageProps {
 }
 
 export default function CaptainPage({
+
   currentUser,
   orders,
   onUpdateStatus,
-  lang,
   onBack,
   onLogout,
   onRefreshData,
   reviews,
 }: CaptainPageProps) {
+  const isAr = lang === 'ar';
+  const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
+
   const [successMsg, setSuccessMsg] = useState('');
   const [isSpawning, setIsSpawning] = useState(false);
-  const isAr = lang === 'ar';
 
   // Dynamic captain ratings
   const captainReviews = React.useMemo(() => {
@@ -197,7 +199,7 @@ export default function CaptainPage({
   const spawnMockOrder = async () => {
     setIsSpawning(true);
     try {
-      const resRest = await fetch('/api/restaurants');
+      const resRest = await fetchWithRetry('/api/restaurants');
       if (!resRest.ok) throw new Error("Could not load restaurants");
       const rests = await resRest.json();
       if (!rests || rests.length === 0) {
@@ -252,9 +254,8 @@ export default function CaptainPage({
         eta: 35
       };
       
-      const postRes = await fetch('/api/orders', {
+      const postRes = await fetchWithRetry('/api/orders', {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newOrder)
       });
       
