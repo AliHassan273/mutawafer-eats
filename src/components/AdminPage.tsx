@@ -1857,12 +1857,13 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                         {rest.name}
                       </button>
 
-                      <div className="relative">
+                      <div className="relative" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveStoreDropdownId(activeStoreDropdownId === rest.id ? null : rest.id);
+                            setActiveStoreDropdownId((prev) => prev === rest.id ? null : rest.id);
                           }}
                           data-rest-menu={rest.id}
                           className="p-1 rounded-full hover:bg-slate-200/60 text-slate-500 cursor-pointer transition-all flex items-center justify-center"
