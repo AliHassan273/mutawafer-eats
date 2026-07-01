@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect } from "react";
 import {
   Building2, Plus, Trash2, Edit2, Upload, Sparkles, Check,
   AlertCircle, ArrowLeft, Loader2, DollarSign, Tag, ClipboardList,
@@ -646,18 +646,22 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   }) => {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
-    const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+    const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
 
-    useEffect(() => {
-      if (!isOpen || !buttonRef.current) return;
+    const updatePosition = () => {
+      if (!buttonRef.current) return;
+      const rect = buttonRef.current.getBoundingClientRect();
+      const menuWidth = 160;
+      const top = Math.min(rect.bottom + 8, window.innerHeight - 120);
+      const left = Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8);
+      setMenuPos({ top, left: Math.max(8, left) });
+    };
 
-      const updatePosition = () => {
-        const rect = buttonRef.current!.getBoundingClientRect();
-        const menuWidth = 160;
-        const top = Math.min(rect.bottom + 8, window.innerHeight - 120);
-        const left = Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8);
-        setMenuPos({ top, left: Math.max(8, left) });
-      };
+    useLayoutEffect(() => {
+      if (!isOpen) {
+        setMenuPos(null);
+        return;
+      }
 
       updatePosition();
       window.addEventListener('resize', updatePosition);
@@ -698,7 +702,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           <MoreVertical className="h-4 w-4" />
         </button>
 
-        {isOpen && (
+        {isOpen && menuPos && (
           <div
             ref={menuRef}
             className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl w-40 p-1 animate-in fade-in duration-100"
