@@ -59,6 +59,13 @@ app.use((req, res, next) => {
 });
 
 // ────────────────────────────────────────────────────────────
+// 🏥  HEALTH CHECK
+// ────────────────────────────────────────────────────────────
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok", service: "mutawafer-eats" });
+});
+
+// ────────────────────────────────────────────────────────────
 // 🛡️  RATE LIMITING
 // ────────────────────────────────────────────────────────────
 interface RateLimitRecord { count: number; resetAt: number; }
@@ -156,24 +163,28 @@ app.use((req, res, next) => {
 // 🏭  INITIALIZE DEFAULT DATA
 // ────────────────────────────────────────────────────────────
 (async function init() {
-  await initDB(); // أو await initTables();
+  try {
+    await initDB();
 
-  // ✅ أنشئ الأدمن الافتراضي بس لو مش موجود — لا تـ overwrite البيانات الموجودة
-  const existingAdmin = await admins.get("admin_primary");
-  if (!existingAdmin) {
-    await admins.set("admin_primary", {
-      id: "admin_primary",
-      name: "عبد الرحمن كشك",
-      email: "bdalrhmnkshk412@gmail.com",
-      password: await hashPassword("admin"),
-      role: "primary",
-      canManageRestaurants: 1,
-      canManageMenu: 1,
-      canUseAIScanner: 1,
-    });
-    console.log("✅ Default admin created for the first time.");
-  } else {
-    console.log("✅ Admin already exists — skipping default creation.");
+    // ✅ أنشئ الأدمن الافتراضي بس لو مش موجود — لا تـ overwrite البيانات الموجودة
+    const existingAdmin = await admins.get("admin_primary");
+    if (!existingAdmin) {
+      await admins.set("admin_primary", {
+        id: "admin_primary",
+        name: "عبد الرحمن كشك",
+        email: "bdalrhmnkshk412@gmail.com",
+        password: await hashPassword("admin"),
+        role: "primary",
+        canManageRestaurants: 1,
+        canManageMenu: 1,
+        canUseAIScanner: 1,
+      });
+      console.log("✅ Default admin created for the first time.");
+    } else {
+      console.log("✅ Admin already exists — skipping default creation.");
+    }
+  } catch (error) {
+    console.error("❌ Startup initialization failed:", error);
   }
 })();
 
@@ -187,7 +198,7 @@ async function getSettings() {
       whatsappNumber: "201016789012", deliveryPricingType: "area",
       distanceBaseFee: 10, distanceFeePerKm: 5,
       deliveryCommissionType: "flat", deliveryCommissionValue: 15,
-      aboutUsContent: "تطبيق مسافر...", deliveryOptions: [], coupons: [], categories: [],
+      aboutUsContent: "تطبيق مسافر...", logoImage: "", deliveryOptions: [], coupons: [], categories: [],
     };
     await settings.set("main", defaults);
     return defaults;
@@ -742,6 +753,12 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
 ## مثال على صنف بسعر واحد:
 {"name":"بطاطس","description":"بطاطس مقلية مقرمشة","price":70,"category":"Sides","sizes":[]}
 
+## قواعد العروض — إلزامية:
+- إذا وجدت صنفاً مكتوباً عليه سعران (سعر قديم مشطوب + سعر جديد، أو "بدلاً من X يصبح Y"، أو علامة % خصم، أو كلمة "عرض" بجانبه): اجعل category = "Offers" دائماً مهما كانت فئته الأصلية (برجر، بيتزا، إلخ).
+- في هذه الحالة أضف originalPrice = السعر الأعلى (الأصلي)، و price = السعر الأقل (سعر العرض الحالي).
+- إذا الصنف بسعر واحد عادي بدون أي إشارة لخصم، لا تضع originalPrice إطلاقاً ولا تضعه في Offers.
+- مثال: "برجر دجاج كان 80 بقى 60ج" يصبح: {"name":"برجر دجاج","price":60,"originalPrice":80,"category":"Offers","sizes":[]}
+
 ## الفئات المتاحة: Burgers, Pizza, Salads, Sushi, Ramen, Dessert, Sides, Drinks, Offers
 
 أخرج JSON array فقط بدون أي نص أو markdown.`;
@@ -773,8 +790,9 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
         properties: {
           name:        { type: Type.STRING, description: "اسم الصنف بالعربية" },
           description: { type: Type.STRING, description: "وصف شهي قصير بالعربية" },
-          price:       { type: Type.NUMBER, description: "أقل سعر للصنف كرقم" },
-          category:    { type: Type.STRING, description: "الفئة" },
+          price:       { type: Type.NUMBER, description: "السعر الحالي (سعر العرض لو فيه خصم، أو السعر العادي)" },
+          originalPrice: { type: Type.NUMBER, description: "السعر الأصلي قبل الخصم فقط لو الصنف عليه عرض. اتركه 0 لو مفيش عرض." },
+          category:    { type: Type.STRING, description: "الفئة. لازم تكون Offers لو الصنف عليه خصم/عرض" },
           sizes: {
             type: Type.ARRAY,
             description: "الأحجام أو الأنواع المختلفة. مصفوفة فارغة [] إذا لم يكن للصنف أحجام. لا تتركها فارغة إذا وجدت أحجام مختلفة في المنيو.",
@@ -788,7 +806,7 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
             },
           },
         },
-        required: ["name", "description", "price", "category", "sizes"],
+        required: ["name", "description", "price", "category", "sizes", "originalPrice"],
       },
     };
 
@@ -848,7 +866,19 @@ app.post("/api/gemini/parse-menu", async (req, res) => {
 
     const text    = (response?.text || "[]").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
     console.log("🤖 Gemini raw response (first 2000 chars):", text.substring(0, 2000));
-    const parsed  = JSON.parse(text);
+    let parsed  = JSON.parse(text);
+
+    // ✅ تنظيف originalPrice: لو 0 أو مساوي للسعر العادي، يبقى مفيش عرض حقيقي
+    parsed = parsed.map((item: any) => {
+      if (!item.originalPrice || item.originalPrice <= item.price) {
+        delete item.originalPrice;
+      } else {
+        // ✅ صنف عليه عرض حقيقي — تأكد إنه في فئة Offers
+        item.category = "Offers";
+      }
+      return item;
+    });
+
     console.log(`🤖 Gemini parsed ${parsed.length} items. First item:`, JSON.stringify(parsed[0]));
     res.json({ success: true, items: parsed });
 
@@ -944,23 +974,23 @@ async function listenOnPort(port: number, maxAttempts = 20) {
 }
 
 async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const preferredPort = process.env.VITE_HMR_PORT ? Number(process.env.VITE_HMR_PORT) : Number(process.env.HMR_PORT || 24678);
-    const hmrPort = await findAvailablePort(preferredPort, 50);
-    if (hmrPort !== preferredPort) {
-      console.log(`⚠️ HMR port ${preferredPort} was busy. Using ${hmrPort} instead.`);
-    }
-    const vite = await createViteServerWithHmr(hmrPort, 50);
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    const { default: serveStatic } = await import("serve-static");
-    app.use(serveStatic(distPath));
+  try {
+    if (process.env.NODE_ENV !== "production") {
+      const preferredPort = process.env.VITE_HMR_PORT ? Number(process.env.VITE_HMR_PORT) : Number(process.env.HMR_PORT || 24678);
+      const hmrPort = await findAvailablePort(preferredPort, 50);
+      if (hmrPort !== preferredPort) {
+        console.log(`⚠️ HMR port ${preferredPort} was busy. Using ${hmrPort} instead.`);
+      }
+      const vite = await createViteServerWithHmr(hmrPort, 50);
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), "dist");
+      const { default: serveStatic } = await import("serve-static");
+      app.use(serveStatic(distPath));
 
-    // حطه قبل الـ catch-all route اللي بيرجع index.html
-app.get("/sitemap.xml", (_req, res) => {
-  res.header("Content-Type", "application/xml");
-  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+      app.get("/sitemap.xml", (_req, res) => {
+        res.header("Content-Type", "application/xml");
+        res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://mutawafer-eats-production.up.railway.app/</loc>
@@ -968,17 +998,22 @@ app.get("/sitemap.xml", (_req, res) => {
     <priority>1.0</priority>
   </url>
 </urlset>`);
-});
+      });
 
-    app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html")));
+      app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html")));
+    }
+
+    const requestedPort = Number(process.env.PORT) || PORT;
+    const bindPort = await listenOnPort(requestedPort, 20);
+    if (bindPort !== requestedPort) {
+      console.log(`⚠️ Port ${requestedPort} was busy. Listening on ${bindPort} instead.`);
+    }
+
+    console.log(`🚀 Mutafer Eats server running on port ${bindPort}`);
+  } catch (error) {
+    console.error("❌ Failed to start server:", error);
+    process.exit(1);
   }
-
-  const bindPort = process.env.NODE_ENV !== "production" ? await listenOnPort(PORT, 20) : PORT;
-  if (bindPort !== PORT) {
-    console.log(`⚠️ Port ${PORT} was busy. Listening on ${bindPort} instead.`);
-  }
-
-  console.log(`🚀 Mutafer Eats server running on port ${bindPort}`);
 }
 
 startServer();

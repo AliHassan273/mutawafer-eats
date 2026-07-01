@@ -2,9 +2,10 @@ import React from 'react';
 import { lang } from '../translations';
 
 export default function Logo({
- size = 'md' }: { size?: 'sm' | 'md' | 'lg'}) {
-  const isAr = lang === 'ar';
-
+  size = 'md',
+  src,
+  alt,
+}: { size?: 'sm' | 'md' | 'lg'; src?: string; alt?: string }) {
   const dimensions = {
     sm: 'h-10 w-10',
     md: 'h-14 w-14 sm:h-16 sm:w-16',
@@ -13,13 +14,19 @@ export default function Logo({
 
   return (
     <div className={`relative ${dimensions} select-none transition-all duration-300 flex items-center justify-center shrink-0`}>
-      {/* 3D Smartphone bezel & Screen and Yellow/Golden Bag Styled exactly like image */}
-      <svg
-        viewBox="0 0 120 120"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full drop-shadow-[0_4px_16px_rgba(15,23,42,0.12)] hover:scale-105 transition-transform duration-300"
-      >
+      {src ? (
+        <img
+          src={src}
+          alt={alt || 'App Logo'}
+          className="w-full h-full object-contain rounded-2xl border border-slate-200/50 shadow-sm"
+        />
+      ) : (
+        <svg
+          viewBox="0 0 120 120"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-full h-full drop-shadow-[0_4px_16px_rgba(15,23,42,0.12)] hover:scale-105 transition-transform duration-300"
+        >
         {/* Outer Phone Bezel / Screen (Tilted Left in 3D perspective) */}
         <g transform="rotate(-15 60 60)">
           {/* Main phone body bezel with smooth gradient */}
@@ -181,6 +188,7 @@ export default function Logo({
           </filter>
         </defs>
       </svg>
+      )}
     </div>
   );
 }

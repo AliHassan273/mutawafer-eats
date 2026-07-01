@@ -18,6 +18,7 @@ interface HeaderProps {
   currentUser: { id: string; name: string; email: string; phone: string; role?: string } | null;
   onAuthClick: () => void;
   onLogout: () => void;
+  logoImage?: string;
 }
 
 const ADDRESSES_MAP = {
@@ -50,6 +51,7 @@ export default function Header({
   currentUser,
   onAuthClick,
   onLogout,
+  logoImage,
 }: HeaderProps) {
   const isAr = lang === 'ar';
 
@@ -84,7 +86,7 @@ export default function Header({
         <div className="flex items-center justify-between md:justify-start gap-3 sm:gap-6 shrink-0">
           {/* Logo */}
           <div className="flex items-center gap-1 cursor-pointer select-none active:scale-95 transition-transform" onClick={() => { setActiveView('home'); setSearchQuery(''); }}>
-            <Logo size="sm" />
+            <Logo size="sm" src={logoImage} />
             <div className="flex flex-col leading-none">
               <div className="flex items-center gap-0.5">
                 <span className="font-display font-black text-base sm:text-lg tracking-tight text-amber-500">{'متوفر'}</span>

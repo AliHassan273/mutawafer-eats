@@ -92,6 +92,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   const [deliveryCommissionType, setDeliveryCommissionType] = useState<'flat' | 'percentage'>('flat');
   const [deliveryCommissionValue, setDeliveryCommissionValue] = useState(15);
   const [aboutUsContentSetting, setAboutUsContentSetting] = useState("");
+  const [logoImageSetting, setLogoImageSetting] = useState<string>("");
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
 
   // Safe confirm deletion handles
@@ -196,6 +197,9 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           if (setData.aboutUsContent) {
             setAboutUsContentSetting(setData.aboutUsContent);
           }
+          if (setData.logoImage) {
+            setLogoImageSetting(setData.logoImage);
+          }
           if (setData.deliveryOptions) {
             setDeliveryOptions(setData.deliveryOptions);
           }
@@ -271,6 +275,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           deliveryCommissionType,
           deliveryCommissionValue: Number(deliveryCommissionValue) || 0,
           aboutUsContent: aboutUsContentSetting,
+          logoImage: logoImageSetting,
           deliveryOptions: deliveryOptions,
           coupons: couponsList,
           categories: categoriesList
@@ -848,7 +853,12 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     }
     if (!selectedRestId || extractedItems.length === 0) return;
 
-    const itemsToImport = extractedItems.filter((_, idx) => selectedImportItems[idx]);
+    const itemsToImport = extractedItems
+      .filter((_, idx) => selectedImportItems[idx])
+      .map((item) => ({
+        ...item,
+        image: item.image || "/logo.png", // ✅ صورة اللوجو الافتراضية لو ما رفعش صورة
+      }));
     if (itemsToImport.length === 0) {
       alert("No items selected for import");
       return;
@@ -2190,6 +2200,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                           <tr>
                             <th className="p-3 text-center w-12">Import?</th>
                             <th className="p-3">Item Details</th>
+                            <th className="p-3 w-16 text-center">الصورة</th>
                             <th className="p-3 w-24">السعر</th>
                             <th className="p-3 w-28">الفئة</th>
                           </tr>
@@ -2268,6 +2279,34 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                                   )}
                                 </td>
                                 <td className="p-3">
+                                  <label className="flex flex-col items-center gap-1 cursor-pointer group">
+                                    <div className="h-12 w-12 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 shrink-0 group-hover:border-orange-500 transition-colors">
+                                      <img
+                                        src={item.image || "/logo.png"}
+                                        alt={item.name}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    </div>
+                                    <span className="text-[8px] text-slate-500 group-hover:text-orange-400">تغيير الصورة</span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+                                        const reader = new FileReader();
+                                        reader.onload = (ev) => {
+                                          const copy = [...extractedItems];
+                                          copy[idx].image = ev.target?.result as string;
+                                          setExtractedItems(copy);
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }}
+                                    />
+                                  </label>
+                                </td>
+                                <td className="p-3">
                                   <div className="flex items-center gap-1">
                                     <input
                                       type="number"
@@ -2281,6 +2320,22 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                                     />
                                     <span className="text-[10px] font-semibold text-slate-400">{t("egp")}</span>
                                   </div>
+                                  {(item.category?.toLowerCase?.() === 'offers') && (
+                                    <div className="flex items-center gap-1 mt-1.5">
+                                      <span className="text-[8px] text-orange-400 font-bold">السعر الأصلي:</span>
+                                      <input
+                                        type="number"
+                                        value={item.originalPrice || ''}
+                                        placeholder="—"
+                                        onChange={(e) => {
+                                          const copy = [...extractedItems];
+                                          copy[idx].originalPrice = Number(e.target.value) || undefined;
+                                          setExtractedItems(copy);
+                                        }}
+                                        className="px-1.5 py-0.5 bg-slate-900 border border-orange-800/50 rounded outline-none w-14 text-center font-bold text-orange-300 text-[10px] line-through"
+                                      />
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="p-3">
                                   <select
@@ -3026,6 +3081,31 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                     className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2 text-xs font-medium outline-none text-slate-800"
                   />
                   <p className="text-[10px] text-slate-400">{isAr ? "مثال: 201016789012 (مع كود الدولة وبدون علامة +)" : "e.g., 201016789012 (with country code, no +)"}</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 block">{isAr ? "لوجو التطبيق من الجهاز" : "App Logo from Device"}</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          setLogoImageSetting(ev.target?.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="w-full text-xs font-medium text-slate-700"
+                  />
+                  {logoImageSetting ? (
+                    <div className="mt-2 rounded-2xl overflow-hidden border border-slate-200 shadow-sm w-full max-w-xs">
+                      <img src={logoImageSetting} alt={isAr ? 'شعار التطبيق' : 'App logo preview'} className="w-full h-auto object-contain" />
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-slate-400">{isAr ? "اختر صورة من جهازك لتظهر كلوجو التطبيق" : "Choose a device image to use as the app logo."}</p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">

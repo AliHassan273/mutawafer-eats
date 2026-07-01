@@ -96,6 +96,7 @@ export default function App() {
     deliveryCommissionType?: 'flat' | 'percentage';
     deliveryCommissionValue?: number;
     aboutUsContent?: string;
+    logoImage?: string;
     deliveryOptions: { id: string; name: string; fee: number }[];
     coupons?: { id: string; code: string; discountType: 'percentage' | 'flat'; discountValue: number; minOrder: number; isActive: boolean }[];
     categories?: { id: string; name: string; nameAr: string; icon: string }[];
@@ -107,6 +108,7 @@ export default function App() {
     deliveryCommissionType: "flat",
     deliveryCommissionValue: 15,
     aboutUsContent: "تطبيق مسافر هو المنصة الرائدة لتوصيل الطعام الفاخر والوجبات الطازجة بأقصى سرعة واحترافية. نسعى دائماً لتجربة مستخدم لا ميل لها عبر تتبع فوري للطلبات وكباتن توصيل محترفين.",
+    logoImage: "",
     deliveryOptions: [
       { id: "reg_1", name: "الزمالك", fee: 15 },
       { id: "reg_2", name: "الدقي", fee: 20 },
@@ -793,6 +795,7 @@ export default function App() {
         currentUser={currentUser}
         onAuthClick={() => { setAuthMode('login'); setIsAuthOpen(true); }}
         onLogout={handleLogout}
+        logoImage={settings.logoImage}
       />
 
       {/* Main router viewport */}
@@ -1274,7 +1277,7 @@ export default function App() {
             <div className="bg-white border border-slate-100 rounded-[32px] p-8 md:p-12 shadow-xl space-y-8 relative overflow-hidden">
                {/* Elegant visual brand logo */}
                <div className="flex flex-col items-center text-center space-y-4">
-                 <Logo size="lg" />
+                 <Logo size="lg" src={settings.logoImage} />
                  <div>
                    <h1 className="font-display font-extrabold text-2xl md:text-3xl text-slate-800">
                      {'تطبيق متوفر إيتس'}
