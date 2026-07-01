@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Building2, Plus, Trash2, Edit2, Upload, Sparkles, Check,
   AlertCircle, ArrowLeft, Loader2, DollarSign, Tag, ClipboardList,
@@ -634,6 +634,106 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
   // ✅ Selected active restaurant instance helper (آمن)
   const activeRestaurant = restaurants.find((r) => r.id === selectedRestId);
+
+  // ✅ Dropdown Menu Component with Refs
+  const RestaurantMenuDropdown = ({ rest, isOpen, onToggle, onClose, onEdit, onDelete }: {
+    rest: Restaurant;
+    isOpen: boolean;
+    onToggle: () => void;
+    onClose: () => void;
+    onEdit: () => void;
+    onDelete: () => void;
+  }) => {
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+
+    useEffect(() => {
+      if (!isOpen || !buttonRef.current) return;
+
+      const updatePosition = () => {
+        const rect = buttonRef.current!.getBoundingClientRect();
+        const menuWidth = 160;
+        const top = Math.min(rect.bottom + 8, window.innerHeight - 120);
+        const left = Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8);
+        setMenuPos({ top, left: Math.max(8, left) });
+      };
+
+      updatePosition();
+      window.addEventListener('resize', updatePosition);
+      window.addEventListener('scroll', updatePosition, { passive: true });
+      return () => {
+        window.removeEventListener('resize', updatePosition);
+        window.removeEventListener('scroll', updatePosition);
+      };
+    }, [isOpen]);
+
+    useEffect(() => {
+      if (!isOpen) return;
+
+      const handleClickOutside = (e: MouseEvent) => {
+        const target = e.target as Node;
+        if (menuRef.current && !menuRef.current.contains(target) &&
+            buttonRef.current && !buttonRef.current.contains(target)) {
+          onClose();
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen, onClose]);
+
+    return (
+      <div className="relative z-10">
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle();
+          }}
+          className="p-1 rounded-full hover:bg-slate-200/60 text-slate-500 cursor-pointer transition-all flex items-center justify-center hover:text-slate-700"
+          title="Edit or delete restaurant"
+        >
+          <MoreVertical className="h-4 w-4" />
+        </button>
+
+        {isOpen && (
+          <div
+            ref={menuRef}
+            className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl w-40 p-1 animate-in fade-in duration-100"
+            style={{
+              top: `${menuPos.top}px`,
+              left: `${menuPos.left}px`,
+            }}
+          >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
+                className="w-full text-left px-2.5 py-1.5 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer flex-row-reverse text-right"
+              >
+                <Edit2 className="h-3.5 w-3.5 text-[#f94c10]" />
+                <span>تعديل المطعم</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className="w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer flex-row-reverse text-right"
+              >
+                <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                <span>حذف المطعم</span>
+              </button>
+            </div>
+        )}
+      </div>
+    );
+  };
 
   const triggerSuccess = (msg: string) => {
     setSuccessMsg(msg);
@@ -1857,59 +1957,20 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                         {rest.name}
                       </button>
 
-                      <div className="relative" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveStoreDropdownId((prev) => prev === rest.id ? null : rest.id);
-                          }}
-                          data-rest-menu={rest.id}
-                          className="p-1 rounded-full hover:bg-slate-200/60 text-slate-500 cursor-pointer transition-all flex items-center justify-center"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </button>
-
-                        {activeStoreDropdownId === rest.id && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-[9998]"
-                              onClick={() => setActiveStoreDropdownId(null)}
-                            />
-                            <div className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl w-36 p-1 animate-in fade-in duration-100"
-                              style={{
-                                top: (() => { const b = document.querySelector(`[data-rest-menu="${rest.id}"]`); return b ? b.getBoundingClientRect().bottom + 4 + window.scrollY : 0; })(),
-                                right: (() => { const b = document.querySelector(`[data-rest-menu="${rest.id}"]`); return b ? window.innerWidth - b.getBoundingClientRect().right : 0; })(),
-                              }}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  handleSetEditRestaurant(rest);
-                                  setActiveStoreDropdownId(null);
-                                }}
-                                className={`w-full text-left px-2.5 py-1.5 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer ${'flex-row-reverse text-right'
-                                  }`}
-                              >
-                                <Edit2 className="h-3.5 w-3.5 text-[#f94c10]" />
-                                <span>{'تعديل المطعم'}</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setDeleteConfirmRestId(rest.id);
-                                  setActiveStoreDropdownId(null);
-                                }}
-                                className={`w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer ${'flex-row-reverse text-right'
-                                  }`}
-                              >
-                                <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                <span>{'حذف المطعم'}</span>
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      <RestaurantMenuDropdown 
+                        rest={rest}
+                        isOpen={activeStoreDropdownId === rest.id}
+                        onToggle={() => setActiveStoreDropdownId((prev) => prev === rest.id ? null : rest.id)}
+                        onClose={() => setActiveStoreDropdownId(null)}
+                        onEdit={() => {
+                          handleSetEditRestaurant(rest);
+                          setActiveStoreDropdownId(null);
+                        }}
+                        onDelete={() => {
+                          setDeleteConfirmRestId(rest.id);
+                          setActiveStoreDropdownId(null);
+                        }}
+                      />
                     </div>
                   );
                 })}
