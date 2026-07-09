@@ -25,9 +25,20 @@ export default function AuthModal({
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState('');
   const [successText, setSuccessText] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpStatus, setOtpStatus] = useState<'idle' | 'sending' | 'sent' | 'verified'>('idle');
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpDebugCode, setOtpDebugCode] = useState('');
 
   if (!isOpen) return null;
 
+
+  const resetOtpFlow = () => {
+    setOtpCode('');
+    setOtpStatus('idle');
+    setOtpVerified(false);
+    setOtpDebugCode('');
+  };
 
   const resetForm = () => {
     setName('');
@@ -37,12 +48,78 @@ export default function AuthModal({
     setRole('customer');
     setErrorText('');
     setSuccessText('');
+    resetOtpFlow();
   };
 
   const handleToggleMode = () => {
     setMode(prev => (prev === 'login' ? 'register' : 'login'));
     setErrorText('');
     setSuccessText('');
+    resetOtpFlow();
+  };
+
+  const handleSendOtp = async () => {
+    if (!email.trim()) {
+      setErrorText(isAr ? 'أدخل البريد الإلكتروني أولاً.' : 'Please enter the email first.');
+      return;
+    }
+
+    setErrorText('');
+    setSuccessText('');
+    setLoading(true);
+    setOtpStatus('sending');
+
+    try {
+      const res = await fetch('/api/users/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || (isAr ? 'تعذر إرسال الرمز.' : 'Could not send OTP.'));
+
+      setOtpStatus('sent');
+      setOtpVerified(false);
+      setOtpCode('');
+      setOtpDebugCode(data.debugCode || '');
+      setSuccessText(data.message || (isAr ? 'تم إرسال الرمز إلى بريدك الإلكتروني.' : 'OTP sent to your email.'));
+    } catch (err: any) {
+      setOtpStatus('idle');
+      setErrorText(err.message || (isAr ? 'تعذر إرسال الرمز.' : 'Could not send OTP.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!email.trim() || !otpCode.trim()) {
+      setErrorText(isAr ? 'الرجاء إدخال الرمز المرسل.' : 'Please enter the received OTP code.');
+      return;
+    }
+
+    setErrorText('');
+    setSuccessText('');
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/users/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: otpCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || (isAr ? 'رمز التحقق غير صحيح.' : 'Invalid OTP.'));
+
+      setOtpStatus('verified');
+      setOtpVerified(true);
+      setOtpDebugCode('');
+      setSuccessText(data.message || (isAr ? 'تم تأكيد الرقم بنجاح.' : 'Phone verified successfully.'));
+    } catch (err: any) {
+      setOtpVerified(false);
+      setErrorText(err.message || (isAr ? 'فشل تأكيد الرمز.' : 'OTP verification failed.'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,8 +130,34 @@ export default function AuthModal({
 
     try {
       if (mode === 'register') {
-        if (!name.trim() || !phone.trim() || !password.trim()) {
-          setErrorText(isAr ? 'الرجاء ملء حقول الاسم والهاتف والرقم السري.' : 'Please fill Name, Phone, and Password.');
+        if (!name.trim() || !phone.trim() || !password.trim() || !email.trim()) {
+          setErrorText(isAr ? 'الرجاء ملء جميع الحقول.' : 'Please fill all fields.');
+          setLoading(false);
+          return;
+        }
+
+        // ── Step 1: بعت OTP لو لسه مش بعت ──
+        if (otpStatus === 'idle') {
+          await handleSendOtp();
+          setLoading(false);
+          return;
+        }
+
+        // ── Step 2: تحقق من OTP لو الكود موجود ومش متحقق لسه ──
+        if (otpStatus === 'sent' && !otpVerified) {
+          if (!otpCode.trim()) {
+            setErrorText(isAr ? 'أدخل رمز التحقق المرسل على بريدك.' : 'Enter the OTP sent to your email.');
+            setLoading(false);
+            return;
+          }
+          await handleVerifyOtp();
+          setLoading(false);
+          return;
+        }
+
+        // ── Step 3: سجّل الحساب بعد التحقق ──
+        if (!otpVerified) {
+          setErrorText(isAr ? 'يرجى تأكيد البريد الإلكتروني أولاً.' : 'Please verify your email first.');
           setLoading(false);
           return;
         }
@@ -250,35 +353,68 @@ export default function AuthModal({
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5 pb-0.5">
+                  <Mail className="h-3.5 w-3.5 text-slate-400" />
+                  <span>{isAr ? 'البريد الإلكتروني' : 'Email'}</span>
+                </label>
+                <input
+                    type="email"
+                    required
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (otpStatus !== 'idle') resetOtpFlow();
+                    }}
+                    className="w-full bg-slate-50/70 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-[#f94c10]"
+                  />
+              </div>
+
+              {mode === 'register' && otpStatus === 'sent' && !otpVerified && (
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5 pb-0.5">
+                    <Check className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{isAr ? 'رمز التحقق — تم إرساله على بريدك' : 'OTP sent to your email'}</span>
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="123456"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    className="w-full bg-slate-50/70 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-[#f94c10] tracking-[0.4em] text-center font-mono"
+                    style={{ direction: 'ltr' }}
+                    maxLength={6}
+                  />
+                  {otpDebugCode && (
+                    <p className="text-[10px] text-amber-600 font-bold text-center bg-amber-50 rounded-xl py-1">
+                      🔧 وضع تطوير — الرمز: {otpDebugCode}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {mode === 'register' && otpVerified && (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700">
+                  {isAr ? '✓ تم تأكيد البريد الإلكتروني بنجاح.' : '✓ Email verified successfully.'}
+                </div>
+              )}
+
+              {/* Phone field */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5 pb-0.5">
                   <Phone className="h-3.5 w-3.5 text-slate-400" />
                   <span>{isAr ? 'رقم الموبايل' : 'Phone Number'}</span>
                 </label>
                 <input
                   type="tel"
                   required
-                  placeholder="01011456789"
+                  placeholder="01XXXXXXXXX"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-slate-50/70 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-[#f94c10] text-left"
+                  className="w-full bg-slate-50/70 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-[#f94c10]"
                   style={{ direction: 'ltr' }}
                 />
               </div>
-
-              {mode === 'register' && (
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 flex items-center gap-1.5 pb-0.5">
-                    <Mail className="h-3.5 w-3.5 text-slate-400" />
-                    <span>{isAr ? 'البريد الإلكتروني (اختياري)' : 'Email (Optional)'}</span>
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="name@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-slate-50/70 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-[#f94c10]"
-                  />
-                </div>
-              )}
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5 pb-0.5">
@@ -319,7 +455,11 @@ export default function AuthModal({
                 <span>
                   {mode === 'login'
                     ? (isAr ? 'دخول فوري 🚪' : 'Sign In Now')
-                    : (isAr ? 'تأكيد إنشاء الحساب ✨' : 'Confirm & Create Account')}
+                    : otpVerified
+                      ? (isAr ? 'تأكيد إنشاء الحساب ✨' : 'Confirm & Create Account')
+                      : otpStatus === 'sent'
+                        ? (isAr ? 'تحقق من الرمز ✉️' : 'Verify Code ✉️')
+                        : (isAr ? 'إرسال رمز التحقق 📧' : 'Send Verification Code 📧')}
                 </span>
               )}
             </button>

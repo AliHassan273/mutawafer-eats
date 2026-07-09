@@ -8,6 +8,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import * as dotenv from "dotenv";
 import * as XLSX from "xlsx";
 import crypto from "crypto";
+import nodemailer from "nodemailer";
 import {
   admins, users, restaurants, orders, reviews,
   settings, setSetting, getSetting
@@ -19,6 +20,7 @@ import {
   generateToken   // ✅ دالة مركزية جديدة بدل تكرار jwt.sign
 } from "./src/auth";
 import { initDB } from "./src/db.ts";
+import { generateOtpCode, normalizeEmail, normalizePhone } from "./src/otp";
 
 dotenv.config();
 
@@ -112,6 +114,78 @@ const orderLimiter = createRateLimiter(
   "عفواً، لقد تجاوزت الحد الأقصى لإرسال الطلبات المتتالية. الرجاء المحاولة بعد ٥ دقائق.",
   "Rate limit exceeded for placing orders. Please try again in 5 minutes."
 );
+
+interface OtpSession {
+  code: string;
+  expiresAt: number;
+  verified: boolean;
+}
+
+const otpSessions = new Map<string, OtpSession>();
+
+// ─── Email OTP Sender ───────────────────────────────────────
+const emailTransporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS, // App Password من Google
+  },
+});
+
+async function sendOtpEmail(toEmail: string, code: string): Promise<void> {
+  const appName = "مسافر إيتس";
+  await emailTransporter.sendMail({
+    from: `"${appName}" <${process.env.EMAIL_USER}>`,
+    to: toEmail,
+    subject: `${code} — رمز التحقق لـ ${appName}`,
+    html: `
+      <div style="direction:rtl;font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#fff;border-radius:16px;border:1px solid #eee;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <span style="font-size:48px;">🛵</span>
+          <h2 style="color:#f94c10;margin:8px 0 0;font-size:22px;">${appName}</h2>
+        </div>
+        <p style="font-size:15px;color:#333;margin-bottom:8px;">مرحباً 👋</p>
+        <p style="font-size:14px;color:#555;line-height:1.6;">رمز التحقق الخاص بك هو:</p>
+        <div style="background:#fff7f5;border:2px dashed #f94c10;border-radius:12px;padding:20px;text-align:center;margin:20px 0;">
+          <span style="font-size:40px;font-weight:900;letter-spacing:8px;color:#f94c10;font-family:monospace;">${code}</span>
+        </div>
+        <p style="font-size:12px;color:#888;text-align:center;">صالح لمدة 5 دقائق فقط — لا تشاركه مع أحد</p>
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+        <p style="font-size:11px;color:#aaa;text-align:center;">لو ما طلبتش الرمز ده، تجاهل الإيميل ده.</p>
+      </div>
+    `,
+  });
+}
+
+function getOtpKey(email: string): string {
+  return normalizeEmail(email);
+}
+
+function createOtpSession(email: string): string {
+  const key = getOtpKey(email);
+  const code = generateOtpCode();
+  otpSessions.set(key, {
+    code,
+    expiresAt: Date.now() + 5 * 60 * 1000,
+    verified: false,
+  });
+  console.log(`[OTP] code for ${key}: ${code}`);
+  return code;
+}
+
+function verifyOtpSession(email: string, code: string): boolean {
+  const key = getOtpKey(email);
+  const session = otpSessions.get(key);
+  if (!session) return false;
+  if (Date.now() > session.expiresAt) {
+    otpSessions.delete(key);
+    return false;
+  }
+  if (session.code !== code) return false;
+  session.verified = true;
+  otpSessions.set(key, session);
+  return true;
+}
 
 app.use("/api/admins/login",    authLimiter);
 app.use("/api/users/login",     authLimiter);
@@ -358,24 +432,71 @@ app.get("/api/users", authenticateToken, async (_req, res) => {
   res.json(safeUsers);
 });
 
+app.post("/api/users/send-otp", async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "البريد الإلكتروني مطلوب." });
+
+  const normalizedEmail = normalizeEmail(email);
+  const existingUser = (await users.all()).find((u: any) => normalizeEmail(u.email || "") === normalizedEmail);
+  if (existingUser) return res.status(400).json({ error: "البريد الإلكتروني مسجل مسبقاً." });
+
+  const code = createOtpSession(normalizedEmail);
+
+  // ✅ إرسال الإيميل الحقيقي لو في بيانات SMTP
+  if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    try {
+      await sendOtpEmail(normalizedEmail, code);
+      console.log(`[OTP] Email sent to ${normalizedEmail}`);
+    } catch (emailErr) {
+      console.error("[OTP] Failed to send email:", emailErr);
+      return res.status(500).json({ error: "تعذّر إرسال الإيميل. تأكد من إعدادات البريد في السيرفر." });
+    }
+    res.json({ success: true, message: "تم إرسال رمز التحقق إلى بريدك الإلكتروني. تحقق من صندوق الوارد أو Spam." });
+  } else {
+    // وضع التطوير — بيعرض الكود مباشرة
+    console.log(`[OTP DEV MODE] code for ${normalizedEmail}: ${code}`);
+    res.json({ success: true, message: "رمز التحقق (وضع تطوير):", debugCode: code });
+  }
+});
+
+app.post("/api/users/verify-otp", async (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code) return res.status(400).json({ error: "البريد والرمز مطلوبان." });
+
+  const normalizedEmail = normalizeEmail(email);
+  const isValid = verifyOtpSession(normalizedEmail, code);
+  if (!isValid) {
+    return res.status(400).json({ error: "رمز التحقق غير صحيح أو منتهي الصلاحية." });
+  }
+
+  res.json({ success: true, message: "تم تأكيد البريد الإلكتروني بنجاح." });
+});
+
 app.post("/api/users/register", async (req, res) => {
   const { name, email, phone, password, role } = req.body;
-  if (!name || !phone || !password)
-    return res.status(400).json({ error: "الاسم، رقم الهاتف والرقم السري مطلوبون." });
+  if (!name || !email || !password)
+    return res.status(400).json({ error: "الاسم، البريد الإلكتروني والرقم السري مطلوبون." });
 
-  if ((await users.all()).find((u: any) => u.phone === phone))
-    return res.status(400).json({ error: "رقم الهاتف مسجل مسبقاً." });
+  const normalizedEmail = normalizeEmail(email);
+  const otpSession = otpSessions.get(normalizedEmail);
+  if (!otpSession?.verified) {
+    return res.status(400).json({ error: "يرجى تأكيد البريد الإلكتروني أولاً." });
+  }
+
+  if ((await users.all()).find((u: any) => normalizeEmail(u.email || "") === normalizedEmail))
+    return res.status(400).json({ error: "البريد الإلكتروني مسجل مسبقاً." });
 
   const userRole   = role === "captain" ? "captain" : "customer";
   const newUser: any = {
     id: crypto.randomUUID(), name,
-    email: email || "",
-    phone,
+    email: normalizedEmail,
+    phone: phone || "",
     password: await hashPassword(password),
     role: userRole,
     status: userRole === "captain" ? "pending" : "approved",
   };
   await users.set(newUser.id, newUser);
+  otpSessions.delete(normalizedEmail);
 
   // ✅ لا نرسل الـ password في الـ response
   res.status(201).json({
@@ -384,15 +505,13 @@ app.post("/api/users/register", async (req, res) => {
   });
 });
 
-
-
-
 app.post("/api/users/login", async (req, res) => {
   const { phone, password } = req.body;
   if (!phone || !password)
     return res.status(400).json({ error: "رقم الموبايل والرقم السري مطلوبان" });
 
-  const found = (await users.all()).find((u: any) => u.phone === phone);
+  const normalizedPhone = normalizePhone(phone);
+  const found = (await users.all()).find((u: any) => normalizePhone(u.phone || "") === normalizedPhone);
   if (!found) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
 
   const isMatch = await comparePassword(password, found.password);
