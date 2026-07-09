@@ -8,7 +8,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import * as dotenv from "dotenv";
 import * as XLSX from "xlsx";
 import crypto from "crypto";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import {
   admins, users, restaurants, orders, reviews,
   settings, setSetting, getSetting
@@ -124,23 +124,12 @@ interface OtpSession {
 const otpSessions = new Map<string, OtpSession>();
 
 // ─── Email OTP Sender ───────────────────────────────────────
-const emailTransporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // TLS بدل SSL — بيشتغل مع Railway
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendOtpEmail(toEmail: string, code: string): Promise<void> {
   const appName = "مسافر إيتس";
-  await emailTransporter.sendMail({
-    from: `"${appName}" <${process.env.EMAIL_USER}>`,
+  const { error } = await resend.emails.send({
+    from: "Mutawafer Eats <onboarding@resend.dev>",
     to: toEmail,
     subject: `${code} — رمز التحقق لـ ${appName}`,
     html: `
@@ -160,6 +149,7 @@ async function sendOtpEmail(toEmail: string, code: string): Promise<void> {
       </div>
     `,
   });
+  if (error) throw new Error(error.message);
 }
 
 function getOtpKey(email: string): string {
@@ -448,8 +438,8 @@ app.post("/api/users/send-otp", async (req, res) => {
   const code = createOtpSession(normalizedEmail);
 
   // ✅ إرسال الإيميل دايماً
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.error("[OTP] EMAIL_USER or EMAIL_PASS not set in environment variables");
+  if (!process.env.RESEND_API_KEY) {
+    console.error("[OTP] RESEND_API_KEY not set");
     return res.status(500).json({ error: "خدمة الإيميل غير مهيأة. تواصل مع الدعم." });
   }
   try {
