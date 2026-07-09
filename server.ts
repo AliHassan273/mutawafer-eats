@@ -442,20 +442,18 @@ app.post("/api/users/send-otp", async (req, res) => {
 
   const code = createOtpSession(normalizedEmail);
 
-  // ✅ إرسال الإيميل الحقيقي لو في بيانات SMTP
-  if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-    try {
-      await sendOtpEmail(normalizedEmail, code);
-      console.log(`[OTP] Email sent to ${normalizedEmail}`);
-    } catch (emailErr) {
-      console.error("[OTP] Failed to send email:", emailErr);
-      return res.status(500).json({ error: "تعذّر إرسال الإيميل. تأكد من إعدادات البريد في السيرفر." });
-    }
+  // ✅ إرسال الإيميل دايماً
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.error("[OTP] EMAIL_USER or EMAIL_PASS not set in environment variables");
+    return res.status(500).json({ error: "خدمة الإيميل غير مهيأة. تواصل مع الدعم." });
+  }
+  try {
+    await sendOtpEmail(normalizedEmail, code);
+    console.log(`[OTP] Email sent to ${normalizedEmail}`);
     res.json({ success: true, message: "تم إرسال رمز التحقق إلى بريدك الإلكتروني. تحقق من صندوق الوارد أو Spam." });
-  } else {
-    // وضع التطوير — بيعرض الكود مباشرة
-    console.log(`[OTP DEV MODE] code for ${normalizedEmail}: ${code}`);
-    res.json({ success: true, message: "رمز التحقق (وضع تطوير):", debugCode: code });
+  } catch (emailErr) {
+    console.error("[OTP] Failed to send email:", emailErr);
+    return res.status(500).json({ error: "تعذّر إرسال الإيميل. تأكد من صحة البريد الإلكتروني." });
   }
 });
 

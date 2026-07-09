@@ -367,14 +367,15 @@ export default function AuthModal({
                 </div>
               )}
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5 pb-0.5">
-                  <Mail className="h-3.5 w-3.5 text-slate-400" />
-                  <span>{isAr ? 'البريد الإلكتروني' : 'Email'}</span>
-                </label>
-                <input
+              {mode === 'register' && (
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5 pb-0.5">
+                    <Mail className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{isAr ? 'البريد الإلكتروني' : 'Email'}</span>
+                  </label>
+                  <input
                     type="email"
-                    required
+                    required={mode === 'register'}
                     placeholder="name@example.com"
                     value={email}
                     onChange={(e) => {
@@ -383,7 +384,8 @@ export default function AuthModal({
                     }}
                     className="w-full bg-slate-50/70 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-[#f94c10]"
                   />
-              </div>
+                </div>
+              )}
 
               {mode === 'register' && otpStatus === 'sent' && !otpVerified && (
                 <div className="space-y-1">
