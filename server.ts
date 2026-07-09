@@ -125,10 +125,15 @@ const otpSessions = new Map<string, OtpSession>();
 
 // ─── Email OTP Sender ───────────────────────────────────────
 const emailTransporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // TLS بدل SSL — بيشتغل مع Railway
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // App Password من Google
+    pass: process.env.EMAIL_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false,
   },
 });
 
