@@ -113,7 +113,23 @@ export default function AuthModal({
       setOtpStatus('verified');
       setOtpVerified(true);
       setOtpDebugCode('');
-      setSuccessText(data.message || (isAr ? 'تم تأكيد الرقم بنجاح.' : 'Phone verified successfully.'));
+
+      // ✅ تسجيل الحساب تلقائياً بعد التحقق — بدون ضغطة تانية
+      const regRes = await fetch('/api/users/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, password, role }),
+      });
+      const regData = await regRes.json();
+      if (!regRes.ok) throw new Error(regData.error || (isAr ? 'حدث خطأ أثناء التسجيل.' : 'Failed to register.'));
+
+      if (role === 'captain') {
+        setSuccessText(isAr ? 'تم تسجيل حساب الكابتن بنجاح! في انتظار موافقة الإدارة.' : 'Captain account registered! Pending admin approval.');
+        setTimeout(() => { onClose(); resetForm(); }, 3000);
+      } else {
+        setSuccessText(isAr ? 'تم التسجيل بنجاح! جاري تسجيل الدخول...' : 'Registered! Logging in...');
+        setTimeout(() => { autoLogin(phone, password); }, 1500);
+      }
     } catch (err: any) {
       setOtpVerified(false);
       setErrorText(err.message || (isAr ? 'فشل تأكيد الرمز.' : 'OTP verification failed.'));
