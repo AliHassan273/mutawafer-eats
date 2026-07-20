@@ -643,7 +643,8 @@ app.post("/api/orders", authenticateToken, orderLimiter, async (req, res) => {
   if (!restaurantForFee) return res.status(400).json({ error: "المطعم غير موجود." });
   const appSettings: any = await getSettings();
   let deliveryFee = 0;
-  if (appSettings.deliveryPricingType === "distance") {
+  const pricingMode = appSettings.deliveryPricingType === "distance" ? "distance" : "area";
+  if (pricingMode === "distance") {
     const base = Number(appSettings.distanceBaseFee) || 0;
     const perKm = Number(appSettings.distanceFeePerKm) || 0;
     deliveryFee = Math.round(base + (Number(restaurantForFee.distance) || 0) * perKm);
@@ -657,12 +658,13 @@ app.post("/api/orders", authenticateToken, orderLimiter, async (req, res) => {
     ];
     const regions = Array.isArray(appSettings.deliveryOptions) && appSettings.deliveryOptions.length > 0
       ? appSettings.deliveryOptions : defaultRegions;
-    const region = regions.find((r: any) => r.id === body.deliveryRegionId);
+    const region = regions.find((r: any) => String(r.id) === String(body.deliveryRegionId));
     if (!region) return res.status(400).json({ error: "منطقة التوصيل غير صحيحة أو لم تعد متاحة." });
     deliveryFee = Number(region.fee) || 0;
   }
   const doorstepFee = body.doorstepDelivery === true ? 5 : 0;
-  deliveryFee = Math.min(1000, Math.max(0, deliveryFee));
+  // لا نضع سقفًا مصطنعًا يحول كل قيمة إلى 1000؛ السعر مصدره إعدادات الأدمن فقط.
+  deliveryFee = Math.max(0, deliveryFee);
   const calculated  = await calculateOrderTotal(body.items, body.restaurantId, deliveryFee + doorstepFee);
 
   if (!calculated) {

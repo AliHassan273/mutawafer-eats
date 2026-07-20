@@ -532,6 +532,7 @@ export default function App() {
                      })),
     deliveryFee:     calculatedDeliveryFee, // قيمة عرضية؛ السيرفر يعيد حسابها
     deliveryRegionId,
+    deliveryPricingType: settings.deliveryPricingType || 'area',
     customerName,
     customerPhone,
     deliveryAddress: fullDeliveryAddress,
