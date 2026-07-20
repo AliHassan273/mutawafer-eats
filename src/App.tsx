@@ -81,39 +81,39 @@ export default function App() {
   const [activeView, setActiveView] = useState<'home' | 'restaurant' | 'tracker' | 'admin' | 'captain' | 'about' | 'my-orders'>('home');
   const [viewHistory, setViewHistory] = useState<string[]>([]);
 
-  // ✅ navigate with history tracking
+  // سجل تنقل موحد: كل انتقال يضيف خطوة، والرجوع يستعيد الخطوة السابقة فقط.
   const navigateTo = (view: 'home' | 'restaurant' | 'tracker' | 'admin' | 'captain' | 'about' | 'my-orders') => {
-    setViewHistory(prev => [...prev.slice(-9), activeView]);
+    if (view === activeView) return;
+    setViewHistory(prev => [...prev.slice(-19), activeView]);
     setActiveView(view);
-    // ✅ ادفع state للـ browser history عشان زرار الرجوع يشتغل
-    window.history.pushState({ view }, '', window.location.pathname);
+    window.history.pushState({ mutafer: true, view }, '', window.location.href);
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // الرجوع خطوة واحدة: زر التطبيق يستعمل نفس سجل المتصفح،
-  // وزر المتصفح يحدّث الشاشة من دون القفز للرئيسية.
   const goBack = () => {
-    if (viewHistory.length > 0) {
-      window.history.back();
-    } else {
-      setActiveView('home');
-    }
+    if (viewHistory.length > 0) window.history.back();
+    else setActiveView('home');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   React.useEffect(() => {
-    const handlePopState = () => {
-      const previous = viewHistory[viewHistory.length - 1];
-      if (previous) {
-        setViewHistory(history => history.slice(0, -1));
-        setActiveView(previous as any);
-      } else {
-        setActiveView('home');
+    // حماية أولية حتى لا يخرج زر المتصفح خارج التطبيق من أول ضغطة.
+    if (!window.history.state?.mutafer) {
+      window.history.replaceState({ mutafer: true, view: activeView }, '', window.location.href);
+      window.history.pushState({ mutafer: true, view: activeView }, '', window.location.href);
+    }
+    const handlePopState = (event: PopStateEvent) => {
+      const view = event.state?.mutafer ? event.state.view : 'home';
+      if (!event.state?.mutafer) {
+        window.history.pushState({ mutafer: true, view: 'home' }, '', window.location.href);
       }
+      setViewHistory(history => history.length ? history.slice(0, -1) : []);
+      setActiveView(view || 'home');
       window.scrollTo({ top: 0, behavior: 'instant' });
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [viewHistory]);
+  }, [activeView]);
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
@@ -337,13 +337,13 @@ export default function App() {
   const handleSelectCategory = (catId: string) => {
     setSelectedCategory(catId);
     if (activeView !== 'home') {
-      setActiveView('home');
+      navigateTo('home');
     }
   };
 
   const handleOpenRestaurant = (restaurant: Restaurant) => {
     setSelectedRestaurant(restaurant);
-    setActiveView('restaurant');
+    navigateTo('restaurant');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -562,7 +562,7 @@ export default function App() {
 
     setCart([]); // Clean basket
     setIsCheckoutOpen(false);
-    setActiveView('tracker');
+    navigateTo('tracker');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -850,10 +850,10 @@ export default function App() {
         activeOrders={currentUser ? orders.filter(o => o.customerPhone === currentUser.phone) : []}
         onOrderClick={(ord) => {
           setSelectedOrder(ord);
-          setActiveView('tracker');
+          navigateTo('tracker');
         }}
         activeView={activeView}
-        setActiveView={setActiveView}
+        setActiveView={navigateTo}
         currentUser={currentUser}
         onAuthClick={() => { setAuthMode('login'); setIsAuthOpen(true); }}
         onLogout={handleLogout}
@@ -1333,7 +1333,7 @@ export default function App() {
             currentUser={currentUser}
             onOrderClick={(ord) => {
               setSelectedOrder(ord);
-              setActiveView('tracker');
+              navigateTo('tracker');
               window.scrollTo({ top: 0, behavior: 'instant' });
             }}
             onBack={goBack}
@@ -1384,7 +1384,7 @@ export default function App() {
                {/* Back Button */}
                <div className="flex justify-center pt-4">
                  <button
-                   onClick={() => setActiveView('home')}
+                   onClick={goBack}
                    className="bg-[#f94c10] hover:bg-[#e03d08] text-white font-extrabold text-xs py-3 px-8 rounded-full transition-all shadow-md cursor-pointer hover:scale-102"
                  >
                    {'الرجوع للرئيسية 🗺️'}

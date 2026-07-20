@@ -87,7 +87,7 @@ export default function OrderTracker({
         const res = await fetchWithRetry('/api/captain/location/' + currentOrder.id);
         if (res.ok) {
           const data = await res.json();
-          if (data.location) setCourierLocation(data.location);
+          setCourierLocation(data.location || null);
         }
       } catch {}
     };
@@ -136,9 +136,13 @@ export default function OrderTracker({
 
   // ✅ حدّث ماركر الكابتن لما يتغير موقعه
   useEffect(() => {
-    if (!courierLocation) return;
     const mapDiv = document.getElementById('tracker-map');
     if (!mapDiv) return;
+    const existingMarker = (mapDiv as any)._captainMarker;
+    if (!courierLocation) {
+      if (existingMarker) { existingMarker.remove(); (mapDiv as any)._captainMarker = null; }
+      return;
+    }
     const map = (mapDiv as any)._leafletMap;
     const L = (window as any).L;
     if (!map || !L) return;

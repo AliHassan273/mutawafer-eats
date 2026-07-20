@@ -82,7 +82,9 @@ export default function CaptainPage({
             setGpsError(isAr
               ? '⚠️ الـ GPS مقفول! افتح إعدادات المتصفح ← الخصوصية ← الموقع ← اسمح للموقع. لن تتمكن من استلام طلبات بدون GPS حقيقي.'
               : '⚠️ GPS is blocked! Open browser Settings → Privacy → Location → Allow. You cannot accept orders without real GPS.');
-            setGpsCoords(null); // ✅ null = مش هيقدر يستلم طلبات
+            setGpsCoords(null);
+            // إزالة مكان الطيار فورًا من خريطة العميل والأدمن.
+            fetchWithRetry('/api/captain/location/offline', { method: 'POST' }).catch(() => {});
           },
           { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
@@ -375,52 +377,45 @@ export default function CaptainPage({
         </div>
       )}
 
-      {gpsError && (
+      {/* حالة GPS واحدة فقط: خطأ أو نشط أو جارٍ التحقق، لمنع ظهور حالتين متناقضتين */}
+      {gpsError ? (
         <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 font-bold text-xs text-center flex items-center justify-center gap-2">
           <span>📍</span>
           <span>{gpsError}</span>
         </div>
-      )}
-
-      {/* GPS Status Banner - يظهر فقط بعد الموافقة */}
-      <div className="bg-gradient-to-r from-green-500/95 to-emerald-600/95 text-white rounded-[24px] p-5 sm:p-6 shadow-lg relative overflow-hidden">
-        <div className="absolute -right-12 -bottom-12 opacity-15 text-9xl pointer-events-none select-none">
-          📍
-        </div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
-          <div className="space-y-2 max-w-3xl">
-            <div className="flex items-center gap-2" style={{ direction: isAr ? 'rtl' : 'ltr' }}>
-              <span className="flex h-3 w-3 relative shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-400"></span>
-              </span>
-              <span className="font-mono text-[10px] sm:text-xs font-black tracking-widest bg-black/25 px-2.5 py-0.5 rounded-full uppercase">
-                {isAr ? 'تتبع خط السير: مفعّل ونشط ●' : 'BEACON STATUS: LIVE LOCAL TRACKING'}
-              </span>
-            </div>
-            <h3 className="text-base sm:text-lg font-black leading-tight">
-              {isAr ? '✅ الموقع الجغرافي مفعّل – يمكنك استلام الطلبات' : '✅ GPS Active – You can receive orders'}
-            </h3>
-            <p className="text-xs sm:text-sm text-green-50 leading-relaxed font-bold">
-              {isAr 
-                ? 'موقعك الحالي يتم بثه مباشرة لإدارة الطلبات وتوزيعها عليك تلقائياً بأقصى سرعة.'
-                : 'Your location is being streamed live to dispatch orders to you automatically.'}
-            </p>
-            {gpsCoords && (
+      ) : gpsCoords ? (
+        <div className="bg-gradient-to-r from-green-500/95 to-emerald-600/95 text-white rounded-[24px] p-5 sm:p-6 shadow-lg relative overflow-hidden">
+          <div className="absolute -right-12 -bottom-12 opacity-15 text-9xl pointer-events-none select-none">📍</div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+            <div className="space-y-2 max-w-3xl">
+              <div className="flex items-center gap-2" style={{ direction: 'rtl' }}>
+                <span className="flex h-3 w-3 relative shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-400"></span>
+                </span>
+                <span className="font-mono text-[10px] sm:text-xs font-black bg-black/25 px-2.5 py-0.5 rounded-full">تتبع خط السير: مفعّل ونشط ●</span>
+              </div>
+              <h3 className="text-base sm:text-lg font-black leading-tight">✅ الموقع الجغرافي مفعّل – يمكنك استلام الطلبات</h3>
+              <p className="text-xs sm:text-sm text-green-50 leading-relaxed font-bold">موقعك الحالي يتم بثه مباشرة لإدارة الطلبات وتوزيعها عليك تلقائياً بأقصى سرعة.</p>
               <div className="bg-black/35 font-mono text-[10px] sm:text-xs py-1.5 px-3 rounded-lg inline-flex items-center gap-2 border border-white/10 mt-1">
-                <span>📍 GPS COM:</span>
+                <span>📍 GPS:</span>
                 <span className="text-green-300 font-extrabold">{gpsCoords.lat.toFixed(6)}° N, {gpsCoords.lng.toFixed(6)}° E</span>
               </div>
-            )}
-          </div>
-          <div className="shrink-0 w-full sm:w-auto">
-            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl py-2.5 px-4 text-center space-y-1">
-              <p className="text-[10px] font-bold text-white/80 uppercase">{isAr ? 'تحديث الموقع الجغرافي' : 'GPS POSITION'}</p>
-              <p className="text-xs font-black text-green-300">📡 {isAr ? 'قيد التحديث التلقائي' : 'REAL-TIME TRACKING'}</p>
+            </div>
+            <div className="shrink-0 w-full sm:w-auto">
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl py-2.5 px-4 text-center space-y-1">
+                <p className="text-[10px] font-bold text-white/80">تحديث الموقع الجغرافي</p>
+                <p className="text-xs font-black text-green-300">📡 قيد التحديث التلقائي</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 font-bold text-xs text-center flex items-center justify-center gap-2">
+          <span>📡</span>
+          <span>جارٍ التحقق من الموقع الجغرافي… لن تتمكن من استلام الطلبات حتى يتم تحديد موقعك.</span>
+        </div>
+      )}
 
       {/* Metrics bento-style highlights */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

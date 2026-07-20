@@ -333,8 +333,10 @@ app.get("/api/settings", async (_req, res) => {
 });
 
 app.put("/api/settings", authenticateToken, isPrimaryAdmin, async (req, res) => {
-  await settings.set("main", req.body);
-  res.json({ success: true, settings: req.body });
+  const current = await getSettings();
+  const next = { ...current, ...req.body };
+  await settings.set("main", next);
+  res.json({ success: true, settings: next });
 });
 
 // ── Admins ───────────────────────────────────────────────────
@@ -520,7 +522,7 @@ app.post("/api/users/login", async (req, res) => {
   if (!isMatch) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
 
   // ✅ استخدام generateToken المركزي
-  const token = generateToken({ id: found.id, phone: found.phone, role: found.role || "customer" });
+  const token = generateToken({ id: found.id, name: found.name, phone: found.phone, role: found.role || "customer" });
 
   // ✅ لا نرسل الـ password مطلقاً
   res.json({
@@ -532,7 +534,7 @@ app.post("/api/users/login", async (req, res) => {
 
 // ── Captain Location Tracking ─────────────────────────────────
 // in-memory store للمواقع (زي الـ OTP sessions)
-const captainLocations = new Map<string, { lat: number; lng: number; updatedAt: string; orderId?: string }>();
+const captainLocations = new Map<string, { lat: number; lng: number; updatedAt: string; orderId?: string; captainName?: string }>();
 
 // الكابتن يبعت موقعه
 app.post("/api/captain/location", authenticateToken, async (req, res) => {
@@ -543,7 +545,14 @@ app.post("/api/captain/location", authenticateToken, async (req, res) => {
     lng: Number(lng),
     updatedAt: new Date().toISOString(),
     orderId,
+    captainName: req.user?.name || req.user?.phone || req.user?.id,
   });
+  res.json({ success: true });
+});
+
+// يحذف موقع الطيار فور إيقاف GPS حتى لا تظهر نقطة قديمة على الخرائط.
+app.post("/api/captain/location/offline", authenticateToken, async (req, res) => {
+  captainLocations.delete(req.user.id);
   res.json({ success: true });
 });
 
@@ -621,7 +630,6 @@ app.get("/api/orders", authenticateToken, async (req, res) => {
 // ============================================================
 app.post("/api/orders", authenticateToken, orderLimiter, async (req, res) => {
   const body = req.body;
-
   // 1. التحقق من وجود الحقول الأساسية
   if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
     return res.status(400).json({ error: "الطلب يجب أن يحتوي على أصناف." });

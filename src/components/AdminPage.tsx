@@ -2853,7 +2853,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                       (mapDiv as any)._captainMarkers = locs.map((loc: any) => {
                         const icon = (window as any).L.divIcon({ html: '<div style="font-size:22px">🛵</div>', className: '', iconAnchor: [11, 11] });
                         return L.marker([loc.lat, loc.lng], { icon })
-                          .bindPopup(`<b>كابتن: ${loc.captainId}</b><br>آخر تحديث: ${new Date(loc.updatedAt).toLocaleTimeString('ar')}`)
+                          .bindPopup(`<b>الطيار: ${loc.captainName || loc.captainId}</b><br>رقم الطلب: ${loc.orderId || 'لا يوجد طلب نشط'}<br>آخر تحديث: ${new Date(loc.updatedAt).toLocaleTimeString('ar')}`)
                           .addTo(map);
                       });
                       triggerSuccess(`تم تحديث ${locs.length} موقع كابتن 📍`);
@@ -2867,7 +2867,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
             </div>
             <div
               id="admin-captains-map"
-              className="w-full rounded-2xl overflow-hidden border border-slate-200"
+              className="relative z-0 isolate w-full rounded-2xl overflow-hidden border border-slate-200"
               style={{ height: '280px' }}
               ref={(el) => {
                 if (!el || (el as any)._leaflet_id) return;

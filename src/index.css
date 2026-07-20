@@ -22,3 +22,8 @@ body {
   scrollbar-width: none;
 }
 
+
+
+/* Leaflet maps stay inside their section and never cover tabs or modals. */
+.leaflet-container { z-index: 0 !important; }
+.leaflet-pane, .leaflet-top, .leaflet-bottom { z-index: 1 !important; }
