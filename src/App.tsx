@@ -492,7 +492,7 @@ export default function App() {
     const primaryRestId = cart[0].restaurantId;
     const associatedRest = restaurants.find((r) => r.id === primaryRestId) || RESTAURANTS[0];
 
-    const subtotal = cart.reduce((tot, item) => tot + item.menuItem.price * item.quantity, 0);
+    const subtotal = cart.reduce((tot, item) => tot + (item.selectedSize?.price ?? item.menuItem.price) * item.quantity, 0);
     const itemDiscount = 0; // Handled directly inside calculations now
 
     const orderId = `order_${Math.random().toString(36).substr(2, 9)}`;

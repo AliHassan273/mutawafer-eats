@@ -648,14 +648,22 @@ app.post("/api/orders", authenticateToken, orderLimiter, async (req, res) => {
     const perKm = Number(appSettings.distanceFeePerKm) || 0;
     deliveryFee = Math.round(base + (Number(restaurantForFee.distance) || 0) * perKm);
   } else {
-    const region = Array.isArray(appSettings.deliveryOptions)
-      ? appSettings.deliveryOptions.find((r: any) => r.id === body.deliveryRegionId)
-      : null;
-    deliveryFee = Number(region?.fee) || 0;
+    const defaultRegions = [
+      { id: "reg_1", name: "الزمالك", fee: 15 },
+      { id: "reg_2", name: "الدقي", fee: 20 },
+      { id: "reg_3", name: "المهندسين", fee: 25 },
+      { id: "reg_4", name: "وسط البلد", fee: 20 },
+      { id: "reg_5", name: "6 أكتوبر", fee: 40 },
+    ];
+    const regions = Array.isArray(appSettings.deliveryOptions) && appSettings.deliveryOptions.length > 0
+      ? appSettings.deliveryOptions : defaultRegions;
+    const region = regions.find((r: any) => r.id === body.deliveryRegionId);
+    if (!region) return res.status(400).json({ error: "منطقة التوصيل غير صحيحة أو لم تعد متاحة." });
+    deliveryFee = Number(region.fee) || 0;
   }
-  if (body.doorstepDelivery === true) deliveryFee += 5;
+  const doorstepFee = body.doorstepDelivery === true ? 5 : 0;
   deliveryFee = Math.min(1000, Math.max(0, deliveryFee));
-  const calculated  = await calculateOrderTotal(body.items, body.restaurantId, deliveryFee);
+  const calculated  = await calculateOrderTotal(body.items, body.restaurantId, deliveryFee + doorstepFee);
 
   if (!calculated) {
     return res.status(400).json({
@@ -672,8 +680,10 @@ app.post("/api/orders", authenticateToken, orderLimiter, async (req, res) => {
     items:           calculated.validatedItems,
     subtotal:        calculated.subtotal,   // ✅ محسوب server-side
     deliveryFee:     deliveryFee,
-    discount:        0,                     // TODO: تطبيق الكوبونات هنا لاحقاً
-    total:           calculated.total,      // ✅ محسوب server-side
+    discount:        0,
+    total:           calculated.total + (body.paymentMethod === "vodafone" ? Math.ceil(calculated.subtotal / 500) * 5 : 0),
+    doorstepFee,
+    vodafoneFee:     body.paymentMethod === "vodafone" ? Math.ceil(calculated.subtotal / 500) * 5 : 0,
     status:          "Received",
     createdAt:       new Date().toISOString(),
     customerName:    body.customerName    || "",
@@ -1047,7 +1057,7 @@ app.post("/api/gemini/parse-menu", authenticateToken, canManageMenu, async (req,
       }
 
       response = await callWithRetry({
-        model: "gemini-2.5-flash",
+        model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
         contents: { parts: [{ text: `Here is the CSV/sheet content:\n\`\`\`csv\n${spreadsheetContent}\n\`\`\`` }, { text: finalPrompt }] },
         config: {
           systemInstruction: "أنت مساعد يستخرج قوائم الطعام. اللغة العربية إلزامية. الأحجام المختلفة تُجمع في صنف واحد مع sizes array.",
@@ -1067,7 +1077,7 @@ app.post("/api/gemini/parse-menu", authenticateToken, canManageMenu, async (req,
       }
 
       response = await callWithRetry({
-        model: "gemini-2.5-flash",
+        model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
         contents: { parts: [{ inlineData: { data: fileData, mimeType: finalMimeType } }, { text: finalPrompt }] },
         config: {
           systemInstruction: "أنت مساعد يستخرج قوائم الطعام. اللغة العربية إلزامية. الأحجام المختلفة تُجمع في صنف واحد مع sizes array.",
