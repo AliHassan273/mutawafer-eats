@@ -269,7 +269,7 @@ async function getSettings() {
       whatsappNumber: "201016789012", deliveryPricingType: "area",
       distanceBaseFee: 10, distanceFeePerKm: 5,
       deliveryCommissionType: "flat", deliveryCommissionValue: 15,
-      aboutUsContent: "تطبيق مسافر...", logoImage: "", deliveryOptions: [], coupons: [], categories: [],
+      aboutUsContent: "تطبيق مسافر...", logoImage: "", deliveryOptions: [], coupons: [], categories: [], rewardOrderThreshold: 10,
     };
     await settings.set("main", defaults);
     return defaults;
@@ -530,6 +530,36 @@ app.post("/api/users/login", async (req, res) => {
     token,
     user: { id: found.id, name: found.name, email: found.email, phone: found.phone, role: found.role, status: found.status }
   });
+});
+
+// ── Customer loyalty: orders during the last 30 days ───────────
+function loyaltySince() { return Date.now() - 30 * 24 * 60 * 60 * 1000; }
+
+app.get("/api/loyalty/me", authenticateToken, async (req, res) => {
+  const settingsData: any = await getSettings();
+  const threshold = Math.max(1, Number(settingsData.rewardOrderThreshold) || 10);
+  const recentOrders = (await orders.all()).filter((o: any) =>
+    o.userId === req.user?.id && Date.parse(o.createdAt || "") >= loyaltySince()
+  );
+  const count = recentOrders.length;
+  res.json({ count, threshold, remaining: Math.max(0, threshold - count), rewardReady: count >= threshold, rewardMessage: "مبروك! وصلت لعدد الطلبات المطلوب. تواصل معنا على واتساب لاستلام هديتك." });
+});
+
+app.get("/api/loyalty/customers", authenticateToken, isPrimaryAdmin, async (_req, res) => {
+  const since = loyaltySince();
+  const recentOrders = (await orders.all()).filter((o: any) => Date.parse(o.createdAt || "") >= since);
+  const usersList: any[] = await users.all();
+  const grouped = new Map<string, any>();
+  for (const order of recentOrders) {
+    if (!order.userId) continue;
+    const user = usersList.find((u: any) => u.id === order.userId);
+    const current = grouped.get(order.userId) || { id: order.userId, name: user?.name || order.customerName || "عميل", phone: user?.phone || order.customerPhone || "", email: user?.email || "", orderCount: 0 };
+    current.orderCount += 1;
+    grouped.set(order.userId, current);
+  }
+  const settingsData: any = await getSettings();
+  const threshold = Math.max(1, Number(settingsData.rewardOrderThreshold) || 10);
+  res.json([...grouped.values()].map(c => ({ ...c, threshold, rewardReady: c.orderCount >= threshold, remaining: Math.max(0, threshold - c.orderCount) })).sort((a, b) => b.orderCount - a.orderCount));
 });
 
 // ── Captain Location Tracking ─────────────────────────────────

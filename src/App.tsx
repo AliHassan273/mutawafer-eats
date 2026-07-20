@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight, ShoppingBag, Plus } from 'lucide-react';
 import Header from './components/Header';
 import { saveToken, clearToken, fetchWithRetry } from './utils/fetchHelper';
 import CategoryList from './components/CategoryList';
-import PromoBanners from './components/PromoBanners';
 import Logo from './components/Logo';
 import RestaurantCard, { isRestaurantOpen } from './components/RestaurantCard';
 import RestaurantDetail from './components/RestaurantDetail';
@@ -135,6 +134,7 @@ export default function App() {
     } catch {}
   }, [orders]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [loyaltyStatus, setLoyaltyStatus] = useState<{ count: number; threshold: number; remaining: number; rewardReady: boolean; rewardMessage: string } | null>(null);
   // translation helper used throughout the app
   const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
   const [settings, setSettings] = useState<{
@@ -334,7 +334,15 @@ export default function App() {
 
   useEffect(() => {
     loadInitialData();
-  }, []);
+  }, []);  useEffect(() => {
+    if (!currentUser || currentUser.role === 'admin' || currentUser.role === 'primary') {
+      setLoyaltyStatus(null);
+      return;
+    }
+    fetchWithRetry('/api/loyalty/me').then(async res => {
+      if (res.ok) setLoyaltyStatus(await res.json());
+    }).catch(() => setLoyaltyStatus(null));
+  }, [currentUser, orders.length]);
 
   // Update default address automatically based on selected language
   useEffect(() => {
@@ -884,10 +892,20 @@ export default function App() {
               categories={settings.categories}
             />
 
-            {/* Twin Promo Boxes */}
-            <PromoBanners 
-              onPromoCopy={handlePromoCopyNotification} 
-            />
+            {loyaltyStatus && (
+              <section className={`mx-4 md:mx-8 rounded-3xl p-5 border shadow-sm ${loyaltyStatus.rewardReady ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100'}`} dir="rtl">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-sm font-black text-slate-800">عداد طلباتك خلال آخر ٣٠ يومًا 🎁</h2>
+                    <p className="text-xs text-slate-500 mt-1">طلبت <strong>{loyaltyStatus.count}</strong> من <strong>{loyaltyStatus.threshold}</strong> طلبات للوصول إلى الهدية.</p>
+                    {loyaltyStatus.rewardReady && <p className="text-xs text-amber-700 font-black mt-2">{loyaltyStatus.rewardMessage}</p>}
+                  </div>
+                  {loyaltyStatus.rewardReady ? (
+                    <a href={`https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(loyaltyStatus.rewardMessage)}`} target="_blank" rel="noreferrer" className="bg-emerald-600 text-white px-5 py-3 rounded-2xl text-xs font-black">تواصل معنا على واتساب 🎁</a>
+                  ) : <span className="bg-orange-50 text-orange-600 px-4 py-2 rounded-xl text-xs font-black">متبقي {loyaltyStatus.remaining} طلب</span>}
+                </div>
+              </section>
+            )}
 
             {/* Popular Restaurants / Search By Dish Section */}
             <section className="px-4 md:px-8 mt-6">

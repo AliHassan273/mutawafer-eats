@@ -124,6 +124,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   const [newCatIcon, setNewCatIcon] = useState("");
 
   // Coupons dynamic list configuration
+  const [rewardOrderThreshold, setRewardOrderThreshold] = useState(10);
+  const [loyaltyCustomers, setLoyaltyCustomers] = useState<any[]>([]);
   const [couponsList, setCouponsList] = useState<{ id: string; code: string; discountType: 'percentage' | 'flat'; discountValue: number; minOrder: number; isActive: boolean }[]>([]);
   const [newCouponCode, setNewCouponCode] = useState("");
   const [newCouponType, setNewCouponType] = useState<'percentage' | 'flat'>("percentage");
@@ -170,6 +172,10 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
   const fetchAdminsAndSettings = async () => {
     try {
+      const loyaltyRes = await fetchWithRetry("/api/loyalty/customers");
+      if (loyaltyRes.ok) setLoyaltyCustomers(await loyaltyRes.json());
+    } catch {}
+    try {
       const adRes = await fetchWithRetry("/api/admins");
       if (adRes.ok) {
         const adData = await adRes.json();
@@ -197,6 +203,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       if (setRes.ok) {
         const setData = await setRes.json();
         if (setData) {
+          if (setData.rewardOrderThreshold !== undefined) setRewardOrderThreshold(Number(setData.rewardOrderThreshold) || 10);
           if (setData.whatsappNumber) {
             setWhatsappNumberSetting(setData.whatsappNumber);
           }
@@ -305,7 +312,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           logoImage: logoImageSetting,
           deliveryOptions: deliveryOptions,
           coupons: couponsList,
-          categories: categoriesList
+          categories: categoriesList,
+          rewardOrderThreshold: Math.max(1, Number(rewardOrderThreshold) || 10)
         })
       });
       if (response.ok) {
@@ -3110,6 +3118,23 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       {/* Tab 4: DELIVERY AREAS & PROMO COUPONS SETTINGS */}
       {adminTab === 'settings' && (
         <div className="space-y-6">
+          <div className="bg-white border border-amber-200 rounded-3xl p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div><h2 className="text-sm font-black text-slate-800">نظام هدايا العملاء 🎁</h2><p className="text-xs text-slate-500 mt-1">يُحسب عدد الطلبات لكل عميل خلال آخر ٣٠ يومًا فقط.</p></div>
+              <input type="number" min="1" value={rewardOrderThreshold} onChange={e => setRewardOrderThreshold(Math.max(1, Number(e.target.value) || 1))} className="w-24 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-center font-black" />
+            </div>
+            <p className="text-[10px] text-slate-400">عند الوصول إلى هذا العدد، تظهر للعميل رسالة الهدية وزر التواصل عبر واتساب.</p>
+            <button type="button" onClick={async () => {
+              const res = await fetchWithRetry('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rewardOrderThreshold: Math.max(1, Number(rewardOrderThreshold) || 10) }) });
+              if (res.ok) triggerSuccess('تم حفظ عدد الطلبات المطلوب للهدية.');
+            }} className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-4 py-2 text-xs font-black">حفظ عدد الطلبات</button>
+            <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+              <table className="w-full text-xs text-right"><thead className="bg-slate-50"><tr><th className="p-3">العميل</th><th className="p-3">الهاتف</th><th className="p-3">طلبات آخر ٣٠ يوم</th><th className="p-3">الحالة</th></tr></thead><tbody>
+                {loyaltyCustomers.map(c => <tr key={c.id} className="border-t border-slate-100"><td className="p-3 font-bold">{c.name}</td><td className="p-3" dir="ltr">{c.phone || '—'}</td><td className="p-3 font-black">{c.orderCount} / {c.threshold}</td><td className={`p-3 font-black ${c.rewardReady ? 'text-emerald-600' : 'text-slate-500'}`}>{c.rewardReady ? 'مستحق الهدية 🎁' : `متبقي ${c.remaining}`}</td></tr>)}
+                {!loyaltyCustomers.length && <tr><td colSpan={4} className="p-5 text-center text-slate-400">لا توجد طلبات لعملاء خلال آخر ٣٠ يومًا.</td></tr>}
+              </tbody></table>
+            </div>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
             <div className="bg-white border border-slate-105 rounded-3xl p-6 shadow-sm space-y-4">
