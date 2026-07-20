@@ -655,6 +655,16 @@ app.post("/api/orders", authenticateToken, orderLimiter, async (req, res) => {
   res.status(201).json(newOrder);
 });
 
+app.get("/api/orders/:id", async (req, res) => {
+  try {
+    const order = await orders.get(req.params.id);
+    if (!order) return res.status(404).json({ error: "Order not found" });
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch order" });
+  }
+});
+
 app.put("/api/orders/:id/status", authenticateToken, async (req, res) => {
   const { id }                                    = req.params;
   const { status, eta, courierName, courierPhone } = req.body;

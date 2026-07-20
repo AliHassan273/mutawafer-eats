@@ -87,7 +87,10 @@ export default function CaptainPage({
           { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
       } else {
-        setGpsCoords({ lat: 30.0626, lng: 31.2222 });
+        setGpsError(isAr
+          ? '⚠️ متصفحك لا يدعم GPS. لا يمكن استلام طلبات.'
+          : '⚠️ Your browser does not support GPS. Cannot accept orders.');
+        setGpsCoords(null);
       }
     }
 
@@ -130,22 +133,7 @@ export default function CaptainPage({
     return () => clearInterval(locInterval);
   }, [gpsCoords, orders]);
 
-  // محاكاة تحديث الموقع بشكل مستمر (للعرض البصري)
-  useEffect(() => {
-    if (!isGpsAgreed) return;
-    const interval = setInterval(() => {
-      setGpsCoords(prev => {
-        if (!prev) return { lat: 30.0626, lng: 31.2222 };
-        const driftLat = (Math.random() - 0.5) * 0.00015;
-        const driftLng = (Math.random() - 0.5) * 0.00015;
-        return {
-          lat: Number((prev.lat + driftLat).toFixed(6)),
-          lng: Number((prev.lng + driftLng).toFixed(6))
-        };
-      });
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [isGpsAgreed]);
+  // ℹ️ الـ GPS الحقيقي بيشتغل من watchPosition أعلاه — مفيش محاكاة
 
   // ============================================================
   // إذا لم يوافق الكابتن على GPS، نعرض نافذة إلزامية ولا نعرض أي محتوى آخر
@@ -220,15 +208,16 @@ export default function CaptainPage({
   // ============================================================
 
   const handlePickUpOrder = (orderId: string) => {
-    // ✅ اشترط وجود GPS حقيقي قبل الاستلام
+    // ✅ GPS حقيقي إلزامي
     if (!gpsCoords) {
-      setSuccessMsg('');
       alert(isAr
         ? '⚠️ يجب تفعيل الـ GPS الفعلي من إعدادات المتصفح أولاً قبل استلام الطلب!'
         : '⚠️ You must enable real GPS from browser settings before picking up an order!');
       return;
     }
     onUpdateStatus(orderId, 'OutForDelivery', currentUser.name, currentUser.phone);
+    // ✅ refresh فوري عشان الطلب يتشال من القائمة
+    setTimeout(() => onRefreshData(), 500);
     setSuccessMsg(isAr ? '🥳 تم استلام الطلب وبدأ الرحلة بنجاح! طير للعميل بالسلامة.' : 'Picked up order successfully! Take care on the road.');
     setTimeout(() => setSuccessMsg(''), 4000);
   };

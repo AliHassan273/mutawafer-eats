@@ -153,33 +153,20 @@ export default function OrderTracker({
     map.panTo([courierLocation.lat, courierLocation.lng]);
   }, [courierLocation]);
 
-  // Poll for status updates from backend database every 3 seconds
+  // ✅ Poll for status updates every 5 seconds using direct order endpoint
   useEffect(() => {
     let consecutiveFailures = 0;
     const poll = async () => {
       try {
-        const res = await fetchWithRetry('/api/orders');
+        // ✅ اجيب الأوردر مباشرة بـ id — مش محتاج token
+        const res = await fetch('/api/orders/' + order.id);
         if (!res.ok) {
-          console.error('Order poll non-ok response', res.status);
           consecutiveFailures++;
           return;
         }
-
-        const data = await res.json();
-        let ordersList: Order[] = [];
-
-        if (Array.isArray(data)) ordersList = data;
-        else if (data && Array.isArray((data as any).orders)) ordersList = (data as any).orders;
-        else if (data && typeof data === 'object' && data.id) ordersList = [data as any];
-        else {
-          console.warn('Unexpected orders payload while polling:', data);
-          consecutiveFailures++;
-          return;
-        }
-
+        const freshOrder = await res.json();
         consecutiveFailures = 0;
-        const freshOrder = ordersList.find(o => o.id === order.id) || null;
-        if (freshOrder) {
+        if (freshOrder && freshOrder.id) {
           if (freshOrder.status !== currentOrder.status) {
             onUpdateStatus(order.id, freshOrder.status);
           }
@@ -189,7 +176,6 @@ export default function OrderTracker({
           });
         }
       } catch (err) {
-        console.error('Error polling order status:', err);
         consecutiveFailures++;
       }
     };
@@ -330,7 +316,7 @@ ${itemsText}
               <div style={{ textAlign: isAr ? 'right' : 'left' }}>
                 <p className="text-[10px] text-slate-404 font-bold uppercase tracking-wider">{isAr ? 'توقعتنا لوصول دليفرك' : 'Estimated Delivery Time'}</p>
                 <p className="text-base sm:text-lg font-black text-slate-855">
-                  {order.status === 'Delivered' 
+                  {currentOrder.status === 'Delivered' 
                     ? (isAr ? 'وصل بألف هنا! 🎉' : 'Delivered!') 
                     : (isAr ? `فاضل حوالي ${countdownMinutes} دقائق` : `${countdownMinutes} Minutes Left`)
                   }
@@ -534,13 +520,13 @@ ${itemsText}
             <div style={{ textAlign: isAr ? 'right' : 'left' }}>
               <p className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">{isAr ? 'حالة التوصيل الفورية' : 'Live dispatch feedback'}</p>
               <h4 className="text-xs font-bold text-slate-805 leading-snug">
-                {order.status === 'Pending' && (isAr ? 'طلبك معلّق الآن قيد المراجعة والموافقة من الإدارة. تم توجيهه للواتساب لتأكيده والموافقة عليه قريبًا! ⏳' : 'Your order is pending review and approval by management. It was sent to WhatsApp and will be approved soon! ⏳')}
-                {order.status === 'Received' && (isAr ? 'تم قبول الطلب وجاري توجيهه للمطبخ.' : 'Order acknowledged and sent to the kitchen.')}
-                {order.status === 'Preparing' && (isAr ? 'المطبخ مشغول في طبخ طلبك بكل حب الآن. 👨‍🍳' : 'Kitchen cooking is underway.')}
-                {order.status === 'OutForDelivery' && (isAr 
-                  ? `الكابتن ${order.courierName || 'أحمد'} استلم طلبك وانطلق في الطريق لعنوانك! 🏍️ ${order.courierPhone ? `(تواصل: ${order.courierPhone})` : ''}` 
-                  : `Courier ${order.courierName || 'Ahmed'} has picked up your order and is on the way! 🏍️ ${order.courierPhone ? `(phone: ${order.courierPhone})` : ''}`)}
-                {order.status === 'Delivered' && (isAr ? 'تم التوصيل بنجاح وبألف هنا وشفا! شكراً لاختيارك مسافر إيتس. 🥰' : 'Delivered successfully. Thank you for choosing Mutafer Eats! 🥰')}
+                {currentOrder.status === 'Pending' && (isAr ? 'طلبك معلّق الآن قيد المراجعة والموافقة من الإدارة. تم توجيهه للواتساب لتأكيده والموافقة عليه قريبًا! ⏳' : 'Your order is pending review and approval by management. It was sent to WhatsApp and will be approved soon! ⏳')}
+                {currentOrder.status === 'Received' && (isAr ? 'تم قبول الطلب وجاري توجيهه للمطبخ.' : 'Order acknowledged and sent to the kitchen.')}
+                {currentOrder.status === 'Preparing' && (isAr ? 'المطبخ مشغول في طبخ طلبك بكل حب الآن. 👨‍🍳' : 'Kitchen cooking is underway.')}
+                {currentOrder.status === 'OutForDelivery' && (isAr 
+                  ? `الكابتن ${currentOrder.courierName || 'أحمد'} استلم طلبك وانطلق في الطريق لعنوانك! 🏍️ ${currentOrder.courierPhone ? `(تواصل: ${currentOrder.courierPhone})` : ''}` 
+                  : `Courier ${currentOrder.courierName || 'Ahmed'} has picked up your order and is on the way! 🏍️ ${currentOrder.courierPhone ? `(phone: ${currentOrder.courierPhone})` : ''}`)}
+                {currentOrder.status === 'Delivered' && (isAr ? 'تم التوصيل بنجاح وبألف هنا وشفا! شكراً لاختيارك مسافر إيتس. 🥰' : 'Delivered successfully. Thank you for choosing Mutafer Eats! 🥰')}
               </h4>
             </div>
           </div>
