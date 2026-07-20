@@ -79,12 +79,53 @@ export default function App() {
 
   // Navigation Routing States
   const [activeView, setActiveView] = useState<'home' | 'restaurant' | 'tracker' | 'admin' | 'captain' | 'about' | 'my-orders'>('home');
+  const [viewHistory, setViewHistory] = useState<string[]>([]);
+
+  // ✅ navigate with history tracking
+  const navigateTo = (view: 'home' | 'restaurant' | 'tracker' | 'admin' | 'captain' | 'about' | 'my-orders') => {
+    setViewHistory(prev => [...prev.slice(-9), activeView]);
+    setActiveView(view);
+    // ✅ ادفع state للـ browser history عشان زرار الرجوع يشتغل
+    window.history.pushState({ view }, '', window.location.pathname);
+  };
+
+  const goBack = () => {
+    const prev = viewHistory[viewHistory.length - 1];
+    if (prev) {
+      setViewHistory(h => h.slice(0, -1));
+      setActiveView(prev as any);
+    } else {
+      setActiveView('home');
+    }
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  // ✅ زرار الرجوع في المتصفح يشغّل goBack بدل ما يخرج
+  React.useEffect(() => {
+    const handlePopState = () => { goBack(); };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [viewHistory]);
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   // Cart and orders persistence
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Order[]>(() => {
+    // ✅ استرجع الطلبات من localStorage عند أول تحميل
+    try {
+      const stored = localStorage.getItem('mutafer_orders_cache');
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
+
+  // ✅ احفظ الطلبات في localStorage كل ما تتغير
+  React.useEffect(() => {
+    try {
+      // بس احفظ الطلبات بتاعة المستخدم الحالي
+      localStorage.setItem('mutafer_orders_cache', JSON.stringify(orders.slice(0, 50)));
+    } catch {}
+  }, [orders]);
   const [reviews, setReviews] = useState<Review[]>([]);
   // translation helper used throughout the app
   const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
@@ -243,10 +284,20 @@ export default function App() {
 
     try {
       // 3. Fetch orders
-      const ordRes = await fetchWithRetry('/api/orders');
-      if (ordRes.ok) {
-        const ordData = await ordRes.json();
-        setOrders(ordData);
+      // ✅ اجيب الطلبات من السيرفر وادمجها مع المحفوظة محلياً
+      if (currentUser) {
+        const ordRes = await fetchWithRetry('/api/orders');
+        if (ordRes.ok) {
+          const ordData = await ordRes.json();
+          setOrders(prev => {
+            // ادمج الطلبات الجديدة من السيرفر مع المحفوظة محلياً
+            const serverIds = new Set(ordData.map((o: any) => o.id));
+            const localOnly = prev.filter(o => !serverIds.has(o.id));
+            return [...ordData, ...localOnly].sort((a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+          });
+        }
       }
     } catch (err) {
       console.error("Error fetching orders:", err);
@@ -288,18 +339,18 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const getSizeKey = (sz?: any) => sz ? (sz.id || sz.name) : null;
+
   const handleAddToCart = (item: MenuItem, restaurantInstance: any, selectedSize?: any) => {
+    // ✅ Ensure size has id (fallback to name)
+    const normalizedSize = selectedSize ? { ...selectedSize, id: selectedSize.id || selectedSize.name } : undefined;
     setCart((prevCart) => {
-      // Find matches where both itemId matches, and selectedSize is identical
       const existing = prevCart.find(
-        (c) => 
-          c.menuItem.id === item.id && 
-          ((!selectedSize && !c.selectedSize) || (c.selectedSize?.id === selectedSize?.id))
+        (c) => c.menuItem.id === item.id && getSizeKey(c.selectedSize) === getSizeKey(normalizedSize)
       );
       if (existing) {
         return prevCart.map((c) =>
-          c.menuItem.id === item.id && 
-          ((!selectedSize && !c.selectedSize) || (c.selectedSize?.id === selectedSize?.id))
+          c.menuItem.id === item.id && getSizeKey(c.selectedSize) === getSizeKey(normalizedSize)
             ? { ...c, quantity: c.quantity + 1 }
             : c
         );
@@ -308,7 +359,7 @@ export default function App() {
         ...prevCart,
         {
           menuItem: item,
-          selectedSize: selectedSize || undefined,
+          selectedSize: normalizedSize,
           quantity: 1,
           restaurantId: restaurantInstance.id,
           restaurantName: restaurantInstance.name,
@@ -322,7 +373,7 @@ export default function App() {
       const item = prevCart.find(
         (c) => 
           c.menuItem.id === itemId && 
-          ((!selectedSizeId && !c.selectedSize) || (c.selectedSize?.id === selectedSizeId))
+          ((!selectedSizeId && !c.selectedSize) || getSizeKey(c.selectedSize) === selectedSizeId)
       );
       if (!item) return prevCart;
 
@@ -330,7 +381,7 @@ export default function App() {
         return prevCart.filter(
           (c) => 
             !(c.menuItem.id === itemId && 
-              ((!selectedSizeId && !c.selectedSize) || (c.selectedSize?.id === selectedSizeId)))
+              ((!selectedSizeId && !c.selectedSize) || getSizeKey(c.selectedSize) === selectedSizeId))
         );
       }
 
@@ -1193,10 +1244,7 @@ export default function App() {
         {activeView === 'restaurant' && selectedRestaurant && (
           <RestaurantDetail
             restaurant={restaurants.find(r => r.id === selectedRestaurant.id) || selectedRestaurant}
-            onBack={() => {
-              setActiveView('home');
-              window.scrollTo({ top: 0, behavior: 'instant' });
-            }}
+            onBack={goBack}
             cart={cart}
             onAddToCart={handleAddToCart}
             onRemoveFromCart={handleRemoveFromCart}
@@ -1208,10 +1256,7 @@ export default function App() {
         {activeView === 'tracker' && selectedOrder && (
           <OrderTracker
             order={selectedOrder}
-            onBack={() => {
-              setActiveView('home');
-              window.scrollTo({ top: 0, behavior: 'instant' });
-            }}
+            onBack={goBack}
             onUpdateStatus={handleUpdateOrderStatus}
           />
         )}
@@ -1219,21 +1264,37 @@ export default function App() {
         {activeView === 'admin' && (
           <AdminPage 
             restaurants={restaurants}
-            onBack={() => {
-              setActiveView('home');
-              window.scrollTo({ top: 0, behavior: 'instant' });
-            }}
+            onBack={goBack}
             onRefreshData={loadInitialData} 
             onAdminLogin={handleAdminAuthSuccess}
             onAdminLogout={handleLogout}
             reviews={reviews}
+            onNavigateCaptain={() => navigateTo('captain')}
           />
         )}
 
         {activeView === 'captain' && (
+          (() => {
+            // ✅ بس الأدمن أو الكابتن اللي الأدمن وافق عليه يدخل
+            const canAccessCaptain = currentUser && (
+              currentUser.role === 'admin' ||
+              currentUser.role === 'primary' ||
+              (currentUser.role === 'captain' && (currentUser as any).status === 'approved')
+            );
+            if (!canAccessCaptain) {
+              return (
+                <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-8 text-center">
+                  <span className="text-5xl">🔒</span>
+                  <h2 className="text-xl font-black text-slate-800">الوصول مقيد</h2>
+                  <p className="text-sm text-slate-500">صفحة الكابتن متاحة فقط للكباتنة المعتمدين من الإدارة.</p>
+                  <button onClick={goBack} className="px-6 py-2 bg-[#f94c10] text-white rounded-2xl font-bold text-sm">رجوع</button>
+                </div>
+              );
+            }
+            return (
           <CaptainPage
             currentUser={
-              currentUser && (currentUser.role === 'captain' || currentUser.role === 'admin' || currentUser.role === 'primary')
+              currentUser
                 ? {
                     id: currentUser.id,
                     name: currentUser.role === 'primary' || currentUser.role === 'admin' ? `${currentUser.name} (آدمن)` : currentUser.name,
@@ -1245,14 +1306,13 @@ export default function App() {
             }
             orders={orders}
             onUpdateStatus={handleUpdateOrderStatus}
-            onBack={() => {
-              setActiveView('home');
-              window.scrollTo({ top: 0, behavior: 'instant' });
-            }}
+            onBack={goBack}
             onLogout={handleLogout}
             onRefreshData={loadInitialData}
             reviews={reviews}
           />
+            );
+          })()
         )}
 
         {activeView === 'my-orders' && (
@@ -1264,11 +1324,9 @@ export default function App() {
               setActiveView('tracker');
               window.scrollTo({ top: 0, behavior: 'instant' });
             }}
-            onBack={() => {
-              setActiveView('home');
-              window.scrollTo({ top: 0, behavior: 'instant' });
-            }}
+            onBack={goBack}
             reviews={reviews}
+            onNavigateCaptain={() => navigateTo('captain')}
           />
         )}
 

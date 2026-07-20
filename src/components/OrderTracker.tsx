@@ -22,6 +22,9 @@ export default function OrderTracker({
   const [currentOrder, setCurrentOrder] = useState<Order>(order);
   const [courierContactActiveMessage, setCourierContactActiveMessage] = useState('');
 
+  // ✅ موقع الكابتن الحقيقي من السيرفر
+  const [courierLocation, setCourierLocation] = useState<{ lat: number; lng: number } | null>(null);
+
   // Rating states
   const [ratedLocally, setRatedLocally] = useState(false);
   const [ratingSpeed, setRatingSpeed] = useState(5);
@@ -75,6 +78,80 @@ export default function OrderTracker({
       })
       .catch(err => console.error("Error loading settings in OrderTracker:", err));
   }, []);
+
+  // ✅ جيب موقع الكابتن كل 15 ثانية
+  useEffect(() => {
+    if (currentOrder.status !== 'OutForDelivery') return;
+    const fetchLoc = async () => {
+      try {
+        const res = await fetchWithRetry('/api/captain/location/' + currentOrder.id);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.location) setCourierLocation(data.location);
+        }
+      } catch {}
+    };
+    fetchLoc();
+    const interval = setInterval(fetchLoc, 15000);
+    return () => clearInterval(interval);
+  }, [currentOrder.id, currentOrder.status]);
+
+  // ✅ Leaflet map initialization
+  useEffect(() => {
+    const mapDiv = document.getElementById('tracker-map');
+    if (!mapDiv || (mapDiv as any)._leaflet_id) return;
+
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    if (!document.querySelector('link[href*="leaflet"]')) {
+      document.head.appendChild(link);
+    }
+
+    const initMap = () => {
+      const L = (window as any).L;
+      if (!L || (mapDiv as any)._leaflet_id) return;
+      const center: [number, number] = courierLocation
+        ? [courierLocation.lat, courierLocation.lng]
+        : [30.0626, 31.2222];
+      const map = L.map('tracker-map', { zoomControl: true, attributionControl: false }).setView(center, 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+      const captainIcon = L.divIcon({ html: '<div style="font-size:28px">🛵</div>', className: '', iconAnchor: [14, 14] });
+      if (courierLocation) {
+        const m = L.marker([courierLocation.lat, courierLocation.lng], { icon: captainIcon }).addTo(map);
+        (mapDiv as any)._captainMarker = m;
+      }
+      (mapDiv as any)._leafletMap = map;
+    };
+
+    if ((window as any).L) {
+      initMap();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = initMap;
+      document.head.appendChild(script);
+    }
+  }, []);
+
+  // ✅ حدّث ماركر الكابتن لما يتغير موقعه
+  useEffect(() => {
+    if (!courierLocation) return;
+    const mapDiv = document.getElementById('tracker-map');
+    if (!mapDiv) return;
+    const map = (mapDiv as any)._leafletMap;
+    const L = (window as any).L;
+    if (!map || !L) return;
+    const captainIcon = L.divIcon({ html: '<div style="font-size:28px">🛵</div>', className: '', iconAnchor: [14, 14] });
+    let marker = (mapDiv as any)._captainMarker;
+    if (marker) {
+      marker.setLatLng([courierLocation.lat, courierLocation.lng]);
+    } else {
+      marker = L.marker([courierLocation.lat, courierLocation.lng], { icon: captainIcon }).addTo(map);
+      (mapDiv as any)._captainMarker = marker;
+    }
+    map.panTo([courierLocation.lat, courierLocation.lng]);
+  }, [courierLocation]);
 
   // Poll for status updates from backend database every 3 seconds
   useEffect(() => {
@@ -418,100 +495,38 @@ ${itemsText}
 
         </div>
 
-        {/* Right Side: Map Canvas simulation */}
+        {/* Right Side: Real Leaflet Map */}
         <div className="lg:col-span-7 bg-slate-100 rounded-3xl p-4 sm:p-6 border border-slate-200 flex flex-col justify-between relative overflow-hidden h-[380px] sm:h-[450px]">
           {/* Map Title panel */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl px-4 py-3 flex justify-between items-center z-10 border border-white/50 shadow-xs relative">
             <div style={{ textAlign: isAr ? 'right' : 'left' }}>
               <p className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">{isAr ? 'خريطة التوصيل المباشرة 🗺️' : 'Live Map Tracker'}</p>
-              <p className="text-xs font-bold text-slate-805">{isAr ? 'تتبع فوري ومحاكاة لموقع الكابتن' : 'Courier route simulation'}</p>
+              <p className="text-xs font-bold text-slate-805">
+                {courierLocation
+                  ? (isAr ? 'موقع الكابتن حي الآن' : 'Live courier location')
+                  : (isAr ? 'في انتظار موقع الكابتن...' : 'Waiting for courier location...')}
+              </p>
             </div>
-            
             <div className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase shadow-xs">
-              <RotateCw className="h-3 w-3 animate-spin text-[#f94c10]" />
-              <span>{isAr ? 'تحديث اللحظة' : 'Syncing'}</span>
+              <RotateCw className={`h-3 w-3 ${courierLocation ? 'animate-spin text-[#f94c10]' : 'text-slate-300'}`} />
+              <span>{courierLocation ? (isAr ? 'حي' : 'Live') : (isAr ? 'انتظار' : 'Waiting')}</span>
             </div>
           </div>
 
-          {/* SVG Vector Drawing Simulated Map */}
-          <div className="absolute inset-0 z-0 bg-[#e2e8f0]">
-            <svg viewBox="0 0 300 200" className="w-full h-full text-slate-400 select-none">
-              <defs>
-                <radialGradient id="glow-grad-loc" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#f94c10" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="#f94c10" stopOpacity="0" />
-                </radialGradient>
-              </defs>
+          {/* Leaflet Map */}
+          <div id="tracker-map" className="absolute inset-0 z-0 rounded-3xl overflow-hidden" />
 
-              {/* City Map Blocks/Buildings grids */}
-              <rect x="10" y="10" width="40" height="30" rx="4" fill="#cbd5e1" />
-              <rect x="60" y="10" width="90" height="30" rx="4" fill="#cbd5e1" />
-              <rect x="160" y="10" width="50" height="40" rx="4" fill="#cbd5e1" />
-              <rect x="220" y="10" width="70" height="20" rx="4" fill="#cbd5e1" />
+          {!courierLocation && (
+            <div className="absolute inset-0 z-5 flex items-center justify-center bg-slate-100/80 rounded-3xl">
+              <div className="text-center space-y-2">
+                <span className="text-4xl">🛵</span>
+                <p className="text-xs font-bold text-slate-500">{isAr ? 'الكابتن في الطريق...' : 'Courier on the way...'}</p>
+                <p className="text-[10px] text-slate-400">{isAr ? 'الخريطة ستظهر بمجرد تحديث موقعه' : 'Map will appear once GPS syncs'}</p>
+              </div>
+            </div>
+          )}
 
-              <rect x="10" y="55" width="40" height="40" rx="4" fill="#cbd5e1" />
-              <rect x="100" y="50" width="50" height="50" rx="4" fill="#cbd5e1" />
-              <rect x="160" y="60" width="60" height="40" rx="4" fill="#cbd5e1" />
-              
-              <rect x="10" y="105" width="40" height="50" rx="4" fill="#cbd5e1" />
-              <rect x="120" y="130" width="100" height="30" rx="4" fill="#cbd5e1" />
-              <rect x="230" y="90" width="60" height="60" rx="4" fill="#cbd5e1" />
-
-              {/* Street Line path (dashed) */}
-              <path 
-                d={`M ${restX} ${restY} L ${streetBendX} ${streetBendY} L ${homeX} ${homeY}`} 
-                fill="none" 
-                stroke="#94a3b8" 
-                strokeWidth="6" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-              />
-              <path 
-                d={`M ${restX} ${restY} L ${streetBendX} ${streetBendY} L ${homeX} ${homeY}`} 
-                fill="none" 
-                stroke="#fff" 
-                strokeWidth="2" 
-                strokeDasharray="4 4" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-              />
-
-              {/* Start Pin: The Restaurant */}
-              <g transform={`translate(${restX}, ${restY})`}>
-                <circle cx="0" cy="0" r="14" fill="#1e1b4b" />
-                <circle cx="0" cy="0" r="11" fill="#4f46e5" />
-                <text x="0" y="3" textAnchor="middle" fontSize="9" fill="#fff" fontWeight="bold">🍳</text>
-                <text x="0" y="24" textAnchor="middle" fontSize="6.5" fill="#334155" fontWeight="bold">
-                  {isAr ? 'المطعم' : 'Kitchen'}
-                </text>
-              </g>
-
-              {/* End Pin: Destination Home */}
-              <g transform={`translate(${homeX}, ${homeY})`}>
-                <circle cx="0" cy="0" r="20" fill="url(#glow-grad-loc)" className="animate-ping" />
-                <circle cx="0" cy="0" r="14" fill="#f43f5e" />
-                <circle cx="0" cy="0" r="11" fill="#f94c10" />
-                <text x="0" y="3.5" textAnchor="middle" fontSize="9" fill="#fff" fontWeight="bold">📍</text>
-                <text x="0" y="-18" textAnchor="middle" fontSize="6.5" fill="#e11d48" fontWeight="black">
-                  {isAr ? 'عنوان حضرتك' : 'Your Address'}
-                </text>
-              </g>
-
-              {/* Moving Courier scooter */}
-              {order.status !== 'Received' && (
-                <g 
-                  transform={`translate(${riderX}, ${riderY})`}
-                  style={{ transition: 'transform 0.4s ease-out' }}
-                >
-                  <circle cx="0" cy="0" r="11" fill="#10b981" />
-                  <circle cx="0" cy="0" r="8" fill="#34d399" />
-                  <text x="0" y="2.5" textAnchor="middle" fontSize="8" fill="#fff">🛵</text>
-                </g>
-              )}
-            </svg>
-          </div>
-
-          {/* Map bottom strip containing current delivery status */}
+                {/* Map bottom strip containing current delivery status */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 flex gap-4 items-center z-10 border border-white/50 shadow-xs relative">
             <div className="bg-[#10b981]/15 p-2 text-[#10b981] rounded-xl shrink-0">
               <Bike className="h-5 w-5" />

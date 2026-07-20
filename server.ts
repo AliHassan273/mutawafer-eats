@@ -521,6 +521,47 @@ app.post("/api/users/login", async (req, res) => {
   });
 });
 
+// ── Captain Location Tracking ─────────────────────────────────
+// in-memory store للمواقع (زي الـ OTP sessions)
+const captainLocations = new Map<string, { lat: number; lng: number; updatedAt: string; orderId?: string }>();
+
+// الكابتن يبعت موقعه
+app.post("/api/captain/location", authenticateToken, async (req, res) => {
+  const { lat, lng, orderId } = req.body;
+  if (!lat || !lng) return res.status(400).json({ error: "lat and lng required" });
+  captainLocations.set(req.user.id, {
+    lat: Number(lat),
+    lng: Number(lng),
+    updatedAt: new Date().toISOString(),
+    orderId,
+  });
+  res.json({ success: true });
+});
+
+// العميل يجيب موقع الكابتن بتاع أوردره
+app.get("/api/captain/location/:orderId", authenticateToken, async (req, res) => {
+  const { orderId } = req.params;
+  const order: any = await orders.get(orderId);
+  if (!order) return res.status(404).json({ error: "Order not found" });
+
+  // بحث عن الكابتن المرتبط بالأوردر ده
+  for (const [captainId, loc] of captainLocations.entries()) {
+    if (loc.orderId === orderId) {
+      return res.json({ success: true, location: loc });
+    }
+  }
+  res.json({ success: true, location: null });
+});
+
+// الأدمن يشوف كل المواقع
+app.get("/api/captain/locations/all", authenticateToken, isPrimaryAdmin, async (_req, res) => {
+  const locs: any[] = [];
+  captainLocations.forEach((loc, captainId) => {
+    locs.push({ captainId, ...loc });
+  });
+  res.json(locs);
+});
+
 // ── Captains ──────────────────────────────────────────────────
 app.get("/api/captains", authenticateToken, isPrimaryAdmin, async (_req, res) => {
   const captains = (await users.all()).filter((u: any) => u.role === "captain")
@@ -664,6 +705,13 @@ app.post("/api/restaurants/:id/menu", authenticateToken, canManageMenu, async (r
   for (const item of items) {
     item.id = item.id || crypto.randomUUID();
     if (item.category) item.category = item.category.toLowerCase(); // ✅ normalize
+    // ✅ ضيف id لكل حجم لو مش موجود
+    if (item.sizes && Array.isArray(item.sizes)) {
+      item.sizes = item.sizes.map((sz: any) => ({
+        ...sz,
+        id: sz.id || `${item.id || crypto.randomUUID()}_${sz.name}`,
+      }));
+    }
     menu.push(item);
   }
   rest.menu = menu;

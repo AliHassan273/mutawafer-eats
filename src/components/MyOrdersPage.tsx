@@ -9,15 +9,16 @@ interface MyOrdersPageProps {
   onOrderClick: (order: Order) => void;
   onBack: () => void;
   reviews?: Review[];
+  onNavigateCaptain?: () => void;
 }
 
 export default function MyOrdersPage({
-
   orders,
   currentUser,
   onOrderClick,
   onBack,
   reviews = [],
+  onNavigateCaptain,
 }: MyOrdersPageProps) {
   const isAr = lang === 'ar';
 
@@ -110,10 +111,23 @@ export default function MyOrdersPage({
           <span>{t('العودة للرئيسية', 'Back to Home')}</span>
         </button>
 
+        <div className="flex items-center gap-2">
+          {/* ✅ زرار واجهة الكابتن — يظهر بس للكابتن المعتمد */}
+          {currentUser && currentUser.role === 'captain' && (currentUser as any).status === 'approved' && onNavigateCaptain && (
+            <button
+              onClick={onNavigateCaptain}
+              className="flex items-center gap-1.5 text-xs font-extrabold text-white bg-[#f94c10] hover:bg-orange-600 py-2 px-4 rounded-xl shadow-xs cursor-pointer active:scale-95 duration-150 transition-all"
+            >
+              <span>🛵</span>
+              <span>واجهة الكابتن</span>
+            </button>
+          )}
+
         <h1 className="text-xl md:text-2xl font-extrabold text-slate-800 font-display flex items-center gap-2">
           <span>📋</span>
           <span>{t('قائمة طلباتي', 'My Orders Activity')}</span>
         </h1>
+        </div>
       </div>
 
       {/* Description Info Banner */}

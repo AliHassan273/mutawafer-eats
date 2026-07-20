@@ -26,7 +26,7 @@ const RESTAURANT_NAMES_MAP: Record<string, string> = {
   'Sweet Delight Desserts': 'حلويات البهجة والسرور 🍦',
 };
 
-export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminLogin, onAdminLogout, reviews }: AdminPageProps) {
+export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminLogin, onAdminLogout, reviews, onNavigateCaptain }: AdminPageProps & { onNavigateCaptain?: () => void }) {
   // ✅ ترجمات عربية ثابتة
   const translations: Record<string, string> = {
     egp: "ج",
@@ -89,6 +89,17 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   const [deliveryPricingType, setDeliveryPricingType] = useState<'area' | 'distance'>('area');
   const [distanceBaseFee, setDistanceBaseFee] = useState(10);
   const [distanceFeePerKm, setDistanceFeePerKm] = useState(5);
+  const [officeLat, setOfficeLat] = useState(30.0626);
+  const [officeLng, setOfficeLng] = useState(31.2222);
+
+  // ✅ helper لتحديث settings من أي مكان
+  const [settingsExtra, setSettingsExtra] = useState<Record<string, any>>({});
+  const handleSettingChange = (key: string, value: any) => {
+    setSettingsExtra(prev => ({ ...prev, [key]: value }));
+    if (key === 'officeLat') setOfficeLat(value);
+    if (key === 'officeLng') setOfficeLng(value);
+  };
+  const settings = { officeLat, officeLng, ...settingsExtra };
   const [deliveryCommissionType, setDeliveryCommissionType] = useState<'flat' | 'percentage'>('flat');
   const [deliveryCommissionValue, setDeliveryCommissionValue] = useState(15);
   const [aboutUsContentSetting, setAboutUsContentSetting] = useState("");
@@ -187,6 +198,12 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           }
           if (setData.distanceFeePerKm !== undefined) {
             setDistanceFeePerKm(setData.distanceFeePerKm);
+          }
+          if (setData.officeLat !== undefined) {
+            setOfficeLat(setData.officeLat);
+          }
+          if (setData.officeLng !== undefined) {
+            setOfficeLng(setData.officeLng);
           }
           if (setData.deliveryCommissionType) {
             setDeliveryCommissionType(setData.deliveryCommissionType);
@@ -1375,7 +1392,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
               {/* Distance-based values */}
               {deliveryPricingType === 'distance' && (
                 <div className="bg-orange-50/50 border border-orange-100 p-3 rounded-2xl space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
-                  <p className="text-[10px] text-orange-700 font-bold">💡 سيتم تحديد سعر شحن التوصيل تلقائياً بضرب المسافة بين العميل والمطعم بعامل السعر المضاف أدناه.</p>
+                  <p className="text-[10px] text-orange-700 font-bold">💡 سيتم تحديد سعر شحن التوصيل تلقائياً بضرب المسافة بين العميل والمطعم بعامل السعر المضاف أدناه. العميل هيشوف خريطة وقت الطلب يحدد موقعه.</p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-600 block">رسوم فتحة الدليفري الأساسية (جنيه):</label>
@@ -1397,6 +1414,47 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                         className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-orange-500/10 outline-none font-bold text-center"
                       />
                     </div>
+                  </div>
+                  {/* موقع مكتب الشركة / نقطة الانطلاق */}
+                  <div className="space-y-1 border-t border-orange-100 pt-3">
+                    <label className="text-[10px] font-black text-slate-600 block">📍 موقع نقطة الانطلاق (مكتب الشركة):</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-0.5">
+                        <label className="text-[9px] text-slate-400 font-bold">خط العرض (Lat)</label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          placeholder="30.0626"
+                          value={(settings as any)?.officeLat || ''}
+                          onChange={(e) => handleSettingChange('officeLat', parseFloat(e.target.value) || 30.0626)}
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none font-mono text-center"
+                        />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[9px] text-slate-400 font-bold">خط الطول (Lng)</label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          placeholder="31.2222"
+                          value={(settings as any)?.officeLng || ''}
+                          onChange={(e) => handleSettingChange('officeLng', parseFloat(e.target.value) || 31.2222)}
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none font-mono text-center"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.geolocation.getCurrentPosition((pos) => {
+                          handleSettingChange('officeLat', pos.coords.latitude);
+                          handleSettingChange('officeLng', pos.coords.longitude);
+                          triggerSuccess('تم تحديد موقع المكتب من GPS! 📍');
+                        });
+                      }}
+                      className="w-full bg-orange-100 hover:bg-orange-200 text-orange-800 font-bold text-[10px] py-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      📍 استخدم موقعي الحالي كنقطة انطلاق
+                    </button>
                   </div>
                 </div>
               )}
@@ -2767,6 +2825,83 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       {/* Tab 3: Captains directory and approvals */}
       {adminTab === 'captains' && (
         <div className="space-y-6">
+
+          {/* ✅ خريطة مباشرة لمواقع الكباتن */}
+          <div className="bg-white border border-slate-105 rounded-3xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                <span>📍</span>
+                <span>مواقع الكباتن المباشرة</span>
+              </h3>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await fetchWithRetry('/api/captain/locations/all');
+                    if (res.ok) {
+                      const locs = await res.json();
+                      const mapDiv = document.getElementById('admin-captains-map');
+                      if (!mapDiv) return;
+                      const L = (window as any).L;
+                      if (!L) return;
+                      const map = (mapDiv as any)._leafletMap;
+                      if (!map) return;
+                      // امسح الماركرات القديمة
+                      if ((mapDiv as any)._captainMarkers) {
+                        (mapDiv as any)._captainMarkers.forEach((m: any) => m.remove());
+                      }
+                      (mapDiv as any)._captainMarkers = locs.map((loc: any) => {
+                        const icon = (window as any).L.divIcon({ html: '<div style="font-size:22px">🛵</div>', className: '', iconAnchor: [11, 11] });
+                        return L.marker([loc.lat, loc.lng], { icon })
+                          .bindPopup(`<b>كابتن: ${loc.captainId}</b><br>آخر تحديث: ${new Date(loc.updatedAt).toLocaleTimeString('ar')}`)
+                          .addTo(map);
+                      });
+                      triggerSuccess(`تم تحديث ${locs.length} موقع كابتن 📍`);
+                    }
+                  } catch {}
+                }}
+                className="text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1.5 rounded-xl hover:bg-orange-100 transition-colors cursor-pointer"
+              >
+                🔄 تحديث المواقع
+              </button>
+            </div>
+            <div
+              id="admin-captains-map"
+              className="w-full rounded-2xl overflow-hidden border border-slate-200"
+              style={{ height: '280px' }}
+              ref={(el) => {
+                if (!el || (el as any)._leaflet_id) return;
+                const initAdminMap = () => {
+                  const L = (window as any).L;
+                  if (!L || (el as any)._leaflet_id) return;
+                  const map = L.map('admin-captains-map', { zoomControl: true, attributionControl: false }).setView([30.0626, 31.2222], 12);
+                  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                  (el as any)._leafletMap = map;
+                  (el as any)._captainMarkers = [];
+                };
+                if ((window as any).L) {
+                  initAdminMap();
+                } else {
+                  if (!document.querySelector('link[href*="leaflet"]')) {
+                    const link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+                    document.head.appendChild(link);
+                  }
+                  if (!document.querySelector('script[src*="leaflet"]')) {
+                    const script = document.createElement('script');
+                    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+                    script.onload = initAdminMap;
+                    document.head.appendChild(script);
+                  } else {
+                    setTimeout(initAdminMap, 500);
+                  }
+                }
+              }}
+            />
+            <p className="text-[9px] text-slate-400 mt-2 text-center">اضغط "تحديث المواقع" لجلب مواقع الكباتن النشطين الآن</p>
+          </div>
+
           <div className="bg-white border border-slate-105 rounded-3xl p-6 shadow-sm">
             <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2 mb-2">
               <span>🛵</span>
@@ -2873,6 +3008,16 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                               className="bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl py-2 text-xs transition-all cursor-pointer"
                             >
                               🚫 إيقاف الحساب
+                            </button>
+                          )}
+
+                          {isApprovedStatus && onNavigateCaptain && (
+                            <button
+                              type="button"
+                              onClick={() => onNavigateCaptain()}
+                              className="bg-[#f94c10] hover:bg-orange-600 text-white font-bold rounded-xl py-2 text-xs transition-all cursor-pointer flex items-center justify-center gap-1"
+                            >
+                              🛵 فتح واجهة الكابتن
                             </button>
                           )}
 

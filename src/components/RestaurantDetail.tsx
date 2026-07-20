@@ -278,10 +278,12 @@ export default function RestaurantDetail({
   });
 
   // Get current state of an item in the shopping cart
+  const getSizeKey = (sz?: any) => sz ? (sz.id || sz.name) : null;
+
   const cartItemOf = (itemId: string, sizeId?: string) => {
-    return cart.find(c => 
-      c.menuItem.id === itemId && 
-      ((!sizeId && !c.selectedSize) || (c.selectedSize?.id === sizeId))
+    return cart.find(c =>
+      c.menuItem.id === itemId &&
+      getSizeKey(c.selectedSize) === (sizeId || null)
     );
   };
 

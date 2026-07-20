@@ -78,8 +78,11 @@ export default function CaptainPage({
             setGpsError('');
           },
           (err) => {
-            console.log("Browser geolocation blocked/error, using mock coordinates stream:", err.message);
-            setGpsCoords({ lat: 30.0626, lng: 31.2222 });
+            console.log("GPS blocked:", err.message);
+            setGpsError(isAr
+              ? '⚠️ الـ GPS مقفول! افتح إعدادات المتصفح ← الخصوصية ← الموقع ← اسمح للموقع. لن تتمكن من استلام طلبات بدون GPS حقيقي.'
+              : '⚠️ GPS is blocked! Open browser Settings → Privacy → Location → Allow. You cannot accept orders without real GPS.');
+            setGpsCoords(null); // ✅ null = مش هيقدر يستلم طلبات
           },
           { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
@@ -94,6 +97,38 @@ export default function CaptainPage({
       }
     };
   }, [isGpsAgreed]);
+
+  // ✅ Refresh الأوردرات كل 30 ثانية عشان الكابتن يشوف الطلبات الجديدة
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      onRefreshData();
+    }, 30000);
+    return () => clearInterval(refreshInterval);
+  }, [onRefreshData]);
+
+  // ✅ ابعت موقع الكابتن للسيرفر كل 15 ثانية
+  useEffect(() => {
+    if (!gpsCoords) return;
+    const activeOrder = orders.find(o =>
+      o.courierPhone === currentUser.phone && o.status === 'OutForDelivery'
+    );
+    const sendLocation = async () => {
+      try {
+        await fetchWithRetry('/api/captain/location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lat: gpsCoords.lat,
+            lng: gpsCoords.lng,
+            orderId: activeOrder?.id,
+          }),
+        });
+      } catch {}
+    };
+    sendLocation();
+    const locInterval = setInterval(sendLocation, 15000);
+    return () => clearInterval(locInterval);
+  }, [gpsCoords, orders]);
 
   // محاكاة تحديث الموقع بشكل مستمر (للعرض البصري)
   useEffect(() => {
@@ -185,12 +220,27 @@ export default function CaptainPage({
   // ============================================================
 
   const handlePickUpOrder = (orderId: string) => {
+    // ✅ اشترط وجود GPS حقيقي قبل الاستلام
+    if (!gpsCoords) {
+      setSuccessMsg('');
+      alert(isAr
+        ? '⚠️ يجب تفعيل الـ GPS الفعلي من إعدادات المتصفح أولاً قبل استلام الطلب!'
+        : '⚠️ You must enable real GPS from browser settings before picking up an order!');
+      return;
+    }
     onUpdateStatus(orderId, 'OutForDelivery', currentUser.name, currentUser.phone);
     setSuccessMsg(isAr ? '🥳 تم استلام الطلب وبدأ الرحلة بنجاح! طير للعميل بالسلامة.' : 'Picked up order successfully! Take care on the road.');
     setTimeout(() => setSuccessMsg(''), 4000);
   };
 
   const handleCompleteOrder = (orderId: string) => {
+    // ✅ اشترط وجود GPS حقيقي قبل التسليم
+    if (!gpsCoords) {
+      alert(isAr
+        ? '⚠️ يجب تفعيل الـ GPS الفعلي قبل تسليم الطلب!'
+        : '⚠️ GPS required to mark order as delivered!');
+      return;
+    }
     onUpdateStatus(orderId, 'Delivered', currentUser.name, currentUser.phone);
     setSuccessMsg(isAr ? '🎉 مبروك! تم تسليم الطلب للعميل وإضافة عمولتك لمحفظتك.' : 'Successfully completed delivery! Money added to earnings.');
     setTimeout(() => setSuccessMsg(''), 4000);
@@ -333,6 +383,13 @@ export default function CaptainPage({
         <div className="p-4 bg-green-50 border border-green-150 rounded-2xl text-green-700 font-extrabold text-xs sm:text-sm text-center animate-bounce flex items-center justify-center gap-2">
           <span>🛵</span>
           <span>{successMsg}</span>
+        </div>
+      )}
+
+      {gpsError && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 font-bold text-xs text-center flex items-center justify-center gap-2">
+          <span>📍</span>
+          <span>{gpsError}</span>
         </div>
       )}
 

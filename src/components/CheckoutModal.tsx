@@ -383,12 +383,14 @@ export default function CheckoutModal({
                 <span className="font-black text-xs">{isAr ? 'مكان التوصيل (حدد موقعك بالخريطة أو اكتبه بالكامل) 🗺️' : 'Delivery Place (Pin on map or type full address)'}</span>
               </label>
 
-              {/* Interactive Leaflet Map Div */}
-              <div 
-                id="checkout-map" 
-                className="w-full h-48 sm:h-52 bg-slate-100 rounded-2xl border border-slate-200 relative overflow-hidden shadow-inner cursor-crosshair" 
-                style={{ minHeight: '190px' }}
-              />
+              {/* Interactive Leaflet Map Div — بيظهر بس مع التسعير بالمسافة */}
+              {isDistancePricing && (
+                <div 
+                  id="checkout-map" 
+                  className="w-full h-48 sm:h-52 bg-slate-100 rounded-2xl border border-slate-200 relative overflow-hidden shadow-inner cursor-crosshair" 
+                  style={{ minHeight: '190px' }}
+                />
+              )}
 
               <p className="text-[10px] text-slate-450 leading-normal" style={{ textAlign: isAr ? 'right' : 'left' }}>
                 💡 {isAr 
