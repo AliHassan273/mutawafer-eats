@@ -20,7 +20,7 @@ export default function MyOrdersPage({
   reviews = [],
   onNavigateCaptain,
 }: MyOrdersPageProps) {
-  const isAr = lang === 'ar';
+  const isAr = true;
 
 
   const t = (arText: string, enText: string) => (isAr ? arText : enText);

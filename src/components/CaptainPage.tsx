@@ -29,7 +29,7 @@ export default function CaptainPage({
   onRefreshData,
   reviews,
 }: CaptainPageProps) {
-  const isAr = lang === 'ar';
+  const isAr = true;
   const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
 
   const [successMsg, setSuccessMsg] = useState('');

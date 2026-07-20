@@ -3,8 +3,10 @@ export interface OtpRecord {
   expiresAt: number;
 }
 
+import crypto from 'crypto';
+
 export function generateOtpCode(length = 6): string {
-  const digits = Array.from({ length }, () => Math.floor(Math.random() * 10));
+  const digits = Array.from({ length }, () => crypto.randomInt(0, 10));
   return digits.join('');
 }
 

@@ -12,7 +12,7 @@ interface AuthModalProps {
 
 export default function AuthModal({
  isOpen, onClose, onSuccess, initialMode = 'login' }: AuthModalProps) {
-  const isAr = lang === 'ar';
+  const isAr = true;
   const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
 
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);

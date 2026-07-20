@@ -30,7 +30,7 @@ declare global {
   }
 }
 
-console.log(process.env.TURSO_DATABASE_URL);
+
 
 const app  = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -164,7 +164,7 @@ function createOtpSession(email: string): string {
     expiresAt: Date.now() + 5 * 60 * 1000,
     verified: false,
   });
-  console.log(`[OTP] code for ${key}: ${code}`);
+  
   return code;
 }
 
@@ -237,18 +237,20 @@ app.use((req, res, next) => {
 
     // ✅ أنشئ الأدمن الافتراضي بس لو مش موجود — لا تـ overwrite البيانات الموجودة
     const existingAdmin = await admins.get("admin_primary");
-    if (!existingAdmin) {
+    if (!existingAdmin && process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.length >= 12) {
       await admins.set("admin_primary", {
         id: "admin_primary",
         name: "عبد الرحمن كشك",
-        email: "bdalrhmnkshk412@gmail.com",
-        password: await hashPassword("admin"),
+        email: process.env.ADMIN_EMAIL,
+        password: await hashPassword(process.env.ADMIN_PASSWORD || ""),
         role: "primary",
         canManageRestaurants: 1,
         canManageMenu: 1,
         canUseAIScanner: 1,
       });
       console.log("✅ Default admin created for the first time.");
+    } else if (!existingAdmin) {
+      console.warn("⚠️ No default admin created. Set ADMIN_EMAIL and ADMIN_PASSWORD (12+ chars) once to bootstrap access.");
     } else {
       console.log("✅ Admin already exists — skipping default creation.");
     }
@@ -287,7 +289,7 @@ async function getSettings() {
 //    ولا يثق بأي سعر يجي من الـ frontend.
 // ============================================================
 async function calculateOrderTotal(
-  items: Array<{ menuItem: { id: string }; quantity: number }>,
+  items: Array<{ menuItem: { id: string }; quantity: number; selectedSize?: { id?: string; name?: string } }>,
   restaurantId: string,
   deliveryFee: number
 ): Promise<{ subtotal: number; total: number; validatedItems: any[] } | null> {
@@ -305,8 +307,15 @@ async function calculateOrderTotal(
       // صنف غير موجود في المطعم — نرفض الطلب كله
       return null;
     }
-    const qty = Math.max(1, Math.floor(cartItem.quantity));
-    subtotal += menuItem.price * qty;
+    const qty = Math.min(99, Math.max(1, Math.floor(Number(cartItem.quantity) || 0)));
+    let unitPrice = Number(menuItem.price) || 0;
+    const selectedSizeId = cartItem.selectedSize?.id || cartItem.selectedSize?.name;
+    if (selectedSizeId && Array.isArray(menuItem.sizes)) {
+      const size = menuItem.sizes.find((sz: any) => (sz.id || sz.name) === selectedSizeId);
+      if (!size) return null;
+      unitPrice = Number(size.price) || unitPrice;
+    }
+    subtotal += unitPrice * qty;
     validatedItems.push({ ...cartItem, menuItem, quantity: qty });
   }
 
@@ -427,7 +436,7 @@ app.get("/api/users", authenticateToken, async (_req, res) => {
   res.json(safeUsers);
 });
 
-app.post("/api/users/send-otp", async (req, res) => {
+app.post("/api/users/send-otp", authLimiter, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: "البريد الإلكتروني مطلوب." });
 
@@ -452,7 +461,7 @@ app.post("/api/users/send-otp", async (req, res) => {
   }
 });
 
-app.post("/api/users/verify-otp", async (req, res) => {
+app.post("/api/users/verify-otp", authLimiter, async (req, res) => {
   const { email, code } = req.body;
   if (!email || !code) return res.status(400).json({ error: "البريد والرمز مطلوبان." });
 
@@ -543,6 +552,8 @@ app.get("/api/captain/location/:orderId", authenticateToken, async (req, res) =>
   const { orderId } = req.params;
   const order: any = await orders.get(orderId);
   if (!order) return res.status(404).json({ error: "Order not found" });
+  const canTrack = order.userId === req.user?.id || req.user?.role === "primary" || req.user?.role === "admin" || req.user?.id === "admin_primary";
+  if (!canTrack) return res.status(403).json({ error: "غير مصرح لك بتتبع هذا الطلب." });
 
   // بحث عن الكابتن المرتبط بالأوردر ده
   for (const [captainId, loc] of captainLocations.entries()) {
@@ -620,7 +631,22 @@ app.post("/api/orders", authenticateToken, orderLimiter, async (req, res) => {
   }
 
   // 2. حساب السعر من الـ database (لا نثق بـ body.total أو body.subtotal)
-  const deliveryFee = typeof body.deliveryFee === "number" ? body.deliveryFee : 0;
+  const restaurantForFee: any = await restaurants.get(body.restaurantId);
+  if (!restaurantForFee) return res.status(400).json({ error: "المطعم غير موجود." });
+  const appSettings: any = await getSettings();
+  let deliveryFee = 0;
+  if (appSettings.deliveryPricingType === "distance") {
+    const base = Number(appSettings.distanceBaseFee) || 0;
+    const perKm = Number(appSettings.distanceFeePerKm) || 0;
+    deliveryFee = Math.round(base + (Number(restaurantForFee.distance) || 0) * perKm);
+  } else {
+    const region = Array.isArray(appSettings.deliveryOptions)
+      ? appSettings.deliveryOptions.find((r: any) => r.id === body.deliveryRegionId)
+      : null;
+    deliveryFee = Number(region?.fee) || 0;
+  }
+  if (body.doorstepDelivery === true) deliveryFee += 5;
+  deliveryFee = Math.min(1000, Math.max(0, deliveryFee));
   const calculated  = await calculateOrderTotal(body.items, body.restaurantId, deliveryFee);
 
   if (!calculated) {
@@ -646,8 +672,9 @@ app.post("/api/orders", authenticateToken, orderLimiter, async (req, res) => {
     customerPhone:   body.customerPhone   || "",
     deliveryAddress: body.deliveryAddress || "",
     paymentMethod:   body.paymentMethod   || "cash",
-    paymentDetails:  body.paymentDetails  || "",
-    notes:           body.notes           || "",
+    paymentDetails:  String(body.paymentDetails || "").slice(0, 200),
+    notes:           String(body.notes || "").slice(0, 500),
+    doorstepDelivery: body.doorstepDelivery === true,
     eta:             24,
   };
 
@@ -655,10 +682,13 @@ app.post("/api/orders", authenticateToken, orderLimiter, async (req, res) => {
   res.status(201).json(newOrder);
 });
 
-app.get("/api/orders/:id", async (req, res) => {
+app.get("/api/orders/:id", authenticateToken, async (req, res) => {
   try {
-    const order = await orders.get(req.params.id);
+    const order: any = await orders.get(req.params.id);
     if (!order) return res.status(404).json({ error: "Order not found" });
+    const privileged = req.user?.role === "primary" || req.user?.role === "admin" || req.user?.id === "admin_primary";
+    const isOwner = order.userId === req.user?.id;
+    if (!privileged && !isOwner) return res.status(403).json({ error: "غير مصرح لك بعرض هذا الطلب." });
     res.json(order);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch order" });
@@ -670,11 +700,16 @@ app.put("/api/orders/:id/status", authenticateToken, async (req, res) => {
   const { status, eta, courierName, courierPhone } = req.body;
   const order: any                                 = await orders.get(id);
   if (!order) return res.status(404).json({ error: "Order not found" });
+  const privileged = req.user?.role === "primary" || req.user?.role === "admin" || req.user?.id === "admin_primary";
+  const isCaptain = req.user?.role === "captain" && order.courierId === req.user.id;
+  if (!privileged && !isCaptain) return res.status(403).json({ error: "ليس لديك صلاحية لتعديل حالة الطلب." });
+  const allowedStatuses = new Set(["Pending", "Received", "Preparing", "OutForDelivery", "Delivered"]);
+  if (status && !allowedStatuses.has(status)) return res.status(400).json({ error: "حالة الطلب غير صحيحة." });
 
   if (status)       order.status       = status;
-  if (eta)          order.eta          = eta;
-  if (courierName)  order.courierName  = courierName;
-  if (courierPhone) order.courierPhone = courierPhone;
+  if (eta !== undefined)          order.eta          = Math.max(0, Math.floor(Number(eta) || 0));
+  if (courierName)  order.courierName  = String(courierName).slice(0, 120);
+  if (courierPhone) order.courierPhone = String(courierPhone).slice(0, 30);
 
   await orders.set(id, order);
   res.json(order);
@@ -869,7 +904,7 @@ function parseSpreadsheetLocally(fileDataBase64: string, isCsv: boolean): any[] 
   }
 }
 
-app.post("/api/gemini/parse-menu", async (req, res) => {
+app.post("/api/gemini/parse-menu", authenticateToken, canManageMenu, async (req, res) => {
   let isSpreadsheet = false, isCsvFile = false, fileData = "", fileName = "";
 
   try {
@@ -1155,8 +1190,7 @@ async function startServer() {
       app.use(vite.middlewares);
     } else {
       const distPath = path.join(process.cwd(), "dist");
-      const { default: serveStatic } = await import("serve-static");
-      app.use(serveStatic(distPath));
+      app.use(express.static(distPath));
 
       app.get("/sitemap.xml", (_req, res) => {
         res.header("Content-Type", "application/xml");

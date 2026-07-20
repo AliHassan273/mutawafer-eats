@@ -89,20 +89,28 @@ export default function App() {
     window.history.pushState({ view }, '', window.location.pathname);
   };
 
+  // الرجوع خطوة واحدة: زر التطبيق يستعمل نفس سجل المتصفح،
+  // وزر المتصفح يحدّث الشاشة من دون القفز للرئيسية.
   const goBack = () => {
-    const prev = viewHistory[viewHistory.length - 1];
-    if (prev) {
-      setViewHistory(h => h.slice(0, -1));
-      setActiveView(prev as any);
+    if (viewHistory.length > 0) {
+      window.history.back();
     } else {
       setActiveView('home');
     }
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // ✅ زرار الرجوع في المتصفح يشغّل goBack بدل ما يخرج
   React.useEffect(() => {
-    const handlePopState = () => { goBack(); };
+    const handlePopState = () => {
+      const previous = viewHistory[viewHistory.length - 1];
+      if (previous) {
+        setViewHistory(history => history.slice(0, -1));
+        setActiveView(previous as any);
+      } else {
+        setActiveView('home');
+      }
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [viewHistory]);
@@ -467,7 +475,8 @@ export default function App() {
     fullDeliveryAddress: string,
     paymentDetails?: string,
     vodafoneFee?: number,
-    doorstepDelivery?: boolean
+    doorstepDelivery?: boolean,
+    deliveryRegionId?: string
   ) => {
     if (cart.length === 0) return;
 
@@ -509,9 +518,11 @@ export default function App() {
     restaurantId:    primaryRestId,
     items:           cart.map(c => ({ 
                        menuItem: { id: c.menuItem.id },  // فقط الـ ID
+                       selectedSize: c.selectedSize ? { id: c.selectedSize.id, name: c.selectedSize.name } : undefined,
                        quantity: c.quantity 
                      })),
-    deliveryFee:     calculatedDeliveryFee,
+    deliveryFee:     calculatedDeliveryFee, // قيمة عرضية؛ السيرفر يعيد حسابها
+    deliveryRegionId,
     customerName,
     customerPhone,
     deliveryAddress: fullDeliveryAddress,
@@ -858,7 +869,8 @@ export default function App() {
             {/* Category Carousel Row */}
             <CategoryList 
               selectedCategory={selectedCategory} 
-              onSelectCategory={handleSelectCategory} 
+              onSelectCategory={handleSelectCategory}
+              lang={lang}
               categories={settings.categories}
             />
 

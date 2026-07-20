@@ -8,7 +8,7 @@ interface PromoBannersProps {
 
 export default function PromoBanners({
  onPromoCopy }: PromoBannersProps) {
-  const isAr = lang === 'ar';
+  const isAr = true;
 
   const [copied, setCopied] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);

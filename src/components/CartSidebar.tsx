@@ -59,7 +59,7 @@ export default function CartSidebar({
   onCheckout,
   coupons,
 }: CartSidebarProps) {
-  const isAr = lang === 'ar';
+  const isAr = true;
   const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
 
   const [promoCode, setPromoCode] = useState('');

@@ -51,7 +51,7 @@ export function isRestaurantOpen(openTime?: string, closeTime?: string): boolean
 
 export default function RestaurantCard({
  restaurant, onClick, reviews }: RestaurantCardProps) {
-  const isAr = lang === 'ar';
+  const isAr = true;
 
   const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
 

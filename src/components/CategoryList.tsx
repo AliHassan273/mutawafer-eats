@@ -48,18 +48,18 @@ export default function CategoryList({ selectedCategory, onSelectCategory, lang,
       ];
 
   return (
-    <section className="px-4 md:px-8 mt-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <section className="px-4 md:px-8 mt-6" dir={true ? 'rtl' : 'ltr'}>
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg md:text-xl font-bold text-slate-800 tracking-tight font-display">
-            {lang === 'ar' ? 'اكتشف الأصناف المميزة 😋' : 'Explore by Category'}
+            {true ? 'اكتشف الأصناف المميزة 😋' : 'Explore by Category'}
           </h2>
           <button 
             onClick={() => onSelectCategory('all')} 
             className="text-xs md:text-sm font-semibold text-[#f94c10] hover:text-[#e03d08] hover:underline cursor-pointer transition-all"
           >
-            {lang === 'ar' ? 'عرض الكل' : 'See All'}
+            {true ? 'عرض الكل' : 'See All'}
           </button>
         </div>
 
@@ -67,7 +67,7 @@ export default function CategoryList({ selectedCategory, onSelectCategory, lang,
         <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
           {categoriesToRender.map((cat) => {
             const isSelected = selectedCategory === cat.id;
-            const label = (lang === 'ar' ? (cat as any).nameAr || (CATEGORY_NAMES_MAP[lang] as any)?.[cat.id] || cat.name : (CATEGORY_NAMES_MAP[lang] as any)?.[cat.id] || cat.name);
+            const label = (true ? (cat as any).nameAr || (CATEGORY_NAMES_MAP[lang] as any)?.[cat.id] || cat.name : (CATEGORY_NAMES_MAP[lang] as any)?.[cat.id] || cat.name);
 
             return (
               <button

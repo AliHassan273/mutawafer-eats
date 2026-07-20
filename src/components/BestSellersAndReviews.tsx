@@ -16,7 +16,7 @@ export default function BestSellersAndReviews({
   onAddToCart,
   onOpenRestaurant,
 }: BestSellersAndReviewsProps) {
-  const isAr = lang === 'ar';
+  const isAr = true;
 
   const t = (arText: string, enText: string) => (isAr ? arText : enText);
 

@@ -93,7 +93,7 @@ export default function RestaurantDetail({
   const [itemSearch, setItemSearch] = useState('');
 
 
-  const isAr = lang === 'ar';
+  const isAr = true;
   const t = (key: string) => ({ egp: 'ج', add: 'أضف', remove: 'احذف', noItems: 'لا توجد أصناف' } as any)[key] ?? key;
 
   const isOpen = isRestaurantOpen(restaurant.openTime, restaurant.closeTime);

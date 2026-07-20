@@ -53,7 +53,7 @@ export default function Header({
   onLogout,
   logoImage,
 }: HeaderProps) {
-  const isAr = lang === 'ar';
+  const isAr = true;
 
   const [showAddressDropdown, setShowAddressDropdown] = useState(false);
   const [showMenuList, setShowMenuList] = useState(false);

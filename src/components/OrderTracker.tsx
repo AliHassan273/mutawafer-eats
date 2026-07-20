@@ -12,7 +12,7 @@ interface OrderTrackerProps {
 
 export default function OrderTracker({
  order, onBack, onUpdateStatus }: OrderTrackerProps) {
-  const isAr = lang === 'ar';
+  const isAr = true;
 
   // We'll simulate courier position along a route path from restaurant to customer.
   // Coordinates range from 0 (at restaurant) to 1 (arrived at destination).

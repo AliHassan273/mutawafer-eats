@@ -55,7 +55,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     statusDeleted: "🗑️ تم الحذف",
   };
   const t = (key: string) => translations[key] ?? key;
-  const isAr = lang === 'ar'; // ✅ التطبيق عربي بالكامل
+  const isAr = true; // ✅ التطبيق عربي بالكامل
 
   // Navigation / Tab selection
   const [selectedRestId, setSelectedRestId] = useState<string>(restaurants[0]?.id || "");

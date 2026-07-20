@@ -20,7 +20,8 @@ interface CheckoutModalProps {
     deliveryAddress: string,
     paymentDetails?: string,
     vodafoneFee?: number,
-    doorstepDelivery?: boolean
+    doorstepDelivery?: boolean,
+    deliveryRegionId?: string
   ) => void;
   currentUser: { id: string; name: string; email: string; phone: string; role?: string } | null;
   settings?: any;
@@ -77,7 +78,7 @@ export default function CheckoutModal({
   settings,
   restaurant,
 }: CheckoutModalProps) {
-  const isAr = lang === 'ar';
+  const isAr = true;
   const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
 
   const [name, setName] = useState(currentUser?.name || '');
@@ -302,7 +303,7 @@ export default function CheckoutModal({
     // Simulate short network latency
     setTimeout(() => {
       setLoading(false);
-      onPlaceOrder(name, phone, notes, paymentMethod, activeDeliveryFee, fullDeliveryAddress, paymentDetails, vodafoneFee, doorstepDelivery);
+      onPlaceOrder(name, phone, notes, paymentMethod, activeDeliveryFee, fullDeliveryAddress, paymentDetails, vodafoneFee, doorstepDelivery, selectedRegion?.id);
     }, 1500);
   };
 
