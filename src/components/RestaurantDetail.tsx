@@ -161,7 +161,7 @@ export default function RestaurantDetail({
       price: "120",
       originalPrice: "",
       category: "Burgers",
-      image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+      image: restaurant.coverImage || "/logo.png",
       sizes: []
     });
     setIsDishModalOpen(true);
@@ -199,7 +199,7 @@ export default function RestaurantDetail({
         price: numericPrice,
         originalPrice: numericOriginalPrice,
         category: dishForm.category.trim(),
-        image: dishForm.image.trim() || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        image: dishForm.image.trim() || restaurant.coverImage || "/logo.png",
         sizes: dishForm.sizes
       };
 
@@ -805,24 +805,23 @@ export default function RestaurantDetail({
                 </select>
               </div>
 
-              {/* Dish Photo Image link */}
+              {/* Dish photo from device */}
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-500">
-                  {isAr ? "صورة الوجبة (رابط ويب) *" : "Dish Web Photo Link *"}
-                </label>
+                <label className="block text-xs font-bold text-slate-500">صورة الوجبة من الجهاز</label>
                 <input
-                  type="url"
-                  required
-                  value={dishForm.image}
-                  onChange={(e) => setDishForm({ ...dishForm, image: e.target.value })}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => setDishForm(prev => ({ ...prev, image: String(reader.result || '') }));
+                    reader.readAsDataURL(file);
+                  }}
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2"
                 />
-                <p className="text-[9px] text-slate-400">
-                  {isAr 
-                    ? "يمكنك لصق رابط صورة جاهزة مباشرة لتمثيل الوجبة." 
-                    : "Paste any valid web URL of an image file."
-                  }
-                </p>
+                <p className="text-[9px] text-slate-400">لو لم تختَر صورة سيتم استخدام صورة اللوجو تلقائيًا.</p>
+                {dishForm.image && <img src={dishForm.image} alt="معاينة الصنف" className="h-16 w-16 rounded-xl object-cover border" />}
               </div>
 
               {/* Sizes / Units Management */}

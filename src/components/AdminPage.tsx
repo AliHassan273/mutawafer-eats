@@ -133,7 +133,17 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   // Customer orders tracked list
   const [ordersList, setOrdersList] = useState<any[]>([]);
   const [captains, setCaptains] = useState<any[]>([]);
+  const [captainLocations, setCaptainLocations] = useState<any[]>([]);
+  const [expandedCaptainReviews, setExpandedCaptainReviews] = useState<string | null>(null);
   const [adminTab, setAdminTab] = useState<'stores' | 'orders' | 'captains' | 'settings'>('stores');
+
+  useEffect(() => {
+    if (adminTab !== 'captains') return;
+    const timer = window.setInterval(() => {
+      (document.getElementById('admin-refresh-locations') as HTMLButtonElement | null)?.click();
+    }, 10000);
+    return () => window.clearInterval(timer);
+  }, [adminTab]);
 
   // New admin form state
   const [newAdminForm, setNewAdminForm] = useState({
@@ -632,7 +642,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     description: "",
     price: 100,
     category: "Popular",
-    image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80"
+    image: logoImageSetting || "/logo.png"
   });
 
   const [dragActive, setDragActive] = useState(false);
@@ -861,7 +871,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     try {
       const formattedData = {
         name: restForm.name,
-        coverImage: restForm.coverImage || "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1000&q=80",
+        coverImage: restForm.coverImage || logoImageSetting || "/logo.png",
         categories: restForm.categories.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
         promo: restForm.promo || undefined,
         deliveryFee: Number(restForm.deliveryFee) || 0,
@@ -958,7 +968,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           description: "",
           price: 100,
           category: "Popular",
-          image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80"
+          image: logoImageSetting || "/logo.png"
         });
         triggerSuccess("Successfully added menu option!");
       }
@@ -978,7 +988,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       .filter((_, idx) => selectedImportItems[idx])
       .map((item) => ({
         ...item,
-        image: item.image || "/logo.png", // ✅ صورة اللوجو الافتراضية لو ما رفعش صورة
+        image: item.image || logoImageSetting || "/logo.png", // صورة اللوجو الافتراضية
       }));
     if (itemsToImport.length === 0) {
       alert("No items selected for import");
@@ -2043,12 +2053,12 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
             <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
               <h3 className="text-sm font-bold text-slate-800 tracking-tight font-display mb-3 flex items-center gap-1.5 border-b border-slate-50 pb-2">
                 <ClipboardList className="text-slate-400 h-4.5 w-4.5" />
-                <span>Add Dish Manually</span>
+                <span>إضافة صنف يدويًا</span>
               </h3>
 
               <form onSubmit={handleAddManualMenuItem} className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-slate-400">Dish Name</label>
+                  <label className="text-[10px] uppercase font-bold text-slate-400">اسم الصنف</label>
                   <input
                     required
                     type="text"
@@ -2059,10 +2069,10 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-slate-400">Description</label>
+                  <label className="text-[10px] uppercase font-bold text-slate-400">الوصف</label>
                   <textarea
                     required
-                    placeholder="Yummy details..."
+                    placeholder="اكتب وصف الصنف..."
                     value={manualItemForm.description}
                     onChange={(e) => setManualItemForm({ ...manualItemForm, description: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-150 rounded-xl p-3 text-xs outline-none resize-none"
@@ -2096,11 +2106,23 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                   </div>
                 </div>
 
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500">صورة الصنف من الجهاز</label>
+                  <input type="file" accept="image/*" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => setManualItemForm(prev => ({ ...prev, image: String(reader.result || '') }));
+                    reader.readAsDataURL(file);
+                  }} className="w-full text-xs" />
+                  <p className="text-[9px] text-slate-400">إذا لم تختر صورة سيتم استخدام لوجو الموقع.</p>
+                </div>
+
                 <button
                   type="submit"
                   className="w-full mt-2 bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5"
                 >
-                  <span>Add Item to Menu</span>
+                  <span>إضافة الصنف إلى المنيو</span>
                 </button>
               </form>
             </div>
@@ -2840,6 +2862,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                     const res = await fetchWithRetry('/api/captain/locations/all');
                     if (res.ok) {
                       const locs = await res.json();
+                      setCaptainLocations(locs);
                       const mapDiv = document.getElementById('admin-captains-map');
                       if (!mapDiv) return;
                       const L = (window as any).L;
@@ -2860,6 +2883,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                     }
                   } catch {}
                 }}
+                id="admin-refresh-locations"
                 className="text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1.5 rounded-xl hover:bg-orange-100 transition-colors cursor-pointer"
               >
                 🔄 تحديث المواقع
@@ -2918,6 +2942,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {captains.map((cap: any) => {
+                  const captainLocation = captainLocations.find((loc: any) => loc.captainId === cap.id);
                   const isPendingStatus = cap.status === 'pending';
                   const isSuspendedStatus = cap.status === 'suspended';
                   const isApprovedStatus = cap.status === 'approved';
@@ -2944,6 +2969,9 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                           <div>
                             <h3 className="text-sm font-black text-slate-805">{cap.name}</h3>
                             <p className="text-[10px] text-slate-400 font-mono mt-0.5" style={{ direction: 'ltr' }}>{cap.phone}</p>
+                            <p className={`text-[10px] font-bold mt-1 ${captainLocation ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              {captainLocation ? `📍 متصل الآن · ${captainLocation.lat.toFixed(5)}, ${captainLocation.lng.toFixed(5)}` : '📍 الموقع غير متاح حاليًا'}
+                            </p>
                           </div>
 
                           <span className={`px-2 py-0.5 rounded-md text-[9px] font-black ${isPendingStatus
@@ -2990,6 +3018,25 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                           );
                         })()}
 
+                        {expandedCaptainReviews === cap.id && (
+                          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-right space-y-2">
+                            <p className="text-[11px] font-black text-indigo-800">آراء العملاء خلال آخر ٧ أيام</p>
+                            {(() => {
+                              const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
+                              const recent = (reviews || []).filter(r => r.courierId === cap.id || r.courierName === cap.name).filter(r => {
+                                const time = Date.parse(r.createdAt || '');
+                                return Number.isFinite(time) && time >= since;
+                              });
+                              return recent.length ? recent.map(r => (
+                                <div key={r.id} className="bg-white rounded-lg p-2 text-[10px] text-slate-700 border border-indigo-100">
+                                  <div className="flex justify-between gap-2 font-bold"><span>{r.customerName}</span><span>⭐ {r.ratingDeliveryManner || 0} · ⚡ {r.ratingDeliverySpeed || 0}</span></div>
+                                  <p className="mt-1">{r.comment || 'بدون تعليق'}</p>
+                                </div>
+                              )) : <p className="text-[10px] text-slate-500">لا توجد آراء مسجلة لهذا الطيار خلال آخر ٧ أيام.</p>;
+                            })()}
+                          </div>
+                        )}
+
                         <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100">
                           {isPendingStatus && (
                             <button
@@ -3030,6 +3077,14 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                               🟢 إعادة تنشيط
                             </button>
                           )}
+
+                          <button
+                            type="button"
+                            onClick={() => setExpandedCaptainReviews(expandedCaptainReviews === cap.id ? null : cap.id)}
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl py-2 text-xs transition-all cursor-pointer"
+                          >
+                            💬 آراء آخر ٧ أيام
+                          </button>
 
                           <button
                             type="button"

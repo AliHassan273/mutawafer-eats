@@ -291,6 +291,34 @@ ${itemsText}
         <span>{isAr ? 'الرجوع للرئيسية' : 'Back To Dashboard'}</span>
       </button>
 
+      {/* تفاصيل الطلب الكاملة */}
+      <section className="bg-white border border-slate-100 rounded-3xl p-5 sm:p-6 mb-8 shadow-sm">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
+          <h2 className="text-sm sm:text-base font-black text-slate-800">تفاصيل الطلب كاملة 📦</h2>
+          <span className="text-[10px] font-black px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600">رقم الطلب: {currentOrder.id}</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+          <div className="bg-slate-50 rounded-xl p-3"><span className="block text-[10px] text-slate-400 font-bold">اسم العميل</span><strong>{currentOrder.customerName || 'غير مسجل'}</strong></div>
+          <div className="bg-slate-50 rounded-xl p-3"><span className="block text-[10px] text-slate-400 font-bold">رقم التواصل</span><strong dir="ltr" className="inline-block">{currentOrder.customerPhone || 'غير مسجل'}</strong></div>
+          <div className="bg-slate-50 rounded-xl p-3"><span className="block text-[10px] text-slate-400 font-bold">طريقة الدفع</span><strong>{currentOrder.paymentMethod === 'cash' ? 'الدفع عند الاستلام' : currentOrder.paymentMethod || 'غير محددة'}</strong></div>
+          <div className="bg-slate-50 rounded-xl p-3"><span className="block text-[10px] text-slate-400 font-bold">الوقت المتوقع</span><strong>{currentOrder.eta ?? 0} دقيقة</strong></div>
+        </div>
+        <div className="mt-3 bg-slate-50 rounded-xl p-3 text-xs"><span className="block text-[10px] text-slate-400 font-bold mb-1">عنوان التوصيل</span><strong>{currentOrder.deliveryAddress || 'غير مسجل'}</strong></div>
+        <div className="mt-4 divide-y divide-slate-100 border border-slate-100 rounded-xl">
+          {(currentOrder.items || []).map((item, index) => {
+            const size = item.selectedSize ? ` (${item.selectedSize.name})` : '';
+            const price = item.selectedSize?.price ?? item.menuItem.price;
+            return <div key={`${item.menuItem.id}-${index}`} className="flex items-center justify-between gap-3 p-3 text-xs"><span className="font-bold">{item.menuItem.name}{size} × {item.quantity}</span><strong>{(price * item.quantity).toFixed(0)} جنيه</strong></div>;
+          })}
+        </div>
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          <div className="p-3 rounded-xl bg-slate-50"><span className="block text-[10px] text-slate-400">الإجمالي الفرعي</span><strong>{Number(currentOrder.subtotal || 0).toFixed(0)} جنيه</strong></div>
+          <div className="p-3 rounded-xl bg-slate-50"><span className="block text-[10px] text-slate-400">التوصيل</span><strong>{Number(currentOrder.deliveryFee || 0).toFixed(0)} جنيه</strong></div>
+          <div className="p-3 rounded-xl bg-slate-50"><span className="block text-[10px] text-slate-400">الخصم</span><strong>{Number(currentOrder.discount || 0).toFixed(0)} جنيه</strong></div>
+          <div className="p-3 rounded-xl bg-orange-50 text-orange-700"><span className="block text-[10px]">الإجمالي النهائي</span><strong>{Number(currentOrder.total || 0).toFixed(0)} جنيه</strong></div>
+        </div>
+      </section>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* Left Side: Simulation timeline steps */}
@@ -436,14 +464,10 @@ ${itemsText}
           {/* Courier rider details card */}
           <div className={`border-t border-slate-100 pt-6 mt-6 flex items-center justify-between ${isAr ? 'flex-row-reverse' : ''}`}>
             <div className={`flex items-center gap-3 ${isAr ? 'flex-row-reverse' : ''}`}>
-              <img 
-                referrerPolicy="no-referrer"
-                src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80" 
-                alt="Captain Ahmed" 
-                className="h-11 w-11 rounded-full object-cover border border-slate-200"
-              />
+              <div className="h-11 w-11 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center border border-orange-200 text-xl">🛵</div>
               <div style={{ textAlign: isAr ? 'right' : 'left' }}>
-                <p className="text-xs font-bold text-slate-850">{isAr ? 'كابتن أحمد الدليفري 🛵' : 'Captain Ahmed'}</p>
+                <p className="text-xs font-bold text-slate-850">{currentOrder.courierName || 'الطيار غير محدد'} 🛵</p>
+                <p className="text-[10px] text-slate-500 font-bold">{currentOrder.courierPhone || 'سيظهر رقم التواصل عند إسناد الطلب'}</p>
                 <p className="text-[10px] text-green-600 font-bold uppercase flex items-center gap-1">
                   <span className="h-1.5 w-1.5 bg-green-500 rounded-full inline-block animate-pulse" />
                   <span>{isAr ? 'سواق وموثق ممتاز' : 'Verified courier'}</span>
@@ -454,7 +478,7 @@ ${itemsText}
             <div className="flex gap-2" style={{ direction: 'ltr' }}>
               <button 
                 onClick={() => {
-                  setCourierContactActiveMessage(isAr ? '📞 جاري محاولة الاتصال المباشر بكابتن أحمد ع الرقم +20114002008' : 'Dialing Captain Ahmed at +20114002008...');
+                  setCourierContactActiveMessage(isAr ? `📞 جاري الاتصال بـ ${currentOrder.courierName || 'الطيار'} على الرقم ${currentOrder.courierPhone || 'غير متاح'}` : 'Dialing Captain Ahmed at +20114002008...');
                   setTimeout(() => setCourierContactActiveMessage(''), 4500);
                 }}
                 className="h-9 w-9 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-full flex items-center justify-center border border-slate-100 cursor-pointer transition-colors"
@@ -464,7 +488,7 @@ ${itemsText}
               </button>
               <button 
                 onClick={() => {
-                  setCourierContactActiveMessage(isAr ? '💬 تم إرسال رسالتك السريعة للكابتن أحمد!' : 'Status update message sent to courier!');
+                  setCourierContactActiveMessage(isAr ? `💬 تم إرسال رسالتك السريعة إلى ${currentOrder.courierName || 'الطيار'}!` : 'Status update message sent to courier!');
                   setTimeout(() => setCourierContactActiveMessage(''), 4500);
                 }}
                 className="h-9 w-9 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-full flex items-center justify-center border border-slate-100 cursor-pointer transition-colors"

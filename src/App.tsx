@@ -284,7 +284,16 @@ export default function App() {
       const setRes = await fetchWithRetry('/api/settings');
       if (setRes.ok) {
         const setData = await setRes.json();
-        if (setData) setSettings(setData);
+        if (setData) {
+          setSettings(setData);
+          if (setData.logoImage) {
+            setRestaurants(prev => prev.map(rest => ({
+              ...rest,
+              coverImage: rest.coverImage || setData.logoImage,
+              menu: (rest.menu || []).map(item => ({ ...item, image: item.image || setData.logoImage }))
+            })));
+          }
+        }
       }
     } catch (err) {
       console.error("Error fetching settings:", err);

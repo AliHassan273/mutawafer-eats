@@ -72,7 +72,7 @@ export default function BestSellersAndReviews({
                     {/* Image */}
                     <div className="aspect-[4/3] w-full rounded-2xl bg-slate-50 overflow-hidden relative border border-slate-100/50">
                       <img
-                        src={item.image || `https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80`}
+                        src={item.image || restaurant.coverImage || "/logo.png"}
                         alt={item.name}
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
