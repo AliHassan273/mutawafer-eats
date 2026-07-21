@@ -894,6 +894,19 @@ function parseSpreadsheetLocally(fileDataBase64: string, isCsv: boolean): any[] 
 
     const startIndex = headerIdx !== -1 ? headerIdx + 1 : 0;
     const categoriesSeed = ["Burgers","Pizza","Salads","Sushi","Ramen","Dessert","Sides","Drinks","Offers"];
+    const inferCategory = (name: string, rawCategory: string) => {
+      const text = `${name} ${rawCategory}`.toLowerCase();
+      if (/(كريب|crepe)/i.test(text)) return "كريب";
+      if (/(عصير|مشروب|drink|juice|smoothie|قهوة|coffee|لاتيه|كابتشينو)/i.test(text)) return "مشروبات";
+      if (/(برجر|burger)/i.test(text)) return "برجر";
+      if (/(بيتزا|pizza)/i.test(text)) return "بيتزا";
+      if (/(سلط|salad)/i.test(text)) return "سلطات";
+      if (/(سوشي|sushi)/i.test(text)) return "سوشي";
+      if (/(رامن|ramen)/i.test(text)) return "رامين";
+      if (/(حلويات|حلو|كيك|dessert|cake|waffle|وافل|آيس كريم|ice cream)/i.test(text)) return "حلويات";
+      if (/(بطاطس|مقبلات|side)/i.test(text)) return "مقبلات";
+      return rawCategory.trim() || "أصناف متنوعة";
+    };
     const items: any[] = [];
 
     for (let i = startIndex; i < rows.length; i++) {
@@ -911,21 +924,8 @@ function parseSpreadsheetLocally(fileDataBase64: string, isCsv: boolean): any[] 
       const rawDesc = descCol < row.length ? String(row[descCol] || "").trim() : "";
       const rawCat  = catCol  < row.length ? String(row[catCol]  || "").trim() : "";
 
-      let category = "Sides";
-      if (rawCat) {
-        const match = categoriesSeed.find(c => c.toLowerCase() === rawCat.toLowerCase());
-        category = match || rawCat;
-      } else {
-        const n = rawName.toLowerCase();
-        if (n.includes("برجر")  || n.includes("burger"))  category = "Burgers";
-        else if (n.includes("بيتزا") || n.includes("pizza"))   category = "Pizza";
-        else if (n.includes("سلط")  || n.includes("salad"))   category = "Salads";
-        else if (n.includes("سوشي") || n.includes("sushi"))   category = "Sushi";
-        else if (n.includes("رامن") || n.includes("ramen"))   category = "Ramen";
-        else if (n.includes("حلو")  || n.includes("dessert")  || n.includes("كيك")) category = "Dessert";
-        else if (n.includes("عصير") || n.includes("بيبسي")   || n.includes("drink")) category = "Drinks";
-        else if (n.includes("عرض")  || n.includes("وجبة")    || n.includes("offer")) category = "Offers";
-      }
+      let category = inferCategory(rawName, rawCat);
+      if (/(عرض|offer|خصم|discount)/i.test(`${rawName} ${rawCat}`)) category = "عروض";
 
       // ✅ دمج الأحجام: لو في صنف بنفس الـ base name موجود، ضيف الحجم ده عليه
       const sizeKeywords = ["صغير","وسط","كبير","صغيرة","وسطة","كبيرة","small","medium","large","فردي","عائلي","عادي","ميديوم","لارج","سمول"];
@@ -1025,7 +1025,10 @@ app.post("/api/gemini/parse-menu", authenticateToken, canManageMenu, async (req,
 - إذا الصنف بسعر واحد عادي بدون أي إشارة لخصم، لا تضع originalPrice إطلاقاً ولا تضعه في Offers.
 - مثال: "برجر دجاج كان 80 بقى 60ج" يصبح: {"name":"برجر دجاج","price":60,"originalPrice":80,"category":"Offers","sizes":[]}
 
-## الفئات المتاحة: Burgers, Pizza, Salads, Sushi, Ramen, Dessert, Sides, Drinks, Offers
+## قواعد التصنيف — إلزامية:
+- لا تلتزم بقائمة تصنيفات ثابتة. استخرج تصنيفًا مناسبًا للصنف نفسه من اسمه ووصفه.
+- أمثلة: كريب ← كريب، عصير/مشروب ← مشروبات، قهوة ← قهوة، حلويات ← حلويات، برجر ← برجر، بيتزا ← بيتزا، بطاطس ← مقبلات.
+- اجعل category اسمًا عربيًا قصيرًا وواضحًا، ولا تضع كل الأصناف غير المعروفة في مقبلات.
 
 أخرج JSON array فقط بدون أي نص أو markdown.`;
     const finalPrompt = customInstructions?.trim()
@@ -1058,7 +1061,7 @@ app.post("/api/gemini/parse-menu", authenticateToken, canManageMenu, async (req,
           description: { type: Type.STRING, description: "وصف شهي قصير بالعربية" },
           price:       { type: Type.NUMBER, description: "السعر الحالي (سعر العرض لو فيه خصم، أو السعر العادي)" },
           originalPrice: { type: Type.NUMBER, description: "السعر الأصلي قبل الخصم فقط لو الصنف عليه عرض. اتركه 0 لو مفيش عرض." },
-          category:    { type: Type.STRING, description: "الفئة. لازم تكون Offers لو الصنف عليه خصم/عرض" },
+          category:    { type: Type.STRING, description: "تصنيف عربي مناسب للصنف نفسه مثل كريب أو مشروبات أو قهوة أو حلويات أو برجر. لو عليه عرض استخدم عروض." },
           sizes: {
             type: Type.ARRAY,
             description: "الأحجام أو الأنواع المختلفة. مصفوفة فارغة [] إذا لم يكن للصنف أحجام. لا تتركها فارغة إذا وجدت أحجام مختلفة في المنيو.",
@@ -1135,7 +1138,10 @@ app.post("/api/gemini/parse-menu", authenticateToken, canManageMenu, async (req,
     let parsed  = JSON.parse(text);
 
     // ✅ تنظيف originalPrice: لو 0 أو مساوي للسعر العادي، يبقى مفيش عرض حقيقي
+    const categoryArabic: Record<string, string> = { burgers: "برجر", burger: "برجر", pizza: "بيتزا", pizzas: "بيتزا", salads: "سلطات", salad: "سلطات", sushi: "سوشي", ramen: "رامين", dessert: "حلويات", desserts: "حلويات", drinks: "مشروبات", drink: "مشروبات", sides: "مقبلات", side: "مقبلات", offers: "عروض", offer: "عروض", crepe: "كريب", crepes: "كريب", coffee: "مشروبات" };
     parsed = parsed.map((item: any) => {
+      const rawCategory = String(item.category || '').trim();
+      item.category = categoryArabic[rawCategory.toLowerCase()] || rawCategory || "أصناف متنوعة";
       if (!item.originalPrice || item.originalPrice <= item.price) {
         delete item.originalPrice;
       } else {

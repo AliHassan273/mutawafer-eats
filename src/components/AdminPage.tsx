@@ -2390,25 +2390,20 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                                   )}
                                 </td>
                                 <td className="p-3">
-                                  <select
-                                    value={item.category?.toLowerCase?.() || item.category}
+                                  <input
+                                    list="ai-category-options"
+                                    value={item.category || ''}
                                     onChange={(e) => {
                                       const copy = [...extractedItems];
                                       copy[idx].category = e.target.value;
                                       setExtractedItems(copy);
                                     }}
-                                    className="px-1.5 py-1 bg-slate-900 border border-slate-800 rounded outline-none text-[10px] font-bold text-slate-200 cursor-pointer"
-                                  >
-                                    <option value="burgers">🍔 برجر</option>
-                                    <option value="pizza">🍕 بيتزا</option>
-                                    <option value="salads">🥗 سلطات</option>
-                                    <option value="sushi">🍣 سوشي</option>
-                                    <option value="ramen">🍜 رامن</option>
-                                    <option value="dessert">🍦 حلويات</option>
-                                    <option value="sides">🍟 مقبلات</option>
-                                    <option value="drinks">🥤 مشروبات</option>
-                                    <option value="offers">🎁 عروض</option>
-                                  </select>
+                                    className="px-1.5 py-1 bg-slate-900 border border-slate-800 rounded outline-none text-[10px] font-bold text-slate-200 w-28"
+                                  />
+                                  <datalist id="ai-category-options">
+                                    {categoriesList.map(cat => <option key={cat.id} value={cat.nameAr || cat.name || cat.id} />)}
+                                    <option value="كريب" /><option value="مشروبات" /><option value="قهوة" /><option value="حلويات" /><option value="أصناف متنوعة" />
+                                  </datalist>
                                 </td>
                               </tr>
                             );
