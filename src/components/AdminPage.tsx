@@ -668,6 +668,10 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
 
   // ✅ Selected active restaurant instance helper (آمن)
+  useEffect(() => {
+    if (!selectedRestId && restaurants.length > 0) setSelectedRestId(restaurants[0].id);
+  }, [restaurants, selectedRestId]);
+
   const activeRestaurant = restaurants.find((r) => r.id === selectedRestId);
 
   // ✅ Dropdown Menu Component with Refs
@@ -822,6 +826,16 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         const data = await response.json();
         if (data.success && Array.isArray(data.items)) {
           setExtractedItems(data.items);
+          // إضافة الأقسام التي اكتشفها AI تلقائيًا إلى قائمة فلاتر الصفحة الرئيسية.
+          const discovered: string[] = Array.from(new Set(data.items.map((item: any) => String(item.category || 'sides').trim().toLowerCase()))) as string[];
+          const icons: Record<string, string> = { burgers: '🍔', pizza: '🍕', salads: '🥗', sushi: '🍣', ramen: '🍜', dessert: '🍦', drinks: '🥤', sides: '🍟', offers: '🏷️' };
+          const arabic: Record<string, string> = { burgers: 'برجر', pizza: 'بيتزا', salads: 'سلطات', sushi: 'سوشي', ramen: 'رامين', dessert: 'حلويات', drinks: 'مشروبات', sides: 'مقبلات', offers: 'عروض' };
+          setCategoriesList(previous => {
+            const merged = [...previous];
+            for (const id of discovered) if (!merged.some(c => c.id === id)) merged.push({ id, name: id, nameAr: arabic[id] || id, icon: icons[id] || '🍽️' });
+            fetchWithRetry('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categories: merged }) }).catch(() => {});
+            return merged;
+          });
           setAiWarning(data.warning || null);
           const autoSelect: Record<number, boolean> = {};
           data.items.forEach((_, idx) => {
@@ -880,7 +894,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       const formattedData = {
         name: restForm.name,
         coverImage: restForm.coverImage || logoImageSetting || "/logo.png",
-        categories: restForm.categories.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
+        categories: editingRestId ? (restaurants.find(r => r.id === editingRestId)?.categories || []) : [],
         promo: restForm.promo || undefined,
         deliveryFee: Number(restForm.deliveryFee) || 0,
         deliveryTime: restForm.deliveryTime,
@@ -1015,6 +1029,9 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         setExtractedItems([]);
         setFileName(null);
         triggerSuccess(t("addedSuccess"));
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setAiError(errorData.error || 'تعذر استيراد الأصناف إلى المطعم المحدد.');
       }
     } catch (err) {
       console.error("AI dishes import failed:", err);
@@ -1520,116 +1537,6 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                 />
               </div>
 
-              {/* Dynamic Categories Manager */}
-              <div className="border-t border-slate-100 pt-4 space-y-3" dir="rtl">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-black text-slate-700 block">🛍️ إدارة أقسام وفئات الطعام بالتطبيق (اكتشف الأصناف المميزة):</label>
-                  <span className="text-[10px] font-mono text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded-full">{categoriesList.length} أقسام</span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {categoriesList.map((cat) => (
-                    <div
-                      key={cat.id}
-                      className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center justify-between gap-1.5 hover:bg-slate-100/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-base shrink-0">{cat.icon}</span>
-                        <div className="min-w-0 leading-tight">
-                          <p className="text-[10px] font-black text-slate-800 truncate">{cat.nameAr || cat.name}</p>
-                          <p className="text-[8px] font-semibold text-slate-400 truncate">{cat.id}</p>
-                        </div>
-                      </div>
-                      {cat.id !== 'all' && cat.id !== 'offers' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCategoriesList(categoriesList.filter(c => c.id !== cat.id));
-                            triggerSuccess('تم حذف القسم مؤقتاً بالمسودة! اضغط على زر الحفظ بالأسفل للتنفيذ.');
-                          }}
-                          className="text-red-500 hover:text-red-700 text-xs font-bold p-1 hover:bg-red-50 rounded-lg transition-colors cursor-pointer shrink-0"
-                          title="حذف الفئة"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="bg-slate-50/70 border border-dashed border-slate-300 rounded-xl p-3.5 space-y-3">
-                  <p className="text-[10px] font-black text-amber-600 block">➕ إضافة فئة/قسم طعام جديد للقائمة:</p>
-                  <div className="grid grid-cols-2 gap-3 text-right">
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black text-slate-500 block">معرف الفئة (ID بالإنجليزي بدون فواصل) *</span>
-                      <input
-                        type="text"
-                        placeholder="مثال: desserts"
-                        value={newCatId}
-                        onChange={(e) => setNewCatId(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 font-bold"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black text-slate-500 block">رمز الإيموجي (Emoji) *</span>
-                      <input
-                        type="text"
-                        placeholder="مثال: 🍦"
-                        value={newCatIcon}
-                        onChange={(e) => setNewCatIcon(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-center outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black text-slate-500 block">الاسم بالإنجليزية (Name EN) *</span>
-                      <input
-                        type="text"
-                        placeholder="e.g. Desserts"
-                        value={newCatName}
-                        onChange={(e) => setNewCatName(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 font-bold"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black text-slate-500 block">الاسم بالعربية (Name AR) *</span>
-                      <input
-                        type="text"
-                        placeholder="مثال: حلويات وفرفشة"
-                        value={newCatNameAr}
-                        onChange={(e) => setNewCatNameAr(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-right font-bold"
-                      />
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!newCatId || !newCatName || !newCatNameAr || !newCatIcon) {
-                        alert('يرجى ملء جميع حقول إضافة الفئة الجديدة أولاً!');
-                        return;
-                      }
-                      if (categoriesList.some(c => c.id === newCatId)) {
-                        alert('هذا المعرف مستخدم بالفعل!');
-                        return;
-                      }
-                      const updated = [
-                        ...categoriesList,
-                        { id: newCatId, name: newCatName, nameAr: newCatNameAr, icon: newCatIcon }
-                      ];
-                      setCategoriesList(updated);
-                      setNewCatId("");
-                      setNewCatName("");
-                      setNewCatNameAr("");
-                      setNewCatIcon("");
-                      triggerSuccess('تمت إضافة القسم للمسودة بنجاح! اضغط على زر الحفظ بالأسفل للاعتماد.');
-                    }}
-                    className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-2 px-3 rounded-xl text-xs transition-colors cursor-pointer"
-                  >
-                    أضف كقسم جديد لقائمة المعروضات ➕
-                  </button>
-                </div>
-              </div>
-
               <button
                 type="submit"
                 disabled={isUpdatingSettings}
@@ -1884,18 +1791,6 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
               )}
             </div>
             <p className="text-[10px] text-slate-400">لو ما اخترتش صورة هيستخدم صورة اللوجو الافتراضية</p>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-600">{t("categoryTags")} *</label>
-            <input
-              required
-              type="text"
-              placeholder="burgers, pizza, dessert..."
-              value={restForm.categories}
-              onChange={(e) => setRestForm({ ...restForm, categories: e.target.value })}
-              className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2.5 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-orange-500"
-            />
           </div>
 
           <div className="space-y-1">

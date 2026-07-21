@@ -814,6 +814,9 @@ app.post("/api/restaurants/:id/menu", authenticateToken, canManageMenu, async (r
     menu.push(item);
   }
   rest.menu = menu;
+  const existingCategories = Array.isArray(rest.categories) ? rest.categories.map((c: any) => String(c).trim().toLowerCase()) : [];
+  const importedCategories = items.map((item: any) => String(item.category || '').trim().toLowerCase()).filter(Boolean);
+  rest.categories = [...new Set([...existingCategories, ...importedCategories])];
   await restaurants.set(id, rest);
   res.status(201).json(items);
 });
