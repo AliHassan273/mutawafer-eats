@@ -872,7 +872,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
   const handleSaveRestaurant = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentAdmin && !currentAdmin.canManageRestaurants) {
+    if (currentAdmin && currentAdmin.role !== "primary" && !currentAdmin.canManageRestaurants) {
       alert("خطأ أمني: عفوًا، حسابك لا يمتلك صلاحية تعديل أو إنشاء المطاعم!");
       return;
     }
@@ -934,7 +934,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   };
 
   const handleDeleteRestaurant = async (restId: string) => {
-    if (currentAdmin && !currentAdmin.canManageRestaurants) {
+    if (currentAdmin && currentAdmin.role !== "primary" && !currentAdmin.canManageRestaurants) {
       alert("خطأ أمني: لا تملك الصلاحية اللازمة لحذف مطاعم من التطبيق!");
       return;
     }
@@ -956,7 +956,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
   const handleAddManualMenuItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentAdmin && !currentAdmin.canManageMenu) {
+    if (currentAdmin && currentAdmin.role !== "primary" && !currentAdmin.canManageMenu) {
       alert("خطأ أمني: لا تمتلك الصلاحية اللازمة لإضافة أو تعديل أصناف المنيو!");
       return;
     }
@@ -986,7 +986,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   };
 
   const handleImportExtracted = async () => {
-    if (currentAdmin && !currentAdmin.canManageMenu) {
+    if (currentAdmin && currentAdmin.role !== "primary" && !currentAdmin.canManageMenu) {
       alert("خطأ الصلاحية: لا تملك صلاحية لإدراج أو تعديل أصناف المنيو على البرنامج!");
       return;
     }
@@ -1022,7 +1022,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   };
 
   const handleSetEditRestaurant = (rest: Restaurant) => {
-    if (currentAdmin && !currentAdmin.canManageRestaurants) {
+    if (currentAdmin && currentAdmin.role !== "primary" && !currentAdmin.canManageRestaurants) {
       alert("خطأ أمني: حسابك لا يمتلك صلاحية تعديل بيانات المطاعم المسجلة!");
       return;
     }

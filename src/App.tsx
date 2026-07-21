@@ -149,6 +149,7 @@ export default function App() {
     deliveryOptions: { id: string; name: string; fee: number }[];
     coupons?: { id: string; code: string; discountType: 'percentage' | 'flat'; discountValue: number; minOrder: number; isActive: boolean }[];
     categories?: { id: string; name: string; nameAr: string; icon: string }[];
+    rewardOrderThreshold?: number;
   }>({
     whatsappNumber: "201016789012",
     deliveryPricingType: "area",
@@ -169,6 +170,7 @@ export default function App() {
       { id: "cp_1", code: "FIRST50", discountType: "percentage", discountValue: 50, minOrder: 0, isActive: true },
       { id: "cp_2", code: "EATS10", discountType: "flat", discountValue: 30, minOrder: 150, isActive: true }
     ],
+    rewardOrderThreshold: 10,
     categories: [
       { id: 'all', name: 'All Eats', nameAr: 'كل الأكلات 🍽️', icon: '🍽️' },
       { id: 'burgers', name: 'Burgers', nameAr: 'برجر بجمدان 🍔', icon: '🍔' },
@@ -340,8 +342,14 @@ export default function App() {
       return;
     }
     fetchWithRetry('/api/loyalty/me').then(async res => {
-      if (res.ok) setLoyaltyStatus(await res.json());
-    }).catch(() => setLoyaltyStatus(null));
+      if (res.ok) { setLoyaltyStatus(await res.json()); return; }
+      throw new Error('loyalty unavailable');
+    }).catch(() => {
+      const since = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const count = orders.filter(o => (o.userId === currentUser.id || o.customerPhone === currentUser.phone) && Date.parse(o.createdAt || '') >= since).length;
+      const threshold = Math.max(1, Number(settings.rewardOrderThreshold) || 10);
+      setLoyaltyStatus({ count, threshold, remaining: Math.max(0, threshold - count), rewardReady: count >= threshold, rewardMessage: 'مبروك! وصلت لعدد الطلبات المطلوب. تواصل معنا على واتساب لاستلام هديتك.' });
+    });
   }, [currentUser, orders.length]);
 
   // Update default address automatically based on selected language
