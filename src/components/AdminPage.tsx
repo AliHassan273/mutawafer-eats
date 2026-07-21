@@ -1010,7 +1010,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       .filter((_, idx) => selectedImportItems[idx])
       .map((item) => ({
         ...item,
-        image: item.image || logoImageSetting || "/logo.png", // صورة اللوجو الافتراضية
+        image: item.image || undefined, // السيرفر يضع اللوجو الافتراضي بدون تكرار base64 داخل كل صنف
       }));
     if (itemsToImport.length === 0) {
       alert("No items selected for import");
@@ -1018,23 +1018,26 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     }
 
     try {
-      const response = await fetchWithRetry(`/api/restaurants/${selectedRestId}/menu`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(itemsToImport)
-      });
-
-      if (response.ok) {
-        await onRefreshData();
-        setExtractedItems([]);
-        setFileName(null);
-        triggerSuccess(t("addedSuccess"));
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        setAiError(errorData.error || 'تعذر استيراد الأصناف إلى المطعم المحدد.');
+      // إرسال دفعات صغيرة يمنع فشل HTTP/2 عندما تكون صور المنيو أو اللوجو كبيرة.
+      for (let start = 0; start < itemsToImport.length; start += 5) {
+        const batch = itemsToImport.slice(start, start + 5);
+        const response = await fetchWithRetry(`/api/restaurants/${selectedRestId}/menu`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(batch)
+        }, 2, 700);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `تعذر استيراد الدفعة ${Math.floor(start / 5) + 1}.`);
+        }
       }
-    } catch (err) {
+      await onRefreshData();
+      setExtractedItems([]);
+      setFileName(null);
+      triggerSuccess(t("addedSuccess"));
+    } catch (err: any) {
       console.error("AI dishes import failed:", err);
+      setAiError(err?.message || "تعذر استيراد الأصناف. جرّب دفعات أصغر أو ملفًا أخف.");
     }
   };
 

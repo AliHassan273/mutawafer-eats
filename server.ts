@@ -803,6 +803,10 @@ app.post("/api/restaurants/:id/menu", authenticateToken, canManageMenu, async (r
   const menu  = rest.menu || [];
   for (const item of items) {
     item.id = item.id || crypto.randomUUID();
+    if (!item.image) {
+      const currentSettings: any = await getSettings();
+      item.image = currentSettings.logoImage || "/logo.png";
+    }
     if (item.category) item.category = item.category.toLowerCase(); // ✅ normalize
     // ✅ ضيف id لكل حجم لو مش موجود
     if (item.sizes && Array.isArray(item.sizes)) {
