@@ -640,6 +640,27 @@ export default function App() {
     }
   };
 
+  // مصدر واحد لمطابقة الأقسام؛ يقبل المعرّف العربي/الإنجليزي القديم والجديد.
+  const normalizeCategory = (value: unknown) => String(value || '').trim().toLowerCase()
+    .replace(/[ًٌٍَُِّْـ]/g, '');
+  const categoryAliases: Record<string, string[]> = {
+    burgers: ['burger', 'burgers', 'برجر', 'برجر بجمدان'],
+    pizza: ['pizza', 'pizzas', 'بيتزا', 'بيتزا حكاية'],
+    salads: ['salad', 'salads', 'سلطة', 'سلطات', 'سلطات فريش', 'salds'],
+    sushi: ['sushi', 'سوشي', 'سوشي دلع'],
+    ramen: ['ramen', 'رامين', 'رامين ياباني'],
+    dessert: ['dessert', 'desserts', 'حلويات', 'حلويات وفرفشة', 'حلو', 'تحلية'],
+    drinks: ['drink', 'drinks', 'مشروبات', 'مشروبات منعشة', 'مشروب'],
+    sides: ['side', 'sides', 'مقبلات', 'مقبلات جانبية', 'اطباق جانبية'],
+  };
+  const categoryMatches = (value: unknown, target: string) => {
+    const v = normalizeCategory(value);
+    const t = normalizeCategory(target);
+    if (v === t) return true;
+    return (categoryAliases[t] || []).map(normalizeCategory).includes(v) ||
+      (categoryAliases[v] || []).map(normalizeCategory).includes(t);
+  };
+
   // Filter restaurants list based on category and search query
   const filteredRestaurants = restaurants.filter((rest) => {
     // 1. Check if category matches
@@ -649,21 +670,9 @@ export default function App() {
         // Special Offers can match if there is an active discount / promo
         matchesCategory = !!rest.promo;
       } else {
-        const targetCat = selectedCategory.toLowerCase().trim();
-        const hasMatchingRestCategory = rest.categories && rest.categories.some(c => c.toLowerCase().trim() === targetCat);
-        
-        const hasMatchingMenuItem = rest.menu && rest.menu.some(item => {
-          const itemCat = (item.category || '').toLowerCase().trim();
-          return itemCat === targetCat ||
-                 (targetCat === 'burgers' && (itemCat === 'burger' || itemCat === 'burgers' || itemCat === 'برجر' || itemCat === 'برجر بجمدان')) ||
-                 (targetCat === 'pizza' && (itemCat === 'pizzas' || itemCat === 'pizza' || itemCat === 'بيتزا' || itemCat === 'بيتزا حكاية')) ||
-                 (targetCat === 'dessert' && (itemCat === 'desserts' || itemCat === 'dessert' || itemCat === 'حلويات' || itemCat === 'حلويات وفرفشة' || itemCat === 'حلو' || itemCat === 'تحلية')) ||
-                 (targetCat === 'salads' && (itemCat === 'salad' || itemCat === 'salads' || itemCat === 'سلطة' || itemCat === 'salds' || itemCat === 'سلطات' || itemCat === 'سلطات فريش')) ||
-                 (targetCat === 'sushi' && (itemCat === 'sushi' || itemCat === 'سوشي' || itemCat === 'سوشي دلع')) ||
-                 (targetCat === 'ramen' && (itemCat === 'ramen' || itemCat === 'رامين' || itemCat === 'رامين ياباني')) ||
-                 (targetCat === 'drinks' && (itemCat === 'drink' || itemCat === 'drinks' || itemCat === 'مشروبات' || itemCat === 'مشروبات منعشة' || itemCat === 'مشروب')) ||
-                 (targetCat === 'sides' && (itemCat === 'side' || itemCat === 'sides' || itemCat === 'مقبلات' || itemCat === 'مقبلات جانبية' || itemCat === 'اطباق جانبية'));
-        });
+        const targetCat = selectedCategory;
+        const hasMatchingRestCategory = rest.categories && rest.categories.some(c => categoryMatches(c, targetCat));
+        const hasMatchingMenuItem = rest.menu && rest.menu.some(item => categoryMatches(item.category, targetCat));
         
         matchesCategory = !!(hasMatchingRestCategory || hasMatchingMenuItem);
       }

@@ -780,14 +780,18 @@ app.put("/api/restaurants/:id", authenticateToken, canManageRestaurants, async (
   const { id } = req.params;
   const existing: any = await restaurants.get(id);
   if (!existing) return res.status(404).json({ error: "Restaurant not found" });
-  const updated = { ...existing, ...req.body, id };
+  const updated: any = { ...existing, ...req.body, id };
+  updated.categories = Array.isArray(updated.categories) ? updated.categories.map((c: any) => String(c).trim().toLowerCase()).filter(Boolean) : [];
+  updated.menu = Array.isArray(updated.menu) ? updated.menu.map((item: any) => ({ ...item, category: String(item.category || 'sides').trim().toLowerCase() })) : [];
   await restaurants.set(id, updated);
   res.json(updated);
 });
 
 app.delete("/api/restaurants/:id", authenticateToken, canManageRestaurants, async (req, res) => {
+  const existing = await restaurants.get(req.params.id);
+  if (!existing) return res.status(404).json({ error: "Restaurant not found" });
   await restaurants.delete(req.params.id);
-  res.json({ success: true });
+  res.json({ success: true, deletedId: req.params.id });
 });
 
 app.post("/api/restaurants/:id/menu", authenticateToken, canManageMenu, async (req, res) => {
