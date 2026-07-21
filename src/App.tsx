@@ -148,7 +148,7 @@ export default function App() {
     logoImage?: string;
     deliveryOptions: { id: string; name: string; fee: number }[];
     coupons?: { id: string; code: string; discountType: 'percentage' | 'flat'; discountValue: number; minOrder: number; isActive: boolean }[];
-    categories?: { id: string; name: string; nameAr: string; icon: string }[];
+    categories?: { id: string; name: string; nameAr: string; icon: string; visible?: boolean }[];
     rewardOrderThreshold?: number;
   }>({
     whatsappNumber: "201016789012",

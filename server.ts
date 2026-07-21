@@ -16,7 +16,7 @@ import {
 import {
   hashPassword, comparePassword,
   authenticateToken, isPrimaryAdmin,
-  canManageRestaurants, canManageMenu,
+  canManageRestaurants, canManageMenu, canUseAIScanner,
   generateToken   // ✅ دالة مركزية جديدة بدل تكرار jwt.sign
 } from "./src/auth";
 import { initDB } from "./src/db.ts";
@@ -800,11 +800,11 @@ app.post("/api/restaurants/:id/menu", authenticateToken, canManageMenu, async (r
   if (!rest) return res.status(404).json({ error: "Restaurant not found" });
 
   const items = Array.isArray(req.body) ? req.body : [req.body];
-  const menu  = rest.menu || [];
+  const menu  = Array.isArray(rest.menu) ? [...rest.menu] : [];
+  const currentSettings: any = await getSettings();
   for (const item of items) {
     item.id = item.id || crypto.randomUUID();
     if (!item.image) {
-      const currentSettings: any = await getSettings();
       item.image = currentSettings.logoImage || "/logo.png";
     }
     if (item.category) item.category = item.category.toLowerCase(); // ✅ normalize
@@ -815,7 +815,16 @@ app.post("/api/restaurants/:id/menu", authenticateToken, canManageMenu, async (r
         id: sz.id || `${item.id || crypto.randomUUID()}_${sz.name}`,
       }));
     }
-    menu.push(item);
+    const key = `${String(item.name || '').trim().toLowerCase()}::${String(item.category || '').trim().toLowerCase()}`;
+    const existingIndex = menu.findIndex((old: any) => `${String(old.name || '').trim().toLowerCase()}::${String(old.category || '').trim().toLowerCase()}` === key);
+    if (existingIndex === -1) {
+      menu.push(item);
+    } else {
+      const old: any = menu[existingIndex];
+      const mergedSizes = [...(Array.isArray(old.sizes) ? old.sizes : []), ...(Array.isArray(item.sizes) ? item.sizes : [])];
+      const uniqueSizes = mergedSizes.filter((size: any, index: number, list: any[]) => index === list.findIndex((x: any) => String(x.name).trim().toLowerCase() === String(size.name).trim().toLowerCase()));
+      menu[existingIndex] = { ...old, ...item, id: old.id || item.id, sizes: uniqueSizes };
+    }
   }
   rest.menu = menu;
   const existingCategories = Array.isArray(rest.categories) ? rest.categories.map((c: any) => String(c).trim().toLowerCase()) : [];
@@ -965,7 +974,7 @@ function parseSpreadsheetLocally(fileDataBase64: string, isCsv: boolean): any[] 
   }
 }
 
-app.post("/api/gemini/parse-menu", authenticateToken, canManageMenu, async (req, res) => {
+app.post("/api/gemini/parse-menu", authenticateToken, canUseAIScanner, async (req, res) => {
   let isSpreadsheet = false, isCsvFile = false, fileData = "", fileName = "";
 
   try {

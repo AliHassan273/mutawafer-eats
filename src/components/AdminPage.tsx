@@ -117,7 +117,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   const [newRegionFee, setNewRegionFee] = useState("");
 
   // Dynamic categories management
-  const [categoriesList, setCategoriesList] = useState<{ id: string; name: string; nameAr: string; icon: string }[]>([]);
+  const [categoriesList, setCategoriesList] = useState<{ id: string; name: string; nameAr: string; icon: string; visible?: boolean }[]>([]);
   const [newCatId, setNewCatId] = useState("");
   const [newCatName, setNewCatName] = useState("");
   const [newCatNameAr, setNewCatNameAr] = useState("");
@@ -3028,6 +3028,21 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
               </tbody></table>
             </div>
           </div>
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+            <div><h2 className="text-sm font-black text-slate-800">إدارة التصنيفات 🎨</h2><p className="text-xs text-slate-500 mt-1">عدّل الاسم أو الأيقونة، أو أخفِ التصنيف من الصفحة الرئيسية بدون حذف الأصناف.</p></div>
+            <div className="space-y-2">
+              {categoriesList.map((cat, index) => (
+                <div key={cat.id} className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-center bg-slate-50 rounded-xl p-2">
+                  <input value={cat.icon} onChange={e => setCategoriesList(list => list.map((x,i) => i === index ? { ...x, icon: e.target.value } : x))} className="w-12 text-center bg-white border rounded-lg px-2 py-1" aria-label="أيقونة التصنيف" />
+                  <input value={cat.nameAr} onChange={e => setCategoriesList(list => list.map((x,i) => i === index ? { ...x, nameAr: e.target.value } : x))} className="bg-white border rounded-lg px-2 py-1 text-xs" aria-label="اسم التصنيف بالعربية" />
+                  <input value={cat.name} onChange={e => setCategoriesList(list => list.map((x,i) => i === index ? { ...x, name: e.target.value } : x))} className="bg-white border rounded-lg px-2 py-1 text-xs" aria-label="اسم التصنيف" />
+                  <button type="button" onClick={() => setCategoriesList(list => list.map((x,i) => i === index ? { ...x, visible: x.visible === false } : x))} className={`px-2 py-1 rounded-lg text-[10px] font-black ${cat.visible === false ? 'bg-slate-200 text-slate-500' : 'bg-emerald-100 text-emerald-700'}`}>{cat.visible === false ? 'مخفي' : 'ظاهر'}</button>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={async () => { const res = await fetchWithRetry('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categories: categoriesList }) }); if (res.ok) triggerSuccess('تم حفظ تعديلات التصنيفات.'); }} className="bg-[#f94c10] text-white rounded-xl px-4 py-2 text-xs font-black">حفظ التصنيفات</button>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
             <div className="bg-white border border-slate-105 rounded-3xl p-6 shadow-sm space-y-4">

@@ -99,3 +99,8 @@ export const canManageMenu = (req: any, res: any, next: any) => {
 export const generateToken = (payload: object, expiresIn = '24h'): string => {
   return jwt.sign(payload, JWT_SECRET, { expiresIn } as any);
 };
+export const canUseAIScanner = (req: any, res: any, next: any) => {
+  const ok = req.user?.role === 'primary' || req.user?.id === 'admin_primary' || req.user?.canUseAIScanner === true;
+  if (!ok) return res.status(403).json({ error: 'ليس لديك صلاحية استخدام ماسح الذكاء الاصطناعي.' });
+  next();
+};
