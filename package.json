@@ -34,7 +34,8 @@
     "zod": "^4.4.3",
     "resend": "^4.0.0",
     "cloudinary": "^2.7.0",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "@supabase/supabase-js": "^2.49.8"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
