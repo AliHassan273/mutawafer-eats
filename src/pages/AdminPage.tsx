@@ -15,6 +15,7 @@ import AdminPermissions from '../components/admin/AdminPermissions';
 import AdminSettings from '../components/admin/AdminSettings';
 import AdminStatistics from '../components/admin/AdminStatistics';
 import { supabaseConfigured } from '../lib/supabase';
+import { signInWithSupabase } from '../services/supabaseAuthService';
 import { saveRestaurantInSupabase, deleteRestaurantInSupabase, listAdminOrdersFromSupabase, listCaptainsFromSupabase, listAdminProfilesFromSupabase, updateProfilePermissionsInSupabase, updateCaptainStatusInSupabase, createAdminInSupabase, deleteAdminInSupabase, listLoyaltyCustomersFromSupabase, deleteCaptainInSupabase } from '../services/supabaseAdminService';
 import { saveSettingsToSupabase, getSettingsFromSupabase } from '../services/supabaseSettingsService';
 import { updateOrderStatusInSupabase } from '../services/supabaseOrderService';
@@ -1163,6 +1164,16 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     setAdminLoginLoading(true);
 
     try {
+      if (supabaseConfigured) {
+        const profile: any = await signInWithSupabase(adminEmail, adminPassword);
+        if (!['admin', 'primary'].includes(profile.role)) throw new Error('هذا الحساب ليس حساب أدمن.');
+        const admin = { id: profile.id, name: profile.name, email: profile.email, role: profile.role, canManageRestaurants: profile.can_manage_restaurants || profile.role === 'primary', canManageMenu: profile.can_manage_menu || profile.role === 'primary', canUseAIScanner: profile.can_use_ai_scanner || profile.role === 'primary' };
+        setCurrentAdmin(admin);
+        localStorage.setItem('mutafer_logged_in_admin', JSON.stringify(admin));
+        onAdminLogin?.(admin);
+        triggerSuccess(`مرحباً بك يا ${admin.name}! تم تسجيل الدخول بنجاح.`);
+        return;
+      }
       const res = await fetchWithRetry('/api/admins/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1193,6 +1204,12 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     setAdminLoginError("");
     setAdminLoginLoading(true);
     try {
+      if (supabaseConfigured) {
+        await createAdminInSupabase({ name: registerName, email: registerEmail, password: registerPassword, canManageRestaurants: true, canManageMenu: true, canUseAIScanner: true });
+        triggerSuccess(`تم إنشاء حساب المشرف ${registerName} بنجاح.`);
+        setIsAdminRegisterMode(false);
+        return;
+      }
       const response = await fetchWithRetry("/api/admins/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
