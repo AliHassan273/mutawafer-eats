@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Clock, MapPin, Phone, MessageSquare, Check, RotateCw, Bike, ChefHat, CheckCircle2, Star } from 'lucide-react';
 import { Order } from '../types';
 import { lang } from '../translations';
-import { fetchWithRetry } from '../utils/fetchHelper';
+import { fetchWithRetry, getApiUrl } from '../utils/fetchHelper';
 import { supabaseConfigured, supabase } from '../lib/supabase';
 import { submitReviewToSupabase } from '../services/supabaseOrderService';
 import { getOrderCaptainLocation } from '../services/supabaseCaptainService';
+import { getPublicSettingsFromSupabase } from '../services/supabaseRestaurantService';
 
 interface OrderTrackerProps {
   order: Order;
@@ -71,14 +72,11 @@ export default function OrderTracker({
 
   // Load WhatsApp settings
   useEffect(() => {
-    fetchWithRetry('/api/settings')
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.whatsappNumber) {
-          setWhatsappNumber(data.whatsappNumber);
-        }
-      })
-      .catch(err => console.error("Error loading settings in OrderTracker:", err));
+    const load = async () => {
+      const data = supabaseConfigured ? await getPublicSettingsFromSupabase() : await (await fetchWithRetry('/api/settings')).json();
+      if (data?.whatsappNumber) setWhatsappNumber(data.whatsappNumber);
+    };
+    load().catch(err => console.error("Error loading settings in OrderTracker:", err));
   }, []);
 
   // ✅ جيب موقع الكابتن كل 15 ثانية
@@ -192,13 +190,14 @@ export default function OrderTracker({
     map.panTo([courierLocation.lat, courierLocation.lng]);
   }, [courierLocation]);
 
-  // ✅ Poll for status updates every 5 seconds using direct order endpoint
+  // في النسخة المبسطة يعتمد تحديث الحالة على Supabase Realtime ولا يستدعي API القديم.
   useEffect(() => {
+    if (supabaseConfigured) return;
     let consecutiveFailures = 0;
     const poll = async () => {
       try {
         // ✅ اجيب الأوردر مباشرة بـ id — مش محتاج token
-        const res = await fetch('/api/orders/' + order.id);
+        const res = await fetch(getApiUrl('/api/orders/' + order.id));
         if (!res.ok) {
           consecutiveFailures++;
           return;

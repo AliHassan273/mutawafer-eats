@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, User, Mail, Phone, Lock, Eye, EyeOff, Check } from 'lucide-react';
-import { saveToken } from '../utils/fetchHelper';
+import { saveToken, getApiUrl } from '../utils/fetchHelper';
 import { lang, getTranslation } from '../translations';
 import { supabaseConfigured } from '../lib/supabase';
 import { signInWithSupabase, signUpWithSupabase } from '../services/supabaseAuthService';
@@ -72,7 +72,7 @@ export default function AuthModal({
     setOtpStatus('sending');
 
     try {
-      const res = await fetch('/api/users/send-otp', {
+      const res = await fetch(getApiUrl('/api/users/send-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -104,7 +104,7 @@ export default function AuthModal({
     setLoading(true);
 
     try {
-      const res = await fetch('/api/users/verify-otp', {
+      const res = await fetch(getApiUrl('/api/users/verify-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code: otpCode }),
@@ -117,7 +117,7 @@ export default function AuthModal({
       setOtpDebugCode('');
 
       // ✅ تسجيل الحساب تلقائياً بعد التحقق — بدون ضغطة تانية
-      const regRes = await fetch('/api/users/register', {
+      const regRes = await fetch(getApiUrl('/api/users/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, phone, password, role }),
@@ -204,7 +204,7 @@ export default function AuthModal({
           return;
         }
 
-        const res = await fetch('/api/users/register', {
+        const res = await fetch(getApiUrl('/api/users/register'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email, phone, password, role }),
@@ -232,7 +232,7 @@ export default function AuthModal({
           return;
         }
 
-        const res = await fetch('/api/users/login', {
+        const res = await fetch(getApiUrl('/api/users/login'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone, password }),
@@ -281,7 +281,7 @@ export default function AuthModal({
   // دالة مساعدة: لوجن تلقائي بعد التسجيل
   const autoLogin = async (phoneVal: string, passwordVal: string) => {
     try {
-      const res = await fetch('/api/users/login', {
+      const res = await fetch(getApiUrl('/api/users/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: phoneVal, password: passwordVal }),

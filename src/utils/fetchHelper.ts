@@ -4,6 +4,11 @@
 
 const TOKEN_KEY = "mutafer_auth_token";
 
+export function getApiUrl(url: string): string {
+  const base = (import.meta as any).env?.VITE_API_BASE_URL || "";
+  return base && url.startsWith("/api/") ? `${base.replace(/\/$/, "")}${url}` : url;
+}
+
 export function saveToken(token: string) {
   localStorage.setItem(TOKEN_KEY, token);
 }
@@ -66,7 +71,7 @@ export async function fetchWithRetry(
 
   for (let i = 0; i < retries; i++) {
     try {
-      const response = await fetch(url, finalOptions);
+      const response = await fetch(getApiUrl(url), finalOptions);
 
       if (response.ok) return response;
 
