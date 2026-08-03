@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://mutawafer-eats.com/sitemap.xml

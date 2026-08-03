@@ -149,3 +149,49 @@ create policy "public can read reviews" on public.reviews for select using (true
 create policy "users read own profile" on public.profiles for select using (auth.uid() = id);
 create policy "users read own orders" on public.orders for select using (auth.uid() = user_id);
 create policy "users read own order items" on public.order_items for select using (exists (select 1 from public.orders o where o.id = order_id and o.user_id = auth.uid()));
+
+
+create or replace function public.handle_new_user() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.profiles (id, name, email, phone, role) values (new.id, coalesce(new.raw_user_meta_data->>'name',''), coalesce(new.email,''), coalesce(new.raw_user_meta_data->>'phone',''), coalesce(new.raw_user_meta_data->>'role','customer')) on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created after insert on auth.users for each row execute procedure public.handle_new_user();
+
+create policy "users insert own orders" on public.orders for insert with check (auth.uid() = user_id);
+create policy "users insert own order items" on public.order_items for insert with check (exists (select 1 from public.orders o where o.id = order_id and o.user_id = auth.uid()));
+
+
+create or replace function public.is_admin() returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin','primary'));
+$$;
+create policy "admins manage restaurants" on public.restaurants for all using (public.is_admin()) with check (public.is_admin());
+create policy "admins manage menu" on public.menu_items for all using (public.is_admin()) with check (public.is_admin());
+create policy "admins manage sizes" on public.menu_item_sizes for all using (public.is_admin()) with check (public.is_admin());
+
+create policy "admins update orders" on public.orders for update using (public.is_admin()) with check (public.is_admin());
+create policy "captain update assigned orders" on public.orders for update using (auth.uid() = courier_id) with check (auth.uid() = courier_id);
+create policy "users read own locations" on public.captain_locations for select using (exists (select 1 from public.orders o where o.id = order_id and o.user_id = auth.uid()) or public.is_admin());
+create policy "captains manage location" on public.captain_locations for all using (auth.uid() = captain_id) with check (auth.uid() = captain_id);
+
+create policy "admins read all orders" on public.orders for select using (public.is_admin());
+create policy "admins read all profiles" on public.profiles for select using (public.is_admin());
+
+
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  title text not null,
+  body text not null default '',
+  type text not null default 'info',
+  read_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists notifications_user_created_idx on public.notifications(user_id, created_at desc);
+alter table public.notifications enable row level security;
+create policy "users read own notifications" on public.notifications for select using (auth.uid() = user_id);
+create policy "users update own notifications" on public.notifications for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "admins insert notifications" on public.notifications for insert with check (public.is_admin() or auth.uid() = user_id);

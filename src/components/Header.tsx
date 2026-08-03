@@ -3,6 +3,7 @@ import { Search, MapPin, ShoppingBag, ChevronDown, User, ShieldCheck, Clock, Glo
 import { Order } from '../types';
 import Logo from './Logo';
 import { lang } from '../translations';
+import NotificationBell from './NotificationBell';
 
 interface HeaderProps {
   currentAddress: string;
@@ -130,6 +131,8 @@ export default function Header({
               </button>
             )}
           </div>
+
+          <NotificationBell />
 
           {/* "القائمة" (Menu Button) */}
           <div className="relative shrink-0" ref={menuRef}>

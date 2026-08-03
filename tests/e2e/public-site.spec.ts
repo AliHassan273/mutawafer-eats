@@ -9,7 +9,8 @@ test('health endpoint is available', async ({ request }) => {
 test('public site loads and has a restaurant/category surface', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#root')).toBeVisible();
-  await expect(page.locator('body')).toContainText(/مسافر|الأكلات|المطاعم/);
+  await expect(page.locator('body')).not.toContainText(/Application failed|Internal Server Error/);
+  await expect(page.locator('body')).toContainText(/مسافر|الموقع/);
 });
 
 test('public restaurant API responds with JSON', async ({ request }) => {

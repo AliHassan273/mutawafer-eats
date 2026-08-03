@@ -3,6 +3,8 @@ import { ArrowLeft, Clock, MapPin, Bike, User, Phone, CheckCircle, Flame, Dollar
 import { Order, CartItem, Review } from '../types';
 import { lang, getTranslation } from '../translations';
 import { fetchWithRetry } from '../utils/fetchHelper';
+import { supabaseConfigured } from '../lib/supabase';
+import { saveCaptainLocation, removeCaptainLocation } from '../services/supabaseCaptainService';
 
 interface CaptainPageProps {
   currentUser: { id: string; name: string; email?: string; phone: string; role: string };
@@ -83,7 +85,7 @@ export default function CaptainPage({
               : '⚠️ GPS is blocked! Open browser Settings → Privacy → Location → Allow. You cannot accept orders without real GPS.');
             setGpsCoords(null);
             // إزالة مكان الطيار فورًا من خريطة العميل والأدمن.
-            fetchWithRetry('/api/captain/location/offline', { method: 'POST' }).catch(() => {});
+            (supabaseConfigured ? removeCaptainLocation() : fetchWithRetry('/api/captain/location/offline', { method: 'POST' })).catch(() => {});
           },
           { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
@@ -118,15 +120,8 @@ export default function CaptainPage({
     );
     const sendLocation = async () => {
       try {
-        await fetchWithRetry('/api/captain/location', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            lat: gpsCoords.lat,
-            lng: gpsCoords.lng,
-            orderId: activeOrder?.id,
-          }),
-        });
+        if (supabaseConfigured) await saveCaptainLocation({ lat: gpsCoords.lat, lng: gpsCoords.lng, orderId: activeOrder?.id });
+        else await fetchWithRetry('/api/captain/location', { method: 'POST', body: JSON.stringify({ lat: gpsCoords.lat, lng: gpsCoords.lng, orderId: activeOrder?.id }) });
       } catch {}
     };
     sendLocation();

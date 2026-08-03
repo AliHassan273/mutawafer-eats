@@ -5,6 +5,8 @@ import { isRestaurantOpen } from './RestaurantCard';
 import { lang } from '../translations';
 import { fetchWithRetry } from '../utils/fetchHelper';
 import { uploadImageFile } from '../utils/imageUpload';
+import { supabaseConfigured } from '../lib/supabase';
+import { updateMenuItemInSupabase, deleteMenuItemFromSupabase } from '../services/supabaseMenuService';
 
 interface RestaurantDetailProps {
   restaurant: Restaurant;
@@ -204,6 +206,14 @@ export default function RestaurantDetail({
         sizes: dishForm.sizes
       };
 
+      if (supabaseConfigured && editingDishId) {
+        await updateMenuItemInSupabase(editingDishId, formattedDish);
+        if (onRefreshData) await onRefreshData();
+        setIsDishModalOpen(false);
+        setSuccessToast('تم حفظ الصنف بنجاح.');
+        setTimeout(() => setSuccessToast(''), 3000);
+        return;
+      }
       if (editingDishId) {
         // Edit flow
         updatedMenu = updatedMenu.map(d => 
@@ -244,6 +254,14 @@ export default function RestaurantDetail({
     if (!canModifyMenu) return;
 
     try {
+      if (supabaseConfigured) {
+        await deleteMenuItemFromSupabase(itemId);
+        if (onRefreshData) await onRefreshData();
+        setDeleteConfirmDishId(null);
+        setSuccessToast('تم حذف الصنف بنجاح.');
+        setTimeout(() => setSuccessToast(''), 3000);
+        return;
+      }
       const updatedMenu = restaurant.menu.filter(d => d.id !== itemId);
 
       const res = await fetchWithRetry(`/api/restaurants/${restaurant.id}`, {

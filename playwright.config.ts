@@ -11,4 +11,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  ...(process.env.E2E_BASE_URL ? {} : {
+    webServer: { command: 'npm run dev', url: 'http://127.0.0.1:3001/health', reuseExistingServer: true, timeout: 120_000 },
+  }),
 });

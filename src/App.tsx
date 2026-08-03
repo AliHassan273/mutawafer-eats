@@ -20,6 +20,9 @@ import { Restaurant, MenuItem, CartItem, Order, Review } from './types';
 import { lang, getTranslation } from './translations';
 import { useNavigation } from './hooks/useNavigation';
 import { useLoyalty } from './hooks/useLoyalty';
+import { supabaseConfigured } from './lib/supabase';
+import { listRestaurantsFromSupabase, listReviewsFromSupabase, getPublicSettingsFromSupabase } from './services/supabaseRestaurantService';
+import { createOrderInSupabase, listMyOrdersFromSupabase, updateOrderStatusInSupabase } from './services/supabaseOrderService';
 import LoyaltyCard from './components/LoyaltyCard';
 import { useMemo } from 'react';
 
@@ -214,16 +217,11 @@ export default function App() {
   const loadInitialData = async () => {
     try {
       // 1. Fetch Restaurants
-      const res = await fetchWithRetry('/api/restaurants');
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.length > 0) {
-          setRestaurants(data);
-        } else {
-          setRestaurants([]);
-        }
+      if (supabaseConfigured) {
+        setRestaurants(await listRestaurantsFromSupabase());
       } else {
-        setRestaurants([]);
+        const res = await fetchWithRetry('/api/restaurants');
+        if (res.ok) setRestaurants(await res.json()); else setRestaurants([]);
       }
     } catch {
       setRestaurants([]);
@@ -233,10 +231,8 @@ export default function App() {
 
     try {
       // 2. Fetch Settings
-      const setRes = await fetchWithRetry('/api/settings');
-      if (setRes.ok) {
-        const setData = await setRes.json();
-        if (setData) {
+      const setData = supabaseConfigured ? await getPublicSettingsFromSupabase() : await (async () => { const setRes = await fetchWithRetry('/api/settings'); return setRes.ok ? setRes.json() : null; })();
+      if (setData) {
           setSettings(setData);
           if (setData.logoImage) {
             setRestaurants(prev => prev.map(rest => ({
@@ -246,7 +242,6 @@ export default function App() {
             })));
           }
         }
-      }
     } catch (err) {
       console.error("Error fetching settings:", err);
     }
@@ -255,18 +250,12 @@ export default function App() {
       // 3. Fetch orders
       // ✅ اجيب الطلبات من السيرفر وادمجها مع المحفوظة محلياً
       if (currentUser) {
-        const ordRes = await fetchWithRetry('/api/orders');
-        if (ordRes.ok) {
-          const ordData = await ordRes.json();
-          setOrders(prev => {
-            // ادمج الطلبات الجديدة من السيرفر مع المحفوظة محلياً
-            const serverIds = new Set(ordData.map((o: any) => o.id));
-            const localOnly = prev.filter(o => !serverIds.has(o.id));
-            return [...ordData, ...localOnly].sort((a, b) =>
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            );
-          });
-        }
+        const ordData = supabaseConfigured ? await listMyOrdersFromSupabase() : await (async () => { const ordRes = await fetchWithRetry('/api/orders'); return ordRes.ok ? ordRes.json() : []; })();
+        setOrders(prev => {
+          const serverIds = new Set(ordData.map((o: any) => o.id));
+          const localOnly = prev.filter(o => !serverIds.has(o.id));
+          return [...ordData, ...localOnly].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        });
       }
     } catch (err) {
       console.error("Error fetching orders:", err);
@@ -274,10 +263,11 @@ export default function App() {
 
     try {
       // 4. Fetch reviews
-      const revRes = await fetchWithRetry('/api/reviews');
-      if (revRes.ok) {
-        const revData = await revRes.json();
-        setReviews(revData);
+      if (supabaseConfigured) {
+        setReviews(await listReviewsFromSupabase());
+      } else {
+        const revRes = await fetchWithRetry('/api/reviews');
+        if (revRes.ok) setReviews(await revRes.json());
       }
     } catch (err) {
       console.error("Error fetching reviews:", err);
@@ -473,6 +463,11 @@ export default function App() {
     };
 
     try {
+      if (supabaseConfigured) {
+        const persisted = await createOrderInSupabase({ cart, customerName, customerPhone, address: fullDeliveryAddress, paymentMethod, paymentDetails, deliveryFee: calculatedDeliveryFee, additionalRestaurantFee, doorstepFee, discount: itemDiscount, total: totalAmount, eta: 0 });
+        setOrders(prev => [persisted, ...prev]);
+        setSelectedOrder(persisted);
+      } else {
       const res = await fetchWithRetry('/api/orders', {
   method: 'POST',
   body: JSON.stringify({
@@ -519,6 +514,7 @@ export default function App() {
         setOrders((prev) => [newOrder, ...prev]);
         setSelectedOrder(newOrder);
       }
+      }
     } catch (err) {
       console.error("Failed to post order:", err);
       setOrders((prev) => [newOrder, ...prev]);
@@ -538,6 +534,12 @@ export default function App() {
     courierPhone?: string
   ) => {
     try {
+      if (supabaseConfigured) {
+        const updated = await updateOrderStatusInSupabase(orderId, { status: newStatus, courierName, courierPhone });
+        setOrders(prev => prev.map(order => order.id === orderId ? { ...order, status: updated.status, eta: updated.eta, courierName, courierPhone } : order));
+        setSelectedOrder(current => current && current.id === orderId ? { ...current, status: updated.status, eta: updated.eta, courierName, courierPhone } : current);
+        return;
+      }
       const res = await fetchWithRetry(`/api/orders/${orderId}/status`, {
   method: 'PUT',
   body: JSON.stringify({ status: newStatus, courierName, courierPhone }),

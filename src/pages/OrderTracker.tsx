@@ -3,6 +3,9 @@ import { ArrowLeft, Clock, MapPin, Phone, MessageSquare, Check, RotateCw, Bike, 
 import { Order } from '../types';
 import { lang } from '../translations';
 import { fetchWithRetry } from '../utils/fetchHelper';
+import { supabaseConfigured, supabase } from '../lib/supabase';
+import { submitReviewToSupabase } from '../services/supabaseOrderService';
+import { getOrderCaptainLocation } from '../services/supabaseCaptainService';
 
 interface OrderTrackerProps {
   order: Order;
@@ -47,12 +50,12 @@ export default function OrderTracker({
         comment: reviewComment,
       };
 
-      const res = await fetchWithRetry('/api/reviews', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
+      if (supabaseConfigured) {
+        await submitReviewToSupabase(payload);
         setRatedLocally(true);
+      } else {
+        const res = await fetchWithRetry('/api/reviews', { method: 'POST', body: JSON.stringify(payload) });
+        if (res.ok) setRatedLocally(true);
       }
     } catch (err) {
       console.error("Failed to post review in OrderTracker:", err);
@@ -83,10 +86,11 @@ export default function OrderTracker({
     if (currentOrder.status !== 'OutForDelivery') return;
     const fetchLoc = async () => {
       try {
-        const res = await fetchWithRetry('/api/captain/location/' + currentOrder.id);
-        if (res.ok) {
-          const data = await res.json();
-          setCourierLocation(data.location || null);
+        if (supabaseConfigured) {
+          setCourierLocation(await getOrderCaptainLocation(currentOrder.id));
+        } else {
+          const res = await fetchWithRetry('/api/captain/location/' + currentOrder.id);
+          if (res.ok) { const data = await res.json(); setCourierLocation(data.location || null); }
         }
       } catch {}
     };
@@ -94,6 +98,21 @@ export default function OrderTracker({
     const interval = setInterval(fetchLoc, 15000);
     return () => clearInterval(interval);
   }, [currentOrder.id, currentOrder.status]);
+
+  // تحديث الطلب وموقع الطيار عبر Supabase Realtime عند استخدام النظام الجديد.
+  useEffect(() => {
+    if (!supabaseConfigured) return;
+    const channel = supabase.channel(`order-${currentOrder.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${currentOrder.id}` }, payload => {
+        setCurrentOrder(prev => ({ ...prev, ...payload.new, status: (payload.new as any).status, eta: (payload.new as any).eta }));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'captain_locations', filter: `order_id=eq.${currentOrder.id}` }, payload => {
+        const row: any = payload.new;
+        setCourierLocation(payload.eventType === 'DELETE' ? null : { lat: Number(row.lat), lng: Number(row.lng), updatedAt: row.updated_at });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [currentOrder.id]);
 
   // تحديث موقع الطيار وحالة الطلب لحظيًا عبر WebSocket.
   useEffect(() => {

@@ -13,6 +13,12 @@ import AdminCategories from '../components/admin/AdminCategories';
 import AdminLoyalty from '../components/admin/AdminLoyalty';
 import AdminPermissions from '../components/admin/AdminPermissions';
 import AdminSettings from '../components/admin/AdminSettings';
+import AdminStatistics from '../components/admin/AdminStatistics';
+import { supabaseConfigured } from '../lib/supabase';
+import { saveRestaurantInSupabase, deleteRestaurantInSupabase, listAdminOrdersFromSupabase, listCaptainsFromSupabase, listAdminProfilesFromSupabase, updateProfilePermissionsInSupabase, updateCaptainStatusInSupabase, createAdminInSupabase, deleteAdminInSupabase, listLoyaltyCustomersFromSupabase, deleteCaptainInSupabase } from '../services/supabaseAdminService';
+import { saveSettingsToSupabase, getSettingsFromSupabase } from '../services/supabaseSettingsService';
+import { updateOrderStatusInSupabase } from '../services/supabaseOrderService';
+import { addMenuItemsToSupabase } from '../services/supabaseMenuService';
 import AdminOrders from '../components/admin/AdminOrders';
 import AdminCaptains from '../components/admin/AdminCaptains';
 
@@ -167,6 +173,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
   const fetchCaptainsList = async () => {
     try {
+      if (supabaseConfigured) { setCaptains(await listCaptainsFromSupabase()); return; }
       const res = await fetchWithRetry("/api/captains");
       if (res.ok) {
         const data = await res.json();
@@ -179,27 +186,20 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
   const fetchAdminsAndSettings = async () => {
     try {
-      const loyaltyRes = await fetchWithRetry("/api/loyalty/customers");
-      if (loyaltyRes.ok) setLoyaltyCustomers(await loyaltyRes.json());
+      if (supabaseConfigured) setLoyaltyCustomers(await listLoyaltyCustomersFromSupabase(rewardOrderThreshold));
+      else { const loyaltyRes = await fetchWithRetry("/api/loyalty/customers"); if (loyaltyRes.ok) setLoyaltyCustomers(await loyaltyRes.json()); }
     } catch {}
     try {
-      const adRes = await fetchWithRetry("/api/admins");
-      if (adRes.ok) {
-        const adData = await adRes.json();
-        setAdminsList(adData);
-
-        if (adData && adData.length > 0) {
-          setCurrentAdmin((prev: any) => {
-            if (prev) {
-              const synced = adData.find((a: any) => a.id === prev.id);
-              if (synced) {
-                localStorage.setItem("mutafer_logged_in_admin", JSON.stringify(synced));
-                return synced;
-              }
-            }
-            return prev;
-          });
-        }
+      const adData: any[] = supabaseConfigured
+        ? (await listAdminProfilesFromSupabase()).map((item: any) => ({ ...item, canManageRestaurants: item.can_manage_restaurants, canManageMenu: item.can_manage_menu, canUseAIScanner: item.can_use_ai_scanner }))
+        : await (async () => { const adRes = await fetchWithRetry("/api/admins"); return adRes.ok ? adRes.json() : []; })();
+      setAdminsList(adData);
+      if (adData.length > 0) {
+        setCurrentAdmin((prev: any) => {
+          const synced = prev && adData.find((a: any) => a.id === prev.id);
+          if (synced) localStorage.setItem("mutafer_logged_in_admin", JSON.stringify(synced));
+          return synced || prev;
+        });
       }
     } catch (err) {
       console.error("Error loading admin accounts:", err);
@@ -275,10 +275,10 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     }
 
     try {
+      if (supabaseConfigured) { setOrdersList(await listAdminOrdersFromSupabase()); }
+      else {
       const ordRes = await fetchWithRetry("/api/orders");
-      if (ordRes.ok) {
-        const ordData = await ordRes.json();
-        setOrdersList(ordData);
+      if (ordRes.ok) { const ordData = await ordRes.json(); setOrdersList(ordData); }
       }
     } catch (err) {
       console.error("Error loading admin orders:", err);
@@ -305,6 +305,11 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     }
     setIsUpdatingSettings(true);
     try {
+      if (supabaseConfigured) {
+        await saveSettingsToSupabase({ whatsappNumber: whatsappNumberSetting, deliveryPricingType, distanceBaseFee: Number(distanceBaseFee) || 0, distanceFeePerKm: Number(distanceFeePerKm) || 0, deliveryCommissionType, deliveryCommissionValue: Number(deliveryCommissionValue) || 0, aboutUsContent: aboutUsContentSetting, logoImage: logoImageSetting, deliveryOptions, coupons: couponsList, categories: categoriesList, rewardOrderThreshold: Math.max(1, Number(rewardOrderThreshold) || 10) });
+        triggerSuccess('تم حفظ الإعدادات على Supabase.');
+        return;
+      }
       const response = await fetchWithRetry("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -476,6 +481,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
   const handleUpdateOrderCourierStatus = async (orderId: string, status: 'Pending' | 'Received' | 'Preparing' | 'OutForDelivery' | 'Delivered') => {
     try {
+      if (supabaseConfigured) { const updated = await updateOrderStatusInSupabase(orderId, { status }); setOrdersList(prev => prev.map(o => o.id === orderId ? { ...o, ...updated } : o)); triggerSuccess('تم تحديث حالة الطلب على Supabase.'); return; }
       const res = await fetchWithRetry(`/api/orders/${orderId}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -497,6 +503,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
   const handleUpdateOrderFullStatus = async (orderId: string, payload: any) => {
     try {
+      if (supabaseConfigured) { const updated = await updateOrderStatusInSupabase(orderId, payload); setOrdersList(prev => prev.map(o => o.id === orderId ? { ...o, ...updated } : o)); triggerSuccess('تم تحديث بيانات الطلب على Supabase.'); return; }
       const res = await fetchWithRetry(`/api/orders/${orderId}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -531,9 +538,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   const handleDeleteCaptain = async (id: string, name: string) => {
     if (!window.confirm(`هل أنت متأكد من حذف حساب الكابتن "${name}" نهائياً من السيستيم؟`)) return;
     try {
-      const res = await fetchWithRetry(`/api/captains/${id}`, {
-        method: "DELETE"
-      });
+      if (supabaseConfigured) { await deleteCaptainInSupabase(id); triggerSuccess('تم حذف حساب الطيار من Supabase.'); await fetchCaptainsList(); return; }
+      const res = await fetchWithRetry(`/api/captains/${id}`, { method: "DELETE" });
       if (res.ok) {
         triggerSuccess("تم حذف الكابتن نهائياً بنجاح! 🗑️");
         fetchCaptainsList();
@@ -545,6 +551,14 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
   const handleUpdateAdminFlags = async (updatedList: any[]) => {
     try {
+      if (supabaseConfigured) {
+        for (const admin of updatedList.filter((item: any) => item.role !== 'primary')) {
+          await updateProfilePermissionsInSupabase(admin.id, admin);
+        }
+        setAdminsList(updatedList);
+        triggerSuccess("تم تحديث صلاحيات المشرفين على Supabase.");
+        return;
+      }
       const response = await fetchWithRetry("/api/admins", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -589,6 +603,12 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
     const updated = [...adminsList, newAdmin];
     try {
+      if (supabaseConfigured) {
+        await createAdminInSupabase({ name: newAdmin.name, email: newAdmin.email, password: newAdmin.password, canManageRestaurants: newAdmin.canManageRestaurants, canManageMenu: newAdmin.canManageMenu, canUseAIScanner: newAdmin.canUseAIScanner });
+        setAdminsList([...adminsList, { ...newAdmin, password: undefined }]);
+        triggerSuccess('تم إنشاء الأدمن على Supabase.');
+        return;
+      }
       const response = await fetchWithRetry("/api/admins", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -619,6 +639,11 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     }
 
     const updated = adminsList.filter(a => a.id !== adminId);
+    if (supabaseConfigured) {
+      try { await deleteAdminInSupabase(adminId); setAdminsList(list => list.filter(admin => admin.id !== adminId)); triggerSuccess('تم حذف الأدمن من Supabase.'); } catch (error: any) { alert(error.message); }
+      return;
+    }
+
     try {
       const response = await fetchWithRetry("/api/admins", {
         method: "PUT",
@@ -913,6 +938,15 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         whatsappNumber: restForm.whatsappNumber || ""
       };
 
+      if (supabaseConfigured) {
+        await saveRestaurantInSupabase(formattedData, editingRestId || undefined);
+        await onRefreshData();
+        setIsCreatingRest(false);
+        setEditingRestId(null);
+        triggerSuccess(t("statusSaved"));
+        return;
+      }
+
       let url = "/api/restaurants";
       let method = "POST";
 
@@ -961,6 +995,13 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     }
 
     try {
+      if (supabaseConfigured) {
+        await deleteRestaurantInSupabase(restId);
+        await onRefreshData();
+        setSelectedRestId(restaurants[0]?.id || "");
+        triggerSuccess(t("statusDeleted"));
+        return;
+      }
       const res = await fetchWithRetry(`/api/restaurants/${restId}`, {
         method: "DELETE"
       });
@@ -987,6 +1028,13 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     if (!selectedRestId) return;
 
     try {
+      if (supabaseConfigured) {
+        await addMenuItemsToSupabase(selectedRestId, [manualItemForm]);
+        await onRefreshData();
+        setManualItemForm({ name: "", description: "", price: 100, category: "أصناف متنوعة", image: logoImageSetting || "/logo.png" });
+        triggerSuccess('تمت إضافة الصنف بنجاح.');
+        return;
+      }
       const response = await fetchWithRetry(`/api/restaurants/${selectedRestId}/menu`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1031,7 +1079,15 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       // إرسال دفعات صغيرة يمنع فشل HTTP/2 عندما تكون صور المنيو أو اللوجو كبيرة.
       for (let start = 0; start < itemsToImport.length; start += 5) {
         const batch = itemsToImport.slice(start, start + 5);
-        const response = await fetchWithRetry(`/api/restaurants/${selectedRestId}/menu`, {
+        if (supabaseConfigured) {
+        await addMenuItemsToSupabase(selectedRestId, itemsToImport);
+        await onRefreshData();
+        setExtractedItems([]);
+        setFileName(null);
+        triggerSuccess(t("addedSuccess"));
+        return;
+      }
+      const response = await fetchWithRetry(`/api/restaurants/${selectedRestId}/menu`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(batch)
@@ -1408,6 +1464,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           <span className="text-xs sm:text-sm font-bold">{successMsg}</span>
         </div>
       )}
+
+      <AdminStatistics orders={ordersList} restaurants={restaurants} />
 
       {/* PREMIUM CHROME TAB BAR SWITCHER */}
       <div className="flex border-b border-slate-205 gap-1.5 overflow-x-auto no-scrollbar pb-1">

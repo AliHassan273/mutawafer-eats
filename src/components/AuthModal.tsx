@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, User, Mail, Phone, Lock, Eye, EyeOff, Check } from 'lucide-react';
 import { saveToken } from '../utils/fetchHelper';
 import { lang, getTranslation } from '../translations';
+import { supabaseConfigured } from '../lib/supabase';
+import { signInWithSupabase, signUpWithSupabase } from '../services/supabaseAuthService';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -145,6 +147,30 @@ export default function AuthModal({
     setLoading(true);
 
     try {
+      if (supabaseConfigured) {
+        if (!email.trim() || !password.trim() || (mode === 'register' && (!name.trim() || !phone.trim()))) {
+          setErrorText('من فضلك أكمل البريد الإلكتروني وكلمة المرور والبيانات المطلوبة.');
+          setLoading(false);
+          return;
+        }
+        if (mode === 'register') {
+          const result = await signUpWithSupabase({ name, email, phone, password, role });
+          if (!result.session) {
+            setSuccessText('تم إنشاء الحساب. راجع بريدك الإلكتروني لتأكيد الحساب ثم سجّل الدخول.');
+            setLoading(false);
+            return;
+          }
+          onSuccess({ id: result.user.id, name, email, phone, role, status: role === 'captain' ? 'pending' : 'approved' });
+        } else {
+          const profile: any = await signInWithSupabase(email, password);
+          if (profile.role === 'captain' && profile.status !== 'approved') throw new Error('حساب الطيار لم تتم الموافقة عليه بعد.');
+          onSuccess({ id: profile.id, name: profile.name, email: profile.email, phone: profile.phone, role: profile.role, status: profile.status });
+        }
+        onClose();
+        resetForm();
+        setLoading(false);
+        return;
+      }
       if (mode === 'register') {
         if (!name.trim() || !phone.trim() || !password.trim() || !email.trim()) {
           setErrorText(isAr ? 'الرجاء ملء جميع الحقول.' : 'Please fill all fields.');
