@@ -76,10 +76,7 @@ export default function CartSidebar({
   // Free delivery limit is 300 EGP as proper standard limit
   const deliveryFee = 0; 
 
-  const activeCoupons = coupons && coupons.length > 0 ? coupons : [
-    { id: "cp_1", code: "FIRST50", discountType: "percentage" as const, discountValue: 50, minOrder: 0, isActive: true },
-    { id: "cp_2", code: "EATS10", discountType: "flat" as const, discountValue: 30, minOrder: 150, isActive: true }
-  ];
+  const activeCoupons = coupons || [];
 
   const getDiscount = () => {
     if (!appliedPromo) return 0;
