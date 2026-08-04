@@ -74,7 +74,7 @@ export default function CartSidebar({
   const subtotal = cart.reduce((total, item) => total + ((item.selectedSize ? item.selectedSize.price : item.menuItem.price) * item.quantity), 0);
   
   // Free delivery limit is 300 EGP as proper standard limit
-  const deliveryFee = cart.length > 0 ? (subtotal > 300 ? 0 : 25) : 0; 
+  const deliveryFee = 0; 
 
   const activeCoupons = coupons && coupons.length > 0 ? coupons : [
     { id: "cp_1", code: "FIRST50", discountType: "percentage" as const, discountValue: 50, minOrder: 0, isActive: true },
@@ -94,7 +94,7 @@ export default function CartSidebar({
   };
 
   const discount = getDiscount();
-  const finalTotal = Math.max(0, subtotal + deliveryFee - discount);
+  const finalTotal = Math.max(0, subtotal - discount);
 
   const handleApplyPromo = () => {
     const sanitized = promoCode.trim().toUpperCase();
@@ -352,11 +352,6 @@ export default function CartSidebar({
                     <span>-{discount.toFixed(0)} {t('egp')}</span>
                   </div>
                 )}
-
-                <div className="flex justify-between font-medium text-slate-500">
-                  <span>{isAr ? 'حساب الدليفري' : 'Delivery Fee'}</span>
-                  <span>{deliveryFee === 0 ? (isAr ? 'رسوم غير محددة' : 'Not set') : `${deliveryFee.toFixed(0)} ${t('egp')}`}</span>
-                </div>
 
                 <div className="flex justify-between font-extrabold text-[#0f172a] text-sm sm:text-base pt-1">
                   <span>{isAr ? 'الحساب كلو' : 'Total Amount'}</span>

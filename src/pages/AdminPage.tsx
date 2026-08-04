@@ -927,8 +927,6 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         coverImage: restForm.coverImage || logoImageSetting || "/logo.png",
         categories: editingRestId ? (restaurants.find(r => r.id === editingRestId)?.categories || []) : [],
         promo: restForm.promo || undefined,
-        deliveryFee: Number(restForm.deliveryFee) || 0,
-        deliveryTime: restForm.deliveryTime,
         rating: Number(restForm.rating) || 4.5,
         distance: Number(restForm.distance) || 1.0,
         descriptionString: restForm.descriptionString,

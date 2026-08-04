@@ -1,4 +1,13 @@
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
     const { data, mimeType = 'image/jpeg', fileName = 'image' } = await req.json();
     const cloud = Deno.env.get('CLOUDINARY_CLOUD_NAME');
@@ -15,6 +24,6 @@ Deno.serve(async (req) => {
     if (!response.ok) return new Response(JSON.stringify({ error: result.error?.message || 'فشل رفع الصورة.' }), { status: 502 });
     return new Response(JSON.stringify({ url: result.secure_url, publicId: result.public_id }), { headers: { 'Content-Type': 'application/json' } });
   } catch (error) {
-    return new Response(JSON.stringify({ error: String(error) }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: String(error) }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });

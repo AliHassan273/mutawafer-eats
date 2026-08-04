@@ -391,22 +391,6 @@ export default function RestaurantDetail({
                 <Star className="h-4 w-4 fill-current text-green-500 shrink-0" />
               </div>
             </div>
-
-            <div className={`flex flex-col ${isAr ? 'border-r pr-6' : 'border-l pl-6'} border-slate-100`}>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('deliveryTime')}</span>
-              <div className="flex items-center gap-1.5 mt-0.5 text-[#0f172a] font-extrabold text-sm font-display">
-                <Clock className="h-4 w-4 text-[#f94c10] shrink-0" />
-                <span>{restaurant.deliveryTime.replace('min', t('min'))}</span>
-              </div>
-            </div>
-
-            <div className={`flex flex-col ${isAr ? 'border-r pr-6' : 'border-l pl-6'} border-slate-100`}>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('deliveryFee')}</span>
-              <div className="flex items-center gap-1.5 mt-0.5 text-slate-705 font-extrabold text-sm font-display">
-                <Truck className="h-4 w-4 text-green-500 shrink-0" />
-                <span>{restaurant.deliveryFee === 0 ? t('freeDelivery') : `${restaurant.deliveryFee.toFixed(0)} ${t('egp')}`}</span>
-              </div>
-            </div>
           </div>
 
           {/* Micro Search within Menu */}

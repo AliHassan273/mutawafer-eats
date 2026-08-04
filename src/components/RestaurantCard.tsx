@@ -134,7 +134,7 @@ export default function RestaurantCard({
 
         {/* Soft tag for ETA / distance */}
         <div className={`absolute bottom-4 ${'right-4'} bg-slate-900/50 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-lg`}>
-          {restaurant.distance} {t('km')} • {restaurant.deliveryTime}
+          {restaurant.distance} {t('km')}
         </div>
       </div>
 
@@ -159,13 +159,7 @@ export default function RestaurantCard({
             <span className="capitalize">{getLocalizedCategories()}</span>
           </div>
 
-          <div>
-            {restaurant.deliveryFee === 0 ? (
-              <span className="text-green-600 font-bold uppercase">{t('freeDelivery')}</span>
-            ) : (
-              <span>{t('deliveryFee')}: {restaurant.deliveryFee.toFixed(0)} {t('egp')}</span>
-            )}
-          </div>
+
         </div>
       </div>
     </div>
