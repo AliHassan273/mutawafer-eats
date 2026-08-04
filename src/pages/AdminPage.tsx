@@ -17,7 +17,7 @@ import AdminStatistics from '../components/admin/AdminStatistics';
 import { supabaseConfigured, supabase } from '../lib/supabase';
 import { signInWithSupabase } from '../services/supabaseAuthService';
 import { saveRestaurantInSupabase, deleteRestaurantInSupabase, listAdminOrdersFromSupabase, listCaptainsFromSupabase, listAdminProfilesFromSupabase, updateProfilePermissionsInSupabase, updateCaptainStatusInSupabase, createAdminInSupabase, deleteAdminInSupabase, listLoyaltyCustomersFromSupabase, deleteCaptainInSupabase } from '../services/supabaseAdminService';
-import { saveSettingsToSupabase, getSettingsFromSupabase } from '../services/supabaseSettingsService';
+import { saveSettingsToSupabase, getSettingsFromSupabase, deleteCategoryAndItemsFromSupabase } from '../services/supabaseSettingsService';
 import { updateOrderStatusInSupabase } from '../services/supabaseOrderService';
 import { addMenuItemsToSupabase } from '../services/supabaseMenuService';
 import AdminOrders from '../components/admin/AdminOrders';
@@ -152,6 +152,16 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   const [captainLocations, setCaptainLocations] = useState<any[]>([]);
   const [expandedCaptainReviews, setExpandedCaptainReviews] = useState<string | null>(null);
   const [adminTab, setAdminTab] = useState<'stores' | 'orders' | 'captains' | 'settings'>(() => (sessionStorage.getItem('mutafer_admin_tab') as any) || 'stores');
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!window.confirm('سيتم حذف التصنيف وكل الأصناف التابعة له. هل تريد المتابعة؟')) return;
+    if (supabaseConfigured) {
+      await deleteCategoryAndItemsFromSupabase(categoryId);
+    }
+    setCategoriesList(list => list.filter(category => category.id !== categoryId));
+    triggerSuccess('تم حذف التصنيف والأصناف التابعة له.');
+    setTimeout(refreshAdminPage, 500);
+  };
 
   const refreshAdminPage = () => {
     sessionStorage.setItem('mutafer_admin_tab', adminTab);
@@ -300,6 +310,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       if (supabaseConfigured) {
         await saveSettingsToSupabase({ whatsappNumber: whatsappNumberSetting, deliveryPricingType, distanceBaseFee: Number(distanceBaseFee) || 0, distanceFeePerKm: Number(distanceFeePerKm) || 0, deliveryCommissionType, deliveryCommissionValue: Number(deliveryCommissionValue) || 0, aboutUsContent: aboutUsContentSetting, logoImage: logoImageSetting, deliveryOptions, coupons: couponsList, categories: categoriesList, rewardOrderThreshold: Math.max(1, Number(rewardOrderThreshold) || 10) });
         triggerSuccess('تم حفظ الإعدادات على Supabase.');
+        setTimeout(refreshAdminPage, 500);
         return;
       }
       const response = await fetchWithRetry("/api/settings", {
@@ -2314,7 +2325,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
       <AdminCaptains ctx={{RestaurantMenuDropdown, aboutUsContentSetting, activeDishDropdownId, activeRestaurant, activeStoreDropdownId, adminEmail, adminLoginError, adminLoginLoading, adminPassword, adminTab, adminsList, aiError, aiLoading, aiWarning, captainLocations, captains, categoriesList, couponsList, currentAdmin, customInstructions, deleteConfirmAdminId, deleteConfirmDishId, deleteConfirmRestId, deliveryCommissionType, deliveryCommissionValue, deliveryOptions, deliveryPricingType, distanceBaseFee, distanceFeePerKm, dragActive, editingRestId, expandedCaptainReviews, extractedItems, fetchAdminsAndSettings, fetchCaptainsList, fileInputRef, fileName, handleAddCoupon, handleAddDeliveryOption, handleAddManualMenuItem, handleAdminLogin, handleAdminLogout, handleAdminRegister, handleCreateNewAdmin, handleDeleteAdmin, handleDeleteCaptain, handleDeleteCoupon, handleDeleteDeliveryOption, handleDeleteRestaurant, handleDrag, handleDrop, handleFileChange, handleFileParse, handleImportExtracted, handleSaveRestaurant, handleSaveSettings, handleScrollToRestaurantForm, handleSetEditRestaurant, handleSettingChange, handleToggleAdminPermission, handleToggleCoupon, handleUpdateAdminFlags, handleUpdateCaptainStatus, handleUpdateOrderCourierStatus, handleUpdateOrderFullStatus, isAdminRegisterMode, isAr, isCreatingRest, isUpdatingSettings, logoImageSetting, loyaltyCustomers, manualItemForm, newAdminForm, newCatIcon, newCatId, newCatName, newCatNameAr, newCouponCode, newCouponMinOrder, newCouponType, newCouponValue, newRegionFee, newRegionName, officeLat, officeLng, onBack, onNavigateCaptain, onRefreshData, ordersList, registerEmail, registerName, registerPassword, restForm, restaurants, reviews, rewardOrderThreshold, selectedFile, selectedImportItems, selectedRestId, setAboutUsContentSetting, setActiveDishDropdownId, setActiveStoreDropdownId, setAdminEmail, setAdminLoginError, setAdminLoginLoading, setAdminPassword, setAdminTab, setAdminsList, setAiError, setAiLoading, setAiWarning, setCaptainLocations, setCaptains, setCategoriesList, setCouponsList, setCurrentAdmin, setCustomInstructions, setDeleteConfirmAdminId, setDeleteConfirmDishId, setDeleteConfirmRestId, setDeliveryCommissionType, setDeliveryCommissionValue, setDeliveryOptions, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDragActive, setEditingRestId, setExpandedCaptainReviews, setExtractedItems, setFileName, setIsAdminRegisterMode, setIsCreatingRest, setIsUpdatingSettings, setLogoImageSetting, setLoyaltyCustomers, setManualItemForm, setNewAdminForm, setNewCatIcon, setNewCatId, setNewCatName, setNewCatNameAr, setNewCouponCode, setNewCouponMinOrder, setNewCouponType, setNewCouponValue, setNewRegionFee, setNewRegionName, setOfficeLat, setOfficeLng, setOrdersList, setRegisterEmail, setRegisterName, setRegisterPassword, setRestForm, setRewardOrderThreshold, setSelectedFile, setSelectedImportItems, setSelectedRestId, setSettingsExtra, setSuccessMsg, setWhatsappNumberSetting, settings, settingsExtra, successMsg, t, triggerSuccess, whatsappNumberSetting}} />
 
-      <AdminSettings ctx={{restaurants, onBack, onRefreshData, onAdminLogin, onAdminLogout, reviews, adminsList, currentAdmin, rewardOrderThreshold, setRewardOrderThreshold, loyaltyCustomers, categoriesList, setCategoriesList, newCatId, setNewCatId, newCatNameAr, setNewCatNameAr, newCatIcon, setNewCatIcon, triggerSuccess, adminTab, whatsappNumberSetting, deliveryPricingType, distanceBaseFee, distanceFeePerKm, deliveryCommissionType, deliveryCommissionValue, aboutUsContentSetting, logoImageSetting, deliveryOptions, couponsList, isUpdatingSettings, handleSaveSettings, handleAddDeliveryOption, handleDeleteDeliveryOption, handleAddCoupon, handleToggleCoupon, handleDeleteCoupon, setWhatsappNumberSetting, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDeliveryCommissionType, setDeliveryCommissionValue, setAboutUsContentSetting, setLogoImageSetting, setDeliveryOptions, setCouponsList, handleSettingChange, settings, settingsExtra, officeLat, officeLng}} />
+      <AdminSettings ctx={{restaurants, onBack, onRefreshData, onAdminLogin, onAdminLogout, reviews, adminsList, currentAdmin, rewardOrderThreshold, setRewardOrderThreshold, loyaltyCustomers, categoriesList, setCategoriesList, newCatId, setNewCatId, newCatNameAr, setNewCatNameAr, newCatIcon, setNewCatIcon, triggerSuccess, refreshAdminPage, handleDeleteCategory, adminTab, whatsappNumberSetting, deliveryPricingType, distanceBaseFee, distanceFeePerKm, deliveryCommissionType, deliveryCommissionValue, aboutUsContentSetting, logoImageSetting, deliveryOptions, couponsList, isUpdatingSettings, handleSaveSettings, handleAddDeliveryOption, handleDeleteDeliveryOption, handleAddCoupon, handleToggleCoupon, handleDeleteCoupon, setWhatsappNumberSetting, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDeliveryCommissionType, setDeliveryCommissionValue, setAboutUsContentSetting, setLogoImageSetting, setDeliveryOptions, setCouponsList, handleSettingChange, settings, settingsExtra, officeLat, officeLng}} />
 
       {deleteConfirmRestId && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
