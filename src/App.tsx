@@ -601,7 +601,12 @@ export default function App() {
     return (categoryAliases[t] || []).map(normalizeCategory).includes(v) ||
       (categoryAliases[v] || []).map(normalizeCategory).includes(t);
   };
-  const isCategoryVisible = (id: string) => id === 'all' || !settings.categories?.some((category: any) => category.id === id && category.visible === false);
+  const isCategoryVisible = (value: string) => {
+    if (value === 'all') return true;
+    const categories = settings.categories || [];
+    const category = categories.find((item: any) => [item.id, item.name, item.nameAr].some((name: any) => normalizeCategory(name) === normalizeCategory(value)));
+    return !category || category.visible !== false;
+  };
 
   // Filter restaurants list based on category and search query
   const filteredRestaurants = restaurants.filter((rest) => {
@@ -668,7 +673,7 @@ export default function App() {
       }
       if (matchesCategory && rest.menu) {
         rest.menu.forEach((item) => {
-          if (settings.categories?.some((category: any) => category.id === item.category && category.visible === false)) return;
+          if (!isCategoryVisible(item.category)) return;
           if (!isCategoryVisible(item.category)) return;
           const matchesName = item.name.toLowerCase().includes(query) || 
                               (item.description && item.description.toLowerCase().includes(query)) ||
@@ -763,7 +768,7 @@ export default function App() {
     restaurants.forEach((rest) => {
       if (rest.menu && Array.isArray(rest.menu)) {
         rest.menu.forEach((item) => {
-          if (settings.categories?.some((category: any) => category.id === item.category && category.visible === false)) return;
+          if (!isCategoryVisible(item.category)) return;
           allDishesMap[item.id] = { item, restaurant: rest };
         });
       }
