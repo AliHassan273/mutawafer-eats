@@ -273,7 +273,7 @@ export default function AdminSettings({ ctx }: { ctx: any }) {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        uploadImageFile(file).then(url => setLogoImageSetting(url)).catch(err => setSuccessMsg(err.message));
+                        uploadImageFile(file).then(url => setLogoImageSetting(url)).catch(err => triggerSuccess(err.message));
                       }
                     }}
                     className="w-full text-xs font-medium text-slate-700"

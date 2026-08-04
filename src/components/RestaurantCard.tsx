@@ -132,10 +132,6 @@ export default function RestaurantCard({
           </div>
         )}
 
-        {/* Soft tag for ETA / distance */}
-        <div className={`absolute bottom-4 ${'right-4'} bg-slate-900/50 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-lg`}>
-          {restaurant.distance} {t('km')}
-        </div>
       </div>
 
       {/* Information Row */}
