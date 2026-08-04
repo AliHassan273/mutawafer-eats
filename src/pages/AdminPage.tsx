@@ -207,10 +207,10 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     }
 
     try {
-      const setRes = await fetchWithRetry("/api/settings");
-      if (setRes.ok) {
-        const setData = await setRes.json();
-        if (setData) {
+      const setData = supabaseConfigured
+        ? await getSettingsFromSupabase()
+        : await (async () => { const res = await fetchWithRetry("/api/settings"); return res.ok ? res.json() : null; })();
+      if (setData) {
           if (setData.rewardOrderThreshold !== undefined) setRewardOrderThreshold(Number(setData.rewardOrderThreshold) || 10);
           if (setData.whatsappNumber) {
             setWhatsappNumberSetting(setData.whatsappNumber);
@@ -270,7 +270,6 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
             ]);
           }
         }
-      }
     } catch (err) {
       console.error("Error loading settings:", err);
     }
@@ -668,8 +667,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     coverImage: "",
     categories: "",
     promo: "",
-    deliveryFee: 15,
-    deliveryTime: "15-25 min",
+    deliveryFee: 0,
+    deliveryTime: "",
     rating: 4.8,
     distance: 1.2,
     descriptionString: "",
@@ -973,8 +972,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           coverImage: "",
           categories: "",
           promo: "",
-          deliveryFee: 15,
-          deliveryTime: "15-25 min",
+          deliveryFee: 0,
+          deliveryTime: "",
           rating: 4.8,
           distance: 1.2,
           descriptionString: "",
@@ -1138,8 +1137,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       coverImage: "",
       categories: "",
       promo: "",
-      deliveryFee: 15,
-      deliveryTime: "15-25 min",
+      deliveryFee: 0,
+      deliveryTime: "",
       rating: 4.8,
       distance: 1.2,
       descriptionString: "",
@@ -1593,26 +1592,6 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
               placeholder="FREE DELIVERY or 50% OFF"
               value={restForm.promo}
               onChange={(e) => setRestForm({ ...restForm, promo: e.target.value })}
-              className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2.5 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-orange-500"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-600">{t("deliveryTime")}</label>
-            <input
-              type="text"
-              value={restForm.deliveryTime}
-              onChange={(e) => setRestForm({ ...restForm, deliveryTime: e.target.value })}
-              className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2.5 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-orange-500"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-600">{t("deliveryFee")} ({t("egp")})</label>
-            <input
-              type="number"
-              value={restForm.deliveryFee}
-              onChange={(e) => setRestForm({ ...restForm, deliveryFee: Number(e.target.value) })}
               className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2.5 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-orange-500"
             />
           </div>
