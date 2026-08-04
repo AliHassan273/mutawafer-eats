@@ -9,6 +9,8 @@ export async function getSettingsFromSupabase() {
 }
 
 export async function saveSettingsToSupabase(value: any) {
-  const { error } = await supabase.from('settings').upsert({ key: 'main', value, updated_at: new Date().toISOString() });
+  const { data: current } = await supabase.from('settings').select('value').eq('key', 'main').maybeSingle();
+  const merged = { ...(current?.value || {}), ...value };
+  const { error } = await supabase.from('settings').upsert({ key: 'main', value: merged, updated_at: new Date().toISOString() });
   if (error) throw error;
 }

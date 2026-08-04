@@ -668,6 +668,7 @@ export default function App() {
       }
       if (matchesCategory && rest.menu) {
         rest.menu.forEach((item) => {
+          if (!isCategoryVisible(item.category)) return;
           const matchesName = item.name.toLowerCase().includes(query) || 
                               (item.description && item.description.toLowerCase().includes(query)) ||
                               (item.category && item.category.toLowerCase().includes(query));
