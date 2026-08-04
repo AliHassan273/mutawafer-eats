@@ -668,6 +668,7 @@ export default function App() {
       }
       if (matchesCategory && rest.menu) {
         rest.menu.forEach((item) => {
+          if (settings.categories?.some((category: any) => category.id === item.category && category.visible === false)) return;
           if (!isCategoryVisible(item.category)) return;
           const matchesName = item.name.toLowerCase().includes(query) || 
                               (item.description && item.description.toLowerCase().includes(query)) ||
@@ -762,6 +763,7 @@ export default function App() {
     restaurants.forEach((rest) => {
       if (rest.menu && Array.isArray(rest.menu)) {
         rest.menu.forEach((item) => {
+          if (settings.categories?.some((category: any) => category.id === item.category && category.visible === false)) return;
           allDishesMap[item.id] = { item, restaurant: rest };
         });
       }
