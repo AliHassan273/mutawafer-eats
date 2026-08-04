@@ -14,7 +14,7 @@ import AdminLoyalty from '../components/admin/AdminLoyalty';
 import AdminPermissions from '../components/admin/AdminPermissions';
 import AdminSettings from '../components/admin/AdminSettings';
 import AdminStatistics from '../components/admin/AdminStatistics';
-import { supabaseConfigured } from '../lib/supabase';
+import { supabaseConfigured, supabase } from '../lib/supabase';
 import { signInWithSupabase } from '../services/supabaseAuthService';
 import { saveRestaurantInSupabase, deleteRestaurantInSupabase, listAdminOrdersFromSupabase, listCaptainsFromSupabase, listAdminProfilesFromSupabase, updateProfilePermissionsInSupabase, updateCaptainStatusInSupabase, createAdminInSupabase, deleteAdminInSupabase, listLoyaltyCustomersFromSupabase, deleteCaptainInSupabase } from '../services/supabaseAdminService';
 import { saveSettingsToSupabase, getSettingsFromSupabase } from '../services/supabaseSettingsService';
@@ -844,18 +844,17 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         const base64Content = dataUrl.split(",")[1];
         const mimeType = file.type;
 
-        const response = await fetchWithRetry("/api/gemini/parse-menu", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileData: base64Content,
-            mimeType,
-            fileName: file.name,
-            customInstructions: customInstructions
-          })
-        });
-
-        const data = await response.json();
+        let data: any;
+        if (supabaseConfigured) {
+          const result = await supabase.functions.invoke('parse-menu', { body: { fileData: base64Content, mimeType, fileName: file.name, customInstructions } });
+          if (result.error) throw result.error;
+          data = result.data;
+        } else {
+          const response = await fetchWithRetry("/api/gemini/parse-menu", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileData: base64Content, mimeType, fileName: file.name, customInstructions }) });
+          const raw = await response.text();
+          try { data = JSON.parse(raw); } catch { throw new Error(`استجابة غير صالحة من الخادم (${response.status}).`); }
+          if (!response.ok) throw new Error(data.error || 'فشل تحليل المنيو.');
+        }
         if (data.success && Array.isArray(data.items)) {
           setExtractedItems(data.items);
           // إضافة الأقسام التي اكتشفها AI تلقائيًا إلى قائمة فلاتر الصفحة الرئيسية.
