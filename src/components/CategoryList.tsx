@@ -9,32 +9,7 @@ interface CategoryListProps {
   categories?: { id: string; name: string; nameAr: string; icon: string }[];
 }
 
-const CATEGORY_NAMES_MAP = {
-  en: {
-    all: 'All Eats',
-    burgers: 'Burgers',
-    pizza: 'Pizza',
-    salads: 'Salads',
-    sushi: 'Sushi',
-    ramen: 'Ramen',
-    dessert: 'Dessert',
-    drinks: 'Drinks',
-    sides: 'Sides',
-    offers: 'Special Offers'
-  },
-  ar: {
-    all: 'كل الأكلات 🍽️',
-    burgers: 'برجر بجمدان 🍔',
-    pizza: 'بيتزا حكاية 🍕',
-    salads: 'سلطات فريش 🥗',
-    sushi: 'سوشي دلع 🍣',
-    ramen: 'رامين ياباني 🍜',
-    dessert: 'حلويات وفرفشة 🍦',
-    drinks: 'مشروبات منعشة 🥤',
-    sides: 'مقبلات جانبية 🍟',
-    offers: 'عروض دمار 🏷️'
-  }
-};
+const CATEGORY_NAMES_MAP: any = {};
 
 export default function CategoryList({ selectedCategory, onSelectCategory, lang, categories }: CategoryListProps) {
   const t = (key: any, params?: any) => getTranslation(key, lang, params);

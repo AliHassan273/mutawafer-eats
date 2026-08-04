@@ -4,7 +4,7 @@ import { supabaseConfigured } from '../../lib/supabase';
 import { saveSettingsToSupabase } from '../../services/supabaseSettingsService';
 
 type Category = { id: string; name: string; nameAr: string; icon: string; visible?: boolean };
-export default function AdminCategories({ categories, setCategories, newId, setNewId, newNameAr, setNewNameAr, newIcon, setNewIcon, onSuccess }: any) {
+export default function AdminCategories({ categories, setCategories, newId, setNewId, newNameAr, setNewNameAr, newIcon, setNewIcon, onSuccess, onRefresh }: any) {
   return <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
     <div><h2 className="text-sm font-black text-slate-800">إدارة التصنيفات 🎨</h2><p className="text-xs text-slate-500 mt-1">عدّل الاسم أو الأيقونة، أظهر أو أخفِ، أو أضف تصنيفًا جديدًا.</p></div>
     <div className="space-y-2">{(categories as Category[]).map((cat, index) => <div key={cat.id} className="grid grid-cols-[auto_1fr_1fr_auto_auto] gap-2 items-center bg-slate-50 rounded-xl p-2">
@@ -20,6 +20,6 @@ export default function AdminCategories({ categories, setCategories, newId, setN
       <input value={newIcon} onChange={e => setNewIcon(e.target.value)} placeholder="الأيقونة" className="border rounded-lg px-2 py-2 text-xs" />
       <button type="button" onClick={() => { if (!newId || !newNameAr || categories.some((c: Category) => c.id === newId)) return; setCategories((list: Category[]) => [...list, { id: newId, name: newId, nameAr: newNameAr, icon: newIcon || '🍽️', visible: true }]); setNewId(''); setNewNameAr(''); setNewIcon(''); }} className="bg-emerald-600 text-white rounded-lg px-2 py-2 text-xs font-black">إضافة تصنيف</button>
     </div>
-    <button type="button" onClick={async () => { if (supabaseConfigured) { await saveSettingsToSupabase({ categories }); onSuccess('تم حفظ التصنيفات على Supabase.'); } else { const res = await fetchWithRetry('/api/settings', { method: 'PUT', body: JSON.stringify({ categories }) }); if (res.ok) onSuccess('تم حفظ تعديلات التصنيفات.'); } }} className="bg-[#f94c10] text-white rounded-xl px-4 py-2 text-xs font-black">حفظ التصنيفات</button>
+    <button type="button" onClick={async () => { if (supabaseConfigured) { await saveSettingsToSupabase({ categories }); onSuccess('تم حفظ التصنيفات على Supabase بنجاح ✅'); if (onRefresh) setTimeout(onRefresh, 500); } else { const res = await fetchWithRetry('/api/settings', { method: 'PUT', body: JSON.stringify({ categories }) }); if (res.ok) { onSuccess('تم حفظ التصنيفات بنجاح ✅'); if (onRefresh) setTimeout(onRefresh, 500); } } }} className="bg-[#f94c10] text-white rounded-xl px-4 py-2 text-xs font-black">حفظ التصنيفات</button>
   </div>;
 }

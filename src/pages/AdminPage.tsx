@@ -72,7 +72,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   const isAr = true; // ✅ التطبيق عربي بالكامل
 
   // Navigation / Tab selection
-  const [selectedRestId, setSelectedRestId] = useState<string>(restaurants[0]?.id || "");
+  const [selectedRestId, setSelectedRestId] = useState<string>(() => sessionStorage.getItem('mutafer_admin_restaurant') || restaurants[0]?.id || "");
   const [isCreatingRest, setIsCreatingRest] = useState(false);
   const [editingRestId, setEditingRestId] = useState<string | null>(null);
 
@@ -151,7 +151,13 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   const [captains, setCaptains] = useState<any[]>([]);
   const [captainLocations, setCaptainLocations] = useState<any[]>([]);
   const [expandedCaptainReviews, setExpandedCaptainReviews] = useState<string | null>(null);
-  const [adminTab, setAdminTab] = useState<'stores' | 'orders' | 'captains' | 'settings'>('stores');
+  const [adminTab, setAdminTab] = useState<'stores' | 'orders' | 'captains' | 'settings'>(() => (sessionStorage.getItem('mutafer_admin_tab') as any) || 'stores');
+
+  const refreshAdminPage = () => {
+    sessionStorage.setItem('mutafer_admin_tab', adminTab);
+    if (selectedRestId) sessionStorage.setItem('mutafer_admin_restaurant', selectedRestId);
+    window.location.reload();
+  };
 
   useEffect(() => {
     if (adminTab !== 'captains') return;
@@ -927,6 +933,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         setIsCreatingRest(false);
         setEditingRestId(null);
         triggerSuccess(t("statusSaved"));
+        setTimeout(refreshAdminPage, 500);
         return;
       }
 
@@ -947,7 +954,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       if (response.ok) {
         const saved = await response.json();
         await onRefreshData();
-        setSelectedRestId(saved.id);
+        setSelectedRestId(saved.id); sessionStorage.setItem('mutafer_admin_restaurant', saved.id);
         setIsCreatingRest(false);
         setEditingRestId(null);
         setRestForm({
@@ -983,6 +990,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         await onRefreshData();
         setSelectedRestId(restaurants[0]?.id || "");
         triggerSuccess(t("statusDeleted"));
+        setTimeout(refreshAdminPage, 500);
         return;
       }
       const res = await fetchWithRetry(`/api/restaurants/${restId}`, {

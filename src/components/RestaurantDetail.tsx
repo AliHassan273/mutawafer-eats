@@ -151,7 +151,7 @@ export default function RestaurantDetail({
     description: "",
     price: "",
     originalPrice: "",
-    category: "Burgers",
+    category: "",
     image: "",
     sizes: []
   });
@@ -163,7 +163,7 @@ export default function RestaurantDetail({
       description: "",
       price: "120",
       originalPrice: "",
-      category: "Burgers",
+      category: "",
       image: restaurant.coverImage || "/logo.png",
       sizes: []
     });
@@ -177,7 +177,7 @@ export default function RestaurantDetail({
       description: item.description || "",
       price: String(item.price),
       originalPrice: item.originalPrice ? String(item.originalPrice) : "",
-      category: item.category || "Burgers",
+      category: item.category || "",
       image: item.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
       sizes: item.sizes ? [...item.sizes] : []
     });
