@@ -601,9 +601,11 @@ export default function App() {
     return (categoryAliases[t] || []).map(normalizeCategory).includes(v) ||
       (categoryAliases[v] || []).map(normalizeCategory).includes(t);
   };
+  const isCategoryVisible = (id: string) => id === 'all' || !settings.categories?.some((category: any) => category.id === id && category.visible === false);
 
   // Filter restaurants list based on category and search query
   const filteredRestaurants = restaurants.filter((rest) => {
+    if (!isCategoryVisible(selectedCategory)) return false;
     // 1. Check if category matches
     let matchesCategory = true;
     if (selectedCategory !== 'all') {
@@ -641,6 +643,7 @@ export default function App() {
   const query = searchQuery.toLowerCase().trim();
   if (query) {
     restaurants.forEach((rest) => {
+      if (!isCategoryVisible(selectedCategory)) return;
       let matchesCategory = true;
       if (selectedCategory !== 'all') {
         if (selectedCategory === 'offers') {
@@ -680,6 +683,7 @@ export default function App() {
   const categoryMatchingDishes: { item: MenuItem; restaurant: Restaurant }[] = [];
   if (selectedCategory !== 'all') {
     restaurants.forEach((rest) => {
+      if (!isCategoryVisible(selectedCategory)) return;
       if (rest.menu && Array.isArray(rest.menu)) {
         rest.menu.forEach((item) => {
           const itemCat = (item.category || '').toLowerCase().trim();
