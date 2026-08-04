@@ -850,7 +850,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           setCategoriesList(previous => {
             const merged = [...previous];
             for (const id of discovered) if (!merged.some(c => c.id === id)) merged.push({ id, name: id, nameAr: arabic[id] || id, icon: icons[id] || '🍽️' });
-            fetchWithRetry('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categories: merged }) }).catch(() => {});
+            (supabaseConfigured ? saveSettingsToSupabase({ categories: merged }) : fetchWithRetry('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categories: merged }) })).catch(() => {});
             return merged;
           });
           setAiWarning(data.warning || null);

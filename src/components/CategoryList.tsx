@@ -49,19 +49,14 @@ export default function CategoryList({ selectedCategory, onSelectCategory, lang,
           <h2 className="text-lg md:text-xl font-bold text-slate-800 tracking-tight font-display">
             {true ? 'اكتشف الأصناف المميزة 😋' : 'Explore by Category'}
           </h2>
-          <button 
-            onClick={() => onSelectCategory('all')} 
-            className="text-xs md:text-sm font-semibold text-[#f94c10] hover:text-[#e03d08] hover:underline cursor-pointer transition-all"
-          >
-            {true ? 'عرض الكل' : 'See All'}
-          </button>
+
         </div>
 
         {/* Carousel container */}
         <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
           {categoriesToRender.filter((cat: any) => cat.visible !== false).map((cat) => {
             const isSelected = selectedCategory === cat.id;
-            const label = (true ? (cat as any).nameAr || (CATEGORY_NAMES_MAP[lang] as any)?.[cat.id] || cat.name : (CATEGORY_NAMES_MAP[lang] as any)?.[cat.id] || cat.name);
+            const label = (cat as any).nameAr || cat.name || cat.id;
 
             return (
               <button
