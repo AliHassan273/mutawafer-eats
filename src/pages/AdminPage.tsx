@@ -357,14 +357,11 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
     const updatedOptions = [...deliveryOptions, newOption];
     try {
+      if (supabaseConfigured) { await saveSettingsToSupabase({ deliveryOptions: updatedOptions, coupons: couponsList }); setDeliveryOptions(updatedOptions); setNewRegionName(""); setNewRegionFee(""); triggerSuccess(`تم إضافة منطقة التوصيل "${newOption.name}" بنجاح!`); return; }
       const response = await fetchWithRetry("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          whatsappNumber: whatsappNumberSetting,
-          deliveryOptions: updatedOptions,
-          coupons: couponsList
-        })
+        body: JSON.stringify({ whatsappNumber: whatsappNumberSetting, deliveryOptions: updatedOptions, coupons: couponsList })
       });
       if (response.ok) {
         setDeliveryOptions(updatedOptions);
@@ -384,14 +381,11 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     }
     const updatedOptions = deliveryOptions.filter(o => o.id !== optionId);
     try {
+      if (supabaseConfigured) { await saveSettingsToSupabase({ deliveryOptions: updatedOptions, coupons: couponsList }); setDeliveryOptions(updatedOptions); triggerSuccess(`تم حذف خيار التوصيل لـ "${optionName}" بنجاح!`); return; }
       const response = await fetchWithRetry("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          whatsappNumber: whatsappNumberSetting,
-          deliveryOptions: updatedOptions,
-          coupons: couponsList
-        })
+        body: JSON.stringify({ whatsappNumber: whatsappNumberSetting, deliveryOptions: updatedOptions, coupons: couponsList })
       });
       if (response.ok) {
         setDeliveryOptions(updatedOptions);
@@ -417,6 +411,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
     const updatedCoupons = [...couponsList, newOption];
     try {
+      if (supabaseConfigured) { await saveSettingsToSupabase({ deliveryOptions, coupons: updatedCoupons }); setCouponsList(updatedCoupons); setNewCouponCode(""); setNewCouponValue(""); setNewCouponMinOrder(""); triggerSuccess(`تم إضافة كوبون الخصم "${newOption.code}" بنجاح!`); return; }
       const response = await fetchWithRetry("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -443,6 +438,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       c.id === couponId ? { ...c, isActive: !c.isActive } : c
     );
     try {
+      if (supabaseConfigured) { await saveSettingsToSupabase({ deliveryOptions, coupons: updatedCoupons }); setCouponsList(updatedCoupons); triggerSuccess('تم تغيير حالة الكوبون بنجاح!'); return; }
       const response = await fetchWithRetry("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -464,6 +460,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   const handleDeleteCoupon = async (couponId: string, couponCode: string) => {
     const updatedCoupons = couponsList.filter(c => c.id !== couponId);
     try {
+      if (supabaseConfigured) { await saveSettingsToSupabase({ deliveryOptions, coupons: updatedCoupons }); setCouponsList(updatedCoupons); triggerSuccess(`تم حذف كوبون الخصم "${couponCode}" بنجاح!`); return; }
       const response = await fetchWithRetry("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
