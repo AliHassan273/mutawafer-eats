@@ -1324,7 +1324,7 @@ export default function App() {
               navigateTo('tracker');
               window.scrollTo({ top: 0, behavior: 'instant' });
             }}
-            onBack={goBack}
+            onBack={() => navigateTo('home')}
             reviews={reviews}
             onNavigateCaptain={() => navigateTo('captain')}
           />
@@ -1374,7 +1374,7 @@ export default function App() {
                {/* Back Button */}
                <div className="flex justify-center pt-4">
                  <button
-                   onClick={goBack}
+                   onClick={() => navigateTo('home')}
                    className="bg-[#f94c10] hover:bg-[#e03d08] text-white font-extrabold text-xs py-3 px-8 rounded-full transition-all shadow-md cursor-pointer hover:scale-102"
                  >
                    {'الرجوع للرئيسية 🗺️'}
