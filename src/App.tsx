@@ -1248,6 +1248,7 @@ export default function App() {
             onRemoveFromCart={handleRemoveFromCart}
             onRefreshData={loadInitialData}
             reviews={reviews}
+            hiddenCategories={(settings.categories || []).filter((category: any) => category.visible === false).flatMap((category: any) => [category.id, category.name, category.nameAr])}
           />
         )}
 

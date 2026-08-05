@@ -16,6 +16,7 @@ interface RestaurantDetailProps {
   onRemoveFromCart: (itemId: string, selectedSizeId?: string, forceRemoveAll?: boolean) => void;
   onRefreshData?: () => Promise<void>;
   reviews?: Review[];
+  hiddenCategories?: string[];
 }
 
 const LOCAL_DISH_STORE = {
@@ -91,6 +92,7 @@ export default function RestaurantDetail({
   onRemoveFromCart,
   onRefreshData,
   reviews,
+  hiddenCategories = [],
 }: RestaurantDetailProps) {
   const [selectedSubCategory, setSelectedSubCategory] = useState('All');
   const [itemSearch, setItemSearch] = useState('');
@@ -285,10 +287,12 @@ export default function RestaurantDetail({
   };
 
   // Extract unique subcategories from the restaurant's menu
-  const menuCategories = ['All', ...Array.from(new Set(restaurant.menu.map(item => item.category)))];
+  const hidden = new Set(hiddenCategories.map(value => String(value).trim().toLowerCase()));
+  const menuCategories = ['All', ...Array.from(new Set(restaurant.menu.filter(item => !hidden.has(String(item.category || '').trim().toLowerCase())).map(item => item.category)))];
 
   // Filter menu items by selected sub-category and search criteria
   const filteredMenu = restaurant.menu.filter((item) => {
+    if (hidden.has(String(item.category || '').trim().toLowerCase())) return false;
     // Correct matchesCategory to check if 'All' or matches specific item category
     const matchesCategory = selectedSubCategory === 'All' || item.category === selectedSubCategory;
     const matchesSearch = item.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
