@@ -96,6 +96,7 @@ export default function RestaurantCard({
       <div className="relative aspect-16/10 w-full overflow-hidden bg-slate-100">
         <img 
           referrerPolicy="no-referrer"
+          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/logo.png"; }}
           src={restaurant.coverImage || "/logo.png"} 
           alt={displayName}
           className={`w-full h-full object-cover transition-transform duration-500 ${isOpen ? "group-hover:scale-104" : ""}`}

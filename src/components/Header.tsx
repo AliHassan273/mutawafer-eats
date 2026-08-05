@@ -300,7 +300,7 @@ export default function Header({
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-bold text-slate-800 truncate">
-                                {order.restaurant.name}
+                                {order.restaurant?.name || 'المطعم'}
                               </p>
                               <div className={`flex items-center gap-1 mt-0.5 ${''}`}>
                                 <span className="inline-block h-1.5 w-1.5 bg-green-550 rounded-full animate-pulse" />

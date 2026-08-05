@@ -183,7 +183,7 @@ export default function MyOrdersPage({
                     </div>
                     <div>
                       <h3 className="font-display font-extrabold text-base text-slate-800 truncate leading-tight">
-                        {order.restaurant.name}
+                        {order.restaurant?.name || 'المطعم'}
                       </h3>
                       <p className="text-[10px] text-slate-400 font-bold mt-1 inline-flex items-center gap-1 font-mono" style={{ direction: 'ltr' }}>
                         <Clock className="h-3 w-3" />

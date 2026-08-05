@@ -465,8 +465,9 @@ export default function App() {
     try {
       if (supabaseConfigured) {
         const persisted = await createOrderInSupabase({ cart, customerName, customerPhone, address: fullDeliveryAddress, paymentMethod, paymentDetails, deliveryFee: calculatedDeliveryFee, additionalRestaurantFee, doorstepFee, discount: itemDiscount, total: totalAmount, eta: 0 });
-        setOrders(prev => [persisted, ...prev]);
-        setSelectedOrder(persisted);
+        const completeOrder = { ...persisted, restaurant: associatedRest, items: cart };
+        setOrders(prev => [completeOrder, ...prev]);
+        setSelectedOrder(completeOrder);
       } else {
       const res = await fetchWithRetry('/api/orders', {
   method: 'POST',

@@ -42,8 +42,8 @@ export default function OrderTracker({
       const payload = {
         orderId: currentOrder.id,
         customerName: currentOrder.customerName,
-        restaurantId: currentOrder.restaurant.id,
-        restaurantName: currentOrder.restaurant.name,
+        restaurantId: currentOrder.restaurant?.id || '',
+        restaurantName: currentOrder.restaurant?.name || 'المطعم',
         courierName: currentOrder.courierName || "Captain Ahmed",
         ratingDeliverySpeed: ratingSpeed,
         ratingDeliveryManner: ratingManner,
@@ -294,7 +294,7 @@ export default function OrderTracker({
             </div>
             
             <h2 className="text-lg md:text-xl font-extrabold text-[#f94c10] font-display">
-              {order.restaurant.name}
+              {order.restaurant?.name || 'المطعم'}
             </h2>
             <p className="text-xs text-slate-400 font-semibold mt-0.5">
               {isAr ? 'الكباتن في المطعم بيجهزو طلبك الدلع بكل حب.' : 'We started cooking your delicious bite.'}
