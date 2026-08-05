@@ -198,7 +198,7 @@ export default function MyOrdersPage({
                       {t('مكونات هذا الطلب 📦:', 'Order Content 📦:')}
                     </span>
                     <span className="leading-relaxed text-slate-500">
-                       {order.items.map((it) => {
+                       {(order.items || []).map((it) => {
                         const sizeSuffix = it.selectedSize ? ` (${it.selectedSize.name})` : '';
                         return `${it.menuItem.name}${sizeSuffix} (×${it.quantity})`;
                       }).join(' , ')}

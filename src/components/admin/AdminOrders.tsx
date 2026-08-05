@@ -66,7 +66,7 @@ export default function AdminOrders({ ctx }: { ctx: any }) {
                         <div className="p-3 bg-slate-50/60 rounded-2xl border border-slate-100">
                           <p className="font-extrabold text-slate-800 mb-2 border-b border-slate-100 pb-1">🍕 الأصناف والوجبات:</p>
                           <ul className="space-y-1">
-                            {order.items.map((item: any, idx: number) => {
+                            {(order.items || []).map((item: any, idx: number) => {
                               const sizeLabel = item.selectedSize ? ` (${item.selectedSize.name})` : '';
                               const effectivePrice = item.selectedSize ? item.selectedSize.price : item.menuItem.price;
                               return (

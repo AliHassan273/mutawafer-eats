@@ -15,7 +15,24 @@ export async function deleteRestaurantInSupabase(id: string) {
 
 export async function listAdminOrdersFromSupabase() {
   const { data, error } = await supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false });
-  if (error) throw error; return data || [];
+  if (error) throw error;
+  return (data || []).map((row: any) => ({
+    ...row,
+    userId: row.user_id,
+    customerName: row.customer_name,
+    customerPhone: row.customer_phone,
+    deliveryAddress: row.delivery_address,
+    deliveryFee: row.delivery_fee,
+    paymentMethod: row.payment_method,
+    createdAt: row.created_at,
+    restaurant: row.restaurant || { id: row.restaurant_id, name: row.restaurant_name || 'المطعم' },
+    items: (row.order_items || []).map((item: any) => ({
+      restaurantId: item.restaurant_id,
+      menuItem: { id: item.menu_item_id, name: item.name_snapshot, description: '', price: item.unit_price, category: item.category_snapshot, image: '' },
+      selectedSize: item.size_name ? { name: item.size_name, price: item.unit_price } : undefined,
+      quantity: item.quantity,
+    })),
+  }));
 }
 export async function listCaptainsFromSupabase() {
   const { data, error } = await supabase.from('profiles').select('*').eq('role', 'captain').order('created_at', { ascending: false });
