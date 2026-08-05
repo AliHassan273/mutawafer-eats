@@ -165,6 +165,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
   const refreshAdminPage = () => {
     sessionStorage.setItem('mutafer_admin_tab', adminTab);
+    sessionStorage.setItem('mutafer_active_view', 'admin');
     if (selectedRestId) sessionStorage.setItem('mutafer_admin_restaurant', selectedRestId);
     window.location.reload();
   };
@@ -701,7 +702,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
   // ✅ Selected active restaurant instance helper (آمن)
   useEffect(() => {
-    if (!selectedRestId && restaurants.length > 0) setSelectedRestId(restaurants[0].id);
+    if (restaurants.length > 0 && (!selectedRestId || !restaurants.some(restaurant => restaurant.id === selectedRestId))) { setSelectedRestId(restaurants[0].id); sessionStorage.setItem('mutafer_admin_restaurant', restaurants[0].id); }
   }, [restaurants, selectedRestId]);
 
   const activeRestaurant = restaurants.find((r) => r.id === selectedRestId);
@@ -936,7 +937,9 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       };
 
       if (supabaseConfigured) {
-        await saveRestaurantInSupabase(formattedData, editingRestId || undefined);
+        const savedRestaurant = await saveRestaurantInSupabase(formattedData, editingRestId || undefined);
+        setSelectedRestId(savedRestaurant.id);
+        sessionStorage.setItem('mutafer_admin_restaurant', savedRestaurant.id);
         await onRefreshData();
         setIsCreatingRest(false);
         setEditingRestId(null);
@@ -1062,6 +1065,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       return;
     }
     if (!selectedRestId || extractedItems.length === 0) return;
+    const targetRestaurant = restaurants.find((restaurant: any) => restaurant.id === selectedRestId);
+    if (!targetRestaurant) { setAiError('المطعم المحدد غير موجود. اختر مطعمًا موجودًا ثم أعد المحاولة.'); setSelectedRestId(restaurants[0]?.id || ''); return; }
 
     const itemsToImport = extractedItems
       .filter((_, idx) => selectedImportItems[idx])

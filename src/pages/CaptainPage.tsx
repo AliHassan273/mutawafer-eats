@@ -413,7 +413,7 @@ export default function CaptainPage({
 
                   <div className="space-y-1">
                     <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest">{isAr ? 'رح إلى بوابة المطبخ للاستلام' : 'Restaurant Pickup location'}</span>
-                    <h3 className="text-sm font-black text-slate-800">{order.restaurant.name}</h3>
+                    <h3 className="text-sm font-black text-slate-800">{order.restaurant?.name || 'المطعم'}</h3>
                     <p className="text-xs text-slate-400 flex items-center gap-1">
                       <MapPin className="h-3 w-3 shrink-0" />
                       <span>{isAr ? 'الزمالك، القاهرة' : 'Zamalek, Cairo'}</span>
@@ -488,7 +488,7 @@ export default function CaptainPage({
                       <span className="text-[9px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-md uppercase">
                         {order.status === 'Preparing' ? (isAr ? 'قيد التحضير 🍳' : 'Preparing') : (isAr ? 'مقبول 👍' : 'Received')}
                       </span>
-                      <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 mt-1">{order.restaurant.name}</h3>
+                      <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 mt-1">{order.restaurant?.name || 'المطعم'}</h3>
                     </div>
                     <div className="text-right">
                       <span className="text-[9px] text-slate-400 font-bold block">{isAr ? 'العمولة' : 'Delivery fee'}</span>
@@ -546,7 +546,7 @@ export default function CaptainPage({
                 {myCompletedDeliveries.map((hl) => (
                   <tr key={hl.id} className="border-b border-slate-100 text-slate-500">
                     <td className="py-2.5 font-mono font-bold text-[10px] sm:text-xs">#{hl.id.replace('order_', '')}</td>
-                    <td className="py-2.5 font-black text-slate-700">{hl.restaurant.name}</td>
+                    <td className="py-2.5 font-black text-slate-700">{hl.restaurant?.name || 'المطعم'}</td>
                     <td className="py-2.5">{hl.customerName} - {hl.deliveryAddress?.split('-')[0]}</td>
                     <td className="py-2.5 font-bold font-mono text-green-600">+{hl.deliveryFee || 15} {isAr ? 'جنيه' : 'EGP'}</td>
                   </tr>

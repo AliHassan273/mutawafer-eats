@@ -3,12 +3,13 @@ import { useCallback, useEffect, useState } from 'react';
 export type AppView = 'home' | 'restaurant' | 'tracker' | 'admin' | 'captain' | 'about' | 'my-orders' | 'reviews';
 
 export function useNavigation() {
-  const [activeView, setActiveView] = useState<AppView>('home');
+  const [activeView, setActiveView] = useState<AppView>(() => (sessionStorage.getItem('mutafer_active_view') as AppView) || 'home');
   const [viewHistory, setViewHistory] = useState<AppView[]>([]);
 
   const navigateTo = useCallback((view: AppView) => {
     setActiveView(current => {
       if (view !== current) {
+        sessionStorage.setItem('mutafer_active_view', view);
         setViewHistory(history => [...history.slice(-19), current]);
         window.history.pushState({ mutafer: true, view }, '', window.location.href);
       }
@@ -19,7 +20,7 @@ export function useNavigation() {
 
   const goBack = useCallback(() => {
     if (viewHistory.length > 0) window.history.back();
-    else setActiveView('home');
+    else { setActiveView('home'); sessionStorage.setItem('mutafer_active_view', 'home'); }
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [viewHistory]);
 
@@ -33,6 +34,7 @@ export function useNavigation() {
       if (!event.state?.mutafer) window.history.pushState({ mutafer: true, view: 'home' }, '', window.location.href);
       setViewHistory(history => history.length ? history.slice(0, -1) : []);
       setActiveView(view || 'home');
+      sessionStorage.setItem('mutafer_active_view', view || 'home');
       window.scrollTo({ top: 0, behavior: 'instant' });
     };
     window.addEventListener('popstate', handlePopState);

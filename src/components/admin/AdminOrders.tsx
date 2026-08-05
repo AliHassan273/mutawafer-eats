@@ -43,7 +43,7 @@ export default function AdminOrders({ ctx }: { ctx: any }) {
                             #{order.id.toUpperCase()} • {order.createdAt}
                           </p>
                           <h4 className="text-sm font-black text-slate-805">
-                            {order.restaurant.name}
+                            {order.restaurant?.name || 'المطعم'}
                           </h4>
                         </div>
                         <div className="flex items-center gap-2">

@@ -74,6 +74,7 @@ export default function BestSellersAndReviews({
                     {/* Image */}
                     <div className="aspect-[4/3] w-full rounded-2xl bg-slate-50 overflow-hidden relative border border-slate-100/50">
                       <img
+                        onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/logo.png"; }}
                         src={item.image || restaurant.coverImage || "/logo.png"}
                         alt={item.name}
                         referrerPolicy="no-referrer"
