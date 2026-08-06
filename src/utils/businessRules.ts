@@ -26,6 +26,9 @@ export function mergeMenuItems(existing: any[] = [], incoming: any[] = []): any[
     const index = result.findIndex(old => `${baseOf(old.name)}::${normalizeCategory(old.category)}` === key);
     const sizeMatch = String(item.name || '').match(sizePattern);
     if (index === -1) {
+      if (Array.isArray(item.sizes) && item.sizes.length > 1) {
+        item.sizes = item.sizes.filter((size: any) => !['الوحدة الأساسية', 'الوحدة الاساسية', 'الوحدة', 'basic', 'base', 'regular', 'عادي', 'عادى'].includes(normalizeCategory(size.name)));
+      }
       result.push(item);
       continue;
     }
