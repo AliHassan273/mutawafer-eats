@@ -15,16 +15,31 @@ Deno.serve(async (req) => {
     const token = Deno.env.get('TELEGRAM_BOT_TOKEN');
     const chatId = Deno.env.get('TELEGRAM_CHAT_ID');
     if (!token || !chatId) return json({ skipped: true });
+    const address = String(order.deliveryAddress || 'غير محدد');
+    const parts = address.split(' - ');
+    const region = parts.length > 1 ? parts[0] : 'غير محددة';
+    const detailedAddress = parts.length > 1 ? parts.slice(1).join(' - ') : address;
     const text = [
-      '🛎️ طلب جديد',
-      `رقم الطلب: ${order.id}`,
-      `العميل: ${order.customerName || 'غير محدد'}`,
-      `الهاتف: ${order.customerPhone || 'غير محدد'}`,
-      `العنوان: ${order.deliveryAddress || 'غير محدد'}`,
-      `الإجمالي: ${order.total} جنيه`,
-      ...(order.items || []).map((item: any) => `• ${item.menuItem?.name || 'صنف'} × ${item.quantity}`),
+      '🛒 *طلب جديد من متوفر*',
+      '━━━━━━━━━━━━━━━',
+      '',
+      `👤 *الاسم:* ${order.customerName || 'غير محدد'}`,
+      `📱 *الهاتف:* ${order.customerPhone || 'غير محدد'}`,
+      `📍 *المنطقة:* ${region}`,
+      `🏠 *العنوان:* ${detailedAddress}`,
+      '',
+      '━━━━━━━━━━━━━━━',
+      '📋 *تفاصيل الطلب:*',
+      '',
+      `🍽️ *اسم المطعم:* ${order.restaurant?.name || order.restaurantName || 'غير محدد'}`,
+      ...(order.items || []).map((item: any) => `${item.menuItem?.name || item.name_snapshot || 'صنف'} x ${item.quantity || 1}`),
+      '',
+      '━━━━━━━━━━━━━━━',
+      `💰 *المجموع:* ${Number(order.subtotal || 0).toFixed(0)} ج.م`,
+      `🚚 *التوصيل:* ${Number(order.deliveryFee || 0).toFixed(0)} ج.م`,
+      `✅ *الإجمالي:* ${Number(order.total || 0).toFixed(0)} ج.م`,
     ].join('\n');
-    const telegram = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text }) });
+    const telegram = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }) });
     if (!telegram.ok) return new Response(JSON.stringify({ error: await telegram.text() }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     return json({ success: true });
   } catch (error) {
