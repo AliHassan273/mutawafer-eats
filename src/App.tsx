@@ -443,7 +443,7 @@ export default function App() {
 
     try {
       if (supabaseConfigured) {
-        const persisted = await createOrderInSupabase({ cart, customerName, customerPhone, address: fullDeliveryAddress, paymentMethod, paymentDetails, deliveryFee: calculatedDeliveryFee, additionalRestaurantFee, doorstepFee, discount: itemDiscount, total: totalAmount, eta: 0 });
+        const persisted = await createOrderInSupabase({ cart, customerName, customerPhone, notes, address: fullDeliveryAddress, paymentMethod, paymentDetails, deliveryFee: calculatedDeliveryFee, additionalRestaurantFee, doorstepFee, discount: itemDiscount, total: totalAmount, eta: 0 });
         const completeOrder = { ...persisted, restaurant: associatedRest, items: cart };
         setOrders(prev => [completeOrder, ...prev]);
         setSelectedOrder(completeOrder);

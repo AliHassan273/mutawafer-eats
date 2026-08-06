@@ -264,6 +264,7 @@ export default function OrderTracker({
           <div className="bg-slate-50 rounded-xl p-3"><span className="block text-[10px] text-slate-400 font-bold">طريقة الدفع</span><strong>{currentOrder.paymentMethod === 'cash' ? 'الدفع عند الاستلام' : currentOrder.paymentMethod || 'غير محددة'}</strong></div>
         </div>
         <div className="mt-3 bg-slate-50 rounded-xl p-3 text-xs"><span className="block text-[10px] text-slate-400 font-bold mb-1">عنوان التوصيل</span><strong>{currentOrder.deliveryAddress || 'غير مسجل'}</strong></div>
+        <div className="mt-3 bg-amber-50 rounded-xl p-3 text-xs"><span className="block text-[10px] text-amber-600 font-bold mb-1">ملاحظات الطلب</span><strong>{(currentOrder as any).notes || 'لا توجد ملاحظات'}</strong></div>
         <div className="mt-4 divide-y divide-slate-100 border border-slate-100 rounded-xl">
           {(currentOrder.items || []).map((item, index) => {
             const size = item.selectedSize ? ` (${item.selectedSize.name})` : '';

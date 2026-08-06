@@ -27,6 +27,7 @@ Deno.serve(async (req) => {
       `📱 *الهاتف:* ${order.customerPhone || 'غير محدد'}`,
       `📍 *المنطقة:* ${region}`,
       `🏠 *العنوان:* ${detailedAddress}`,
+      `📝 *ملاحظات:* ${order.notes || 'لا توجد'}`,
       '',
       '━━━━━━━━━━━━━━━',
       '📋 *تفاصيل الطلب:*',
