@@ -19,7 +19,7 @@ import { signInWithSupabase } from '../services/supabaseAuthService';
 import { saveRestaurantInSupabase, deleteRestaurantInSupabase, listAdminOrdersFromSupabase, listCaptainsFromSupabase, listAdminProfilesFromSupabase, updateProfilePermissionsInSupabase, updateCaptainStatusInSupabase, createAdminInSupabase, deleteAdminInSupabase, listLoyaltyCustomersFromSupabase, deleteCaptainInSupabase } from '../services/supabaseAdminService';
 import { saveSettingsToSupabase, getSettingsFromSupabase, deleteCategoryAndItemsFromSupabase } from '../services/supabaseSettingsService';
 import { updateOrderStatusInSupabase } from '../services/supabaseOrderService';
-import { addMenuItemsToSupabase } from '../services/supabaseMenuService';
+import { addMenuItemsToSupabase, deleteMenuItemFromSupabase } from '../services/supabaseMenuService';
 import AdminOrders from '../components/admin/AdminOrders';
 import AdminCaptains from '../components/admin/AdminCaptains';
 
@@ -2244,6 +2244,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                               onChange={async (e) => {
                                 const newCat = e.target.value;
                                 try {
+                                  if (supabaseConfigured) { await deleteMenuItemFromSupabase(item.id); await onRefreshData(); triggerSuccess('تم حذف الصنف.'); return; }
                                   const updatedMenu = activeRestaurant.menu.map(m =>
                                     m.id === item.id ? { ...m, category: newCat } : m
                                   );

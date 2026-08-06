@@ -15,7 +15,7 @@ describe('menu import rules', () => {
       [{ name: 'كريب', category: 'كريب', price: 60, sizes: [{ name: 'عادي', price: 50 }, { name: 'كبير', price: 60 }] }]
     );
     expect(result).toHaveLength(1);
-    expect(result[0].sizes).toHaveLength(2);
+    expect(result[0].sizes).toHaveLength(1);
   });
 });
 

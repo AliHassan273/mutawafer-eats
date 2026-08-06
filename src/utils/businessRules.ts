@@ -32,7 +32,10 @@ export function mergeMenuItems(existing: any[] = [], incoming: any[] = []): any[
     const old = result[index];
     const sizes = [...(Array.isArray(old.sizes) ? old.sizes : []), ...(Array.isArray(item.sizes) ? item.sizes : [])];
     if (sizeMatch && !item.sizes?.length) sizes.push({ name: sizeMatch[1], price: item.price, originalPrice: item.originalPrice });
-    const uniqueSizes = sizes.filter((size, i, list) => i === list.findIndex(x => normalizeCategory(x.name) === normalizeCategory(size.name)));
+    let uniqueSizes = sizes.filter((size, i, list) => i === list.findIndex(x => normalizeCategory(x.name) === normalizeCategory(size.name)));
+    if (uniqueSizes.length > 1) {
+      uniqueSizes = uniqueSizes.filter(size => !['الوحدة الأساسية', 'الوحدة الاساسية', 'الوحدة', 'basic', 'base', 'regular', 'عادي', 'عادى'].includes(normalizeCategory(size.name)));
+    }
     result[index] = { ...old, ...item, name: base || old.name, id: old.id || item.id, price: uniqueSizes.length ? Math.min(...uniqueSizes.map(x => Number(x.price) || 0)) : (old.price ?? item.price), sizes: uniqueSizes };
   }
   return result;
