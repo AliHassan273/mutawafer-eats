@@ -196,20 +196,7 @@ export default function App() {
       return sorted.slice(0, 4);
     }
     
-    // Fallback if no orders have been placed yet: take items with category 'Popular', 'Offers', 'burgers' or 'pizza'
-    const popularList: { item: MenuItem; count: number; restaurant: Restaurant }[] = [];
-    if (Array.isArray(restaurants)) {
-      restaurants.forEach(rest => {
-        if (Array.isArray(rest.menu)) {
-          rest.menu.forEach(item => {
-            if (item.category === 'Popular' || item.category === 'Offers' || item.category === 'burgers' || item.category === 'pizza') {
-              popularList.push({ item, count: 5, restaurant: rest });
-            }
-          });
-        }
-      });
-    }
-    return popularList.slice(0, 4);
+    return [];
   }, [orders, restaurants]);
 
 
@@ -1228,7 +1215,7 @@ export default function App() {
               </div>
             </section>
 
-            {selectedCategory === 'all' && !searchQuery && (
+            {selectedCategory === 'all' && !searchQuery && (bestSellers.length > 0 || reviews.length > 0) && (
               <BestSellersAndReviews
                 bestSellers={bestSellers}
                 reviews={reviews}

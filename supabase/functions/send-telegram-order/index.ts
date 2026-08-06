@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       '📋 *تفاصيل الطلب:*',
       '',
       `🍽️ *اسم المطعم:* ${order.restaurant?.name || order.restaurantName || 'غير محدد'}`,
-      ...(order.items || []).map((item: any) => `${item.menuItem?.name || item.name_snapshot || 'صنف'} x ${item.quantity || 1}`),
+      ...(order.items || []).map((item: any, index: number) => `${index + 1}. ${item.menuItem?.name || item.name_snapshot || 'صنف'} × ${item.quantity || 1}${item.selectedSize?.name ? ` (${item.selectedSize.name})` : ''}`),
       '',
       '━━━━━━━━━━━━━━━',
       `💰 *المجموع:* ${Number(order.subtotal || 0).toFixed(0)} ج.م`,
