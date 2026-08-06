@@ -443,7 +443,7 @@ export default function App() {
 
     try {
       if (supabaseConfigured) {
-        const persisted = await createOrderInSupabase({ cart, customerName, customerPhone, notes, address: fullDeliveryAddress, paymentMethod, paymentDetails, deliveryFee: calculatedDeliveryFee, additionalRestaurantFee, doorstepFee, discount: itemDiscount, total: totalAmount, eta: 0 });
+        const persisted = await createOrderInSupabase({ cart, restaurantName: associatedRest.name, customerName, customerPhone, notes, address: fullDeliveryAddress, paymentMethod, paymentDetails, deliveryFee: calculatedDeliveryFee, additionalRestaurantFee, doorstepFee, discount: itemDiscount, total: totalAmount, eta: 0 });
         const completeOrder = { ...persisted, restaurant: associatedRest, items: cart };
         setOrders(prev => [completeOrder, ...prev]);
         setSelectedOrder(completeOrder);
@@ -1382,7 +1382,7 @@ export default function App() {
           isOpen={isCheckoutOpen}
           onClose={() => setIsCheckoutOpen(false)}
           cart={cart}
-          subtotal={cart.reduce((tot, item) => tot + item.menuItem.price * item.quantity, 0)}
+          subtotal={cart.reduce((tot, item) => tot + (item.selectedSize?.price ?? item.menuItem.price) * item.quantity, 0)}
           discount={0} 
           deliveryOptions={settings.deliveryOptions}
           currentAddress={address}

@@ -49,10 +49,11 @@ export default function MyOrdersPage({
       if (orderDate < oneMonthAgo) return false;
 
       // Ownership check
+      const matchesUser = !!currentUser && ((o as any).userId === currentUser.id || (o as any).user_id === currentUser.id);
       const matchesPhone = currentUser && o.customerPhone === currentUser.phone;
       const matchesGuestId = guestIds.includes(o.id);
 
-      return matchesPhone || matchesGuestId;
+      return matchesUser || matchesPhone || matchesGuestId;
     });
   }, [orders, currentUser]);
 

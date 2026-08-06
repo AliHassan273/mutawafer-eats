@@ -466,7 +466,7 @@ export default function CheckoutModal({
             {/* Optional kitchen driver notes */}
             <div className="space-y-1.5" style={{ textAlign: isAr ? 'right' : 'left' }}>
               <label className="text-xs font-bold text-slate-650">
-                {isAr ? 'تعليمات إضافية للدليفري / السواق' : 'Delivery Instructions / Driver Notes'}
+                {isAr ? 'ملاحظات الطلب' : 'ملاحظات الطلب'}
               </label>
               <textarea
                 value={notes}

@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { CartItem } from '../types';
 
-export async function createOrderInSupabase(input: { cart: CartItem[]; customerName: string; customerPhone: string; notes?: string; address: string; paymentMethod: string; paymentDetails?: string; deliveryFee: number; additionalRestaurantFee: number; doorstepFee: number; discount: number; total: number; eta?: number }) {
+export async function createOrderInSupabase(input: { cart: CartItem[]; customerName: string; restaurantName?: string; customerPhone: string; notes?: string; address: string; paymentMethod: string; paymentDetails?: string; deliveryFee: number; additionalRestaurantFee: number; doorstepFee: number; discount: number; total: number; eta?: number }) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error('يجب تسجيل الدخول قبل إنشاء الطلب.');
   const restaurantIds = [...new Set(input.cart.map(item => item.restaurantId))];
@@ -10,7 +10,7 @@ export async function createOrderInSupabase(input: { cart: CartItem[]; customerN
   const rows = input.cart.map(item => ({ order_id: order.id, menu_item_id: item.menuItem.id, restaurant_id: item.restaurantId, name_snapshot: item.menuItem.name, category_snapshot: item.menuItem.category, size_name: item.selectedSize?.name || null, unit_price: item.selectedSize?.price ?? item.menuItem.price, quantity: item.quantity }));
   const { error: itemsError } = await supabase.from('order_items').insert(rows);
   if (itemsError) throw itemsError;
-  await supabase.functions.invoke('send-telegram-order', { body: { order: { ...order, customerName: input.customerName, customerPhone: input.customerPhone, deliveryAddress: input.address, notes: input.notes || '', total: input.total, deliveryFee: Number(input.deliveryFee || 0) + Number(input.additionalRestaurantFee || 0) + Number(input.doorstepFee || 0), items: input.cart.map((item, index) => ({ ...item, lineNumber: index + 1 })) } } }).catch(() => {});
+  await supabase.functions.invoke('send-telegram-order', { body: { order: { ...order, customerName: input.customerName, customerPhone: input.customerPhone, restaurantName: input.restaurantName || '', deliveryAddress: input.address, notes: input.notes || '', total: input.total, deliveryFee: Number(input.deliveryFee || 0) + Number(input.additionalRestaurantFee || 0) + Number(input.doorstepFee || 0), items: input.cart.map((item, index) => ({ ...item, lineNumber: index + 1 })) } } }).catch(() => {});
   try { await supabase.from('notifications').insert({ user_id: auth.user.id, title: 'تم إنشاء طلبك', body: `تم تسجيل الطلب رقم ${order.id} بنجاح.`, type: 'order' }); } catch {}
   return { ...order, userId: order.user_id, customerName: order.customer_name, customerPhone: order.customer_phone, deliveryAddress: order.delivery_address, deliveryFee: order.delivery_fee, subtotal: order.subtotal, discount: order.discount, total: order.total, paymentMethod: order.payment_method, items: input.cart, createdAt: order.created_at, status: order.status, eta: order.eta };
 }
@@ -20,9 +20,14 @@ function mapOrder(row: any): any {
 }
 
 export async function listMyOrdersFromSupabase(): Promise<any[]> {
-  const { data, error } = await supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false });
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return [];
+  const { data: orders, error } = await supabase.from('orders').select('*').eq('user_id', auth.user.id).order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []).map(mapOrder);
+  const ids = (orders || []).map((order: any) => order.id);
+  const { data: items, error: itemsError } = ids.length ? await supabase.from('order_items').select('*').in('order_id', ids) : { data: [], error: null } as any;
+  if (itemsError) throw itemsError;
+  return (orders || []).map((row: any) => mapOrder({ ...row, order_items: (items || []).filter((item: any) => item.order_id === row.id) }));
 }
 
 export async function submitReviewToSupabase(payload: any) {
