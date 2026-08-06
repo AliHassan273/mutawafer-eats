@@ -93,6 +93,7 @@ export default function App() {
   const [orders, setOrders] = useState<Order[]>(() => {
     // ✅ استرجع الطلبات من localStorage عند أول تحميل
     try {
+      if (supabaseConfigured) return [];
       const stored = localStorage.getItem('mutafer_orders_cache');
       return stored ? JSON.parse(stored) : [];
     } catch { return []; }
@@ -101,6 +102,7 @@ export default function App() {
   // ✅ احفظ الطلبات في localStorage كل ما تتغير
   React.useEffect(() => {
     try {
+      if (supabaseConfigured) return;
       // بس احفظ الطلبات بتاعة المستخدم الحالي
       localStorage.setItem('mutafer_orders_cache', JSON.stringify(orders.slice(0, 50)));
     } catch {}
@@ -231,6 +233,7 @@ export default function App() {
       if (currentUser) {
         const ordData = supabaseConfigured ? await listMyOrdersFromSupabase() : await (async () => { const ordRes = await fetchWithRetry('/api/orders'); return ordRes.ok ? ordRes.json() : []; })();
         setOrders(prev => {
+          if (supabaseConfigured) return ordData;
           const serverIds = new Set(ordData.map((o: any) => o.id));
           const localOnly = prev.filter(o => !serverIds.has(o.id));
           return [...ordData, ...localOnly].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
