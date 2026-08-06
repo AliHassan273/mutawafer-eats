@@ -17,18 +17,23 @@ export function menuBaseName(value: unknown): string {
 
 export function mergeMenuItems(existing: any[] = [], incoming: any[] = []): any[] {
   const result = existing.map(item => ({ ...item }));
+  const sizePattern = /(?:^|\s)(صغير|صغيرة|ص|small|sm|وسط|وسطة|و|medium|مديوم|كبير|كبيرة|ك|large|لارج|عائلي|عائلية|family|فردي|regular)(?:\s|$)/i;
+  const baseOf = (name: any) => menuBaseName(name);
   for (const raw of incoming) {
     const item = { ...raw, id: raw.id || `item_${Date.now()}_${Math.random().toString(36).slice(2, 8)}` };
-    const key = `${menuBaseName(item.name)}::${normalizeCategory(item.category)}`;
-    const index = result.findIndex(old => `${menuBaseName(old.name)}::${normalizeCategory(old.category)}` === key);
+    const base = baseOf(item.name);
+    const key = `${base}::${normalizeCategory(item.category)}`;
+    const index = result.findIndex(old => `${baseOf(old.name)}::${normalizeCategory(old.category)}` === key);
+    const sizeMatch = String(item.name || '').match(sizePattern);
     if (index === -1) {
       result.push(item);
       continue;
     }
     const old = result[index];
     const sizes = [...(Array.isArray(old.sizes) ? old.sizes : []), ...(Array.isArray(item.sizes) ? item.sizes : [])];
+    if (sizeMatch && !item.sizes?.length) sizes.push({ name: sizeMatch[1], price: item.price, originalPrice: item.originalPrice });
     const uniqueSizes = sizes.filter((size, i, list) => i === list.findIndex(x => normalizeCategory(x.name) === normalizeCategory(size.name)));
-    result[index] = { ...old, ...item, id: old.id || item.id, sizes: uniqueSizes };
+    result[index] = { ...old, ...item, name: base || old.name, id: old.id || item.id, price: uniqueSizes.length ? Math.min(...uniqueSizes.map(x => Number(x.price) || 0)) : (old.price ?? item.price), sizes: uniqueSizes };
   }
   return result;
 }
