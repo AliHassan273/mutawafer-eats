@@ -13,8 +13,8 @@ import OrderTracker from './pages/OrderTracker';
 import AdminPage from './pages/AdminPage';
 import CaptainPage from './pages/CaptainPage';
 import MyOrdersPage from './pages/MyOrdersPage';
-import BestSellersAndReviews from './components/BestSellersAndReviews';
 import ReviewsPage from './pages/ReviewsPage';
+import BestSellersAndReviews from './components/BestSellersAndReviews';
 import { RESTAURANTS, CATEGORIES } from './data';
 import { Restaurant, MenuItem, CartItem, Order, Review } from './types';
 import { lang, getTranslation } from './translations';
@@ -176,29 +176,21 @@ export default function App() {
   // Calculate top 4 best sellers dynamically
   const bestSellers = useMemo(() => {
     const counts: Record<string, { item: MenuItem; count: number; restaurant: Restaurant }> = {};
-    if (Array.isArray(orders)) {
-      orders.forEach(ord => {
-        if (ord && Array.isArray(ord.items)) {
-          ord.items.forEach(c => {
-            if (!c.menuItem || !c.menuItem.id) return;
-            const id = c.menuItem.id;
-            if (!counts[id]) {
-              counts[id] = { item: c.menuItem, count: 0, restaurant: ord.restaurant };
-            }
-            counts[id].count += c.quantity;
-          });
-        }
+    const activeRestaurants = Array.isArray(restaurants) ? restaurants : [];
+    if (!activeRestaurants.length) return [];
+    const activeByItem = new Map<string, { item: MenuItem; restaurant: Restaurant }>();
+    activeRestaurants.forEach(rest => (rest.menu || []).forEach(item => activeByItem.set(item.id, { item, restaurant: rest })));
+    orders.forEach((order: any) => {
+      (order.items || []).forEach((cartItem: any) => {
+        const current = activeByItem.get(cartItem.menuItem?.id);
+        if (!current) return;
+        const id = current.item.id;
+        if (!counts[id]) counts[id] = { item: current.item, count: 0, restaurant: current.restaurant };
+        counts[id].count += Number(cartItem.quantity || 1);
       });
-    }
-    
-    const sorted = Object.values(counts).sort((a, b) => b.count - a.count);
-    if (sorted.length > 0) {
-      return sorted.slice(0, 4);
-    }
-    
-    return [];
+    });
+    return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 4);
   }, [orders, restaurants]);
-
 
   // Synchronize dynamic lists and settings on load
   const loadInitialData = async () => {
@@ -1215,15 +1207,16 @@ export default function App() {
               </div>
             </section>
 
-            {selectedCategory === 'all' && !searchQuery && (bestSellers.length > 0 || reviews.length > 0) && (
-              <BestSellersAndReviews
-                bestSellers={bestSellers}
-                reviews={reviews}
-                onAddToCart={handleAddToCart}
-                onOpenRestaurant={handleOpenRestaurant}
-                onViewAllReviews={() => navigateTo('reviews')}
-              />
-            )}
+
+          {selectedCategory === 'all' && !searchQuery && bestSellers.length > 0 && (
+            <BestSellersAndReviews
+              bestSellers={bestSellers}
+              reviews={reviews}
+              onAddToCart={handleAddToCart}
+              onOpenRestaurant={handleOpenRestaurant}
+              onViewAllReviews={() => navigateTo('reviews')}
+            />
+          )}
           </div>
         )}
 
