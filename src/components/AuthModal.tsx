@@ -122,7 +122,9 @@ export default function AuthModal({
       if (supabaseConfigured) {
         const { data, error } = await supabase.auth.verifyOtp({ email: email.trim(), token: otpCode.trim(), type: 'email' });
         if (error || !data.user) throw error || new Error('رمز التحقق غير صحيح.');
-        const profile: any = (await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle()).data || { id: data.user.id, name, email, phone, role, status: role === 'captain' ? 'pending' : 'approved' };
+        const profilePayload = { id: data.user.id, name, email: email.trim(), phone, role, status: role === 'captain' ? 'pending' : 'approved' };
+        await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
+        const profile: any = (await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle()).data || profilePayload;
         setOtpStatus('verified'); setOtpVerified(true); setSuccessText('تم تأكيد البريد وإنشاء الحساب بنجاح.');
         onSuccess({ id: profile.id, name: profile.name || name, email: profile.email || email, phone: profile.phone || phone, role: profile.role || role, status: profile.status || 'approved' });
         setTimeout(() => { onClose(); resetForm(); }, 1000); return;
