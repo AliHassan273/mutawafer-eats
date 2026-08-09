@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, User, Mail, Phone, Lock, Eye, EyeOff, Check } from 'lucide-react';
 import { saveToken, getApiUrl } from '../utils/fetchHelper';
 import { lang, getTranslation } from '../translations';
-import { supabaseConfigured } from '../lib/supabase';
+import { supabaseConfigured, supabase } from '../lib/supabase';
 import { signInWithSupabase, signUpWithSupabase } from '../services/supabaseAuthService';
 
 interface AuthModalProps {
@@ -72,6 +72,11 @@ export default function AuthModal({
     setOtpStatus('sending');
 
     try {
+      if (supabaseConfigured) {
+        const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true, data: { name, phone, role } } });
+        if (error) throw error;
+        setOtpStatus('sent'); setOtpVerified(false); setOtpCode(''); setSuccessText('تم إرسال رمز التحقق إلى بريدك الإلكتروني.'); return;
+      }
       const res = await fetch(getApiUrl('/api/users/send-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,6 +109,14 @@ export default function AuthModal({
     setLoading(true);
 
     try {
+      if (supabaseConfigured) {
+        const { data, error } = await supabase.auth.verifyOtp({ email: email.trim(), token: otpCode.trim(), type: 'email' });
+        if (error || !data.user) throw error || new Error('رمز التحقق غير صحيح.');
+        const profile: any = (await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle()).data || { id: data.user.id, name, email, phone, role, status: role === 'captain' ? 'pending' : 'approved' };
+        setOtpStatus('verified'); setOtpVerified(true); setSuccessText('تم تأكيد البريد وإنشاء الحساب بنجاح.');
+        onSuccess({ id: profile.id, name: profile.name || name, email: profile.email || email, phone: profile.phone || phone, role: profile.role || role, status: profile.status || 'approved' });
+        setTimeout(() => { onClose(); resetForm(); }, 1000); return;
+      }
       const res = await fetch(getApiUrl('/api/users/verify-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -154,13 +167,9 @@ export default function AuthModal({
           return;
         }
         if (mode === 'register') {
-          const result = await signUpWithSupabase({ name, email, phone, password, role });
-          if (!result.session) {
-            setSuccessText('تم إنشاء الحساب. راجع بريدك الإلكتروني لتأكيد الحساب ثم سجّل الدخول.');
-            setLoading(false);
-            return;
-          }
-          onSuccess({ id: result.user.id, name, email, phone, role, status: role === 'captain' ? 'pending' : 'approved' });
+          if (otpStatus === 'idle') { await handleSendOtp(); setLoading(false); return; }
+          if (otpStatus === 'sent' && !otpVerified) { await handleVerifyOtp(); setLoading(false); return; }
+          if (!otpVerified) { setErrorText('أدخل رمز التحقق أولًا.'); setLoading(false); return; }
         } else {
           const profile: any = await signInWithSupabase(email, password);
           if (profile.role === 'captain' && profile.status !== 'approved') throw new Error('حساب الطيار لم تتم الموافقة عليه بعد.');
@@ -385,7 +394,7 @@ export default function AuthModal({
                   <input
                     type="text"
                     required
-                    placeholder={isAr ? 'علي حسن' : 'John Doe'}
+                    placeholder="اكتب اسمك بالكامل"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full bg-slate-50/70 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-[#f94c10]"
