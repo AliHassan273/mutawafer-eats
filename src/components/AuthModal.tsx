@@ -31,6 +31,13 @@ export default function AuthModal({
   const [otpStatus, setOtpStatus] = useState<'idle' | 'sending' | 'sent' | 'verified'>('idle');
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpDebugCode, setOtpDebugCode] = useState('');
+  const [resendSeconds, setResendSeconds] = useState(0);
+
+  React.useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const timer = window.setInterval(() => setResendSeconds(value => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [resendSeconds]);
 
   if (!isOpen) return null;
 
@@ -40,6 +47,7 @@ export default function AuthModal({
     setOtpStatus('idle');
     setOtpVerified(false);
     setOtpDebugCode('');
+    setResendSeconds(0);
   };
 
   const resetForm = () => {
@@ -61,6 +69,7 @@ export default function AuthModal({
   };
 
   const handleSendOtp = async () => {
+    if (otpStatus === 'sent' && resendSeconds > 0) return;
     if (!email.trim()) {
       setErrorText(isAr ? 'أدخل البريد الإلكتروني أولاً.' : 'Please enter the email first.');
       return;
@@ -75,7 +84,7 @@ export default function AuthModal({
       if (supabaseConfigured) {
         const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true, data: { name, phone, role } } });
         if (error) throw error;
-        setOtpStatus('sent'); setOtpVerified(false); setOtpCode(''); setSuccessText('تم إرسال رمز التحقق إلى بريدك الإلكتروني.'); return;
+        setOtpStatus('sent'); setOtpVerified(false); setOtpCode(''); setResendSeconds(60); setSuccessText('تم إرسال رمز التحقق إلى بريدك الإلكتروني.'); return;
       }
       const res = await fetch(getApiUrl('/api/users/send-otp'), {
         method: 'POST',
@@ -86,6 +95,7 @@ export default function AuthModal({
       if (!res.ok) throw new Error(data.error || (isAr ? 'تعذر إرسال الرمز.' : 'Could not send OTP.'));
 
       setOtpStatus('sent');
+      setResendSeconds(60);
       setOtpVerified(false);
       setOtpCode('');
       setOtpDebugCode(data.debugCode || '');
@@ -431,13 +441,16 @@ export default function AuthModal({
                   <input
                     type="text"
                     inputMode="numeric"
-                    placeholder="123456"
+                    placeholder="12345678"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value)}
                     className="w-full bg-slate-50/70 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-[#f94c10] tracking-[0.4em] text-center font-mono"
                     style={{ direction: 'ltr' }}
-                    maxLength={6}
+                    maxLength={8}
                   />
+                  <button type="button" onClick={handleSendOtp} disabled={loading || resendSeconds > 0} className="w-full mt-2 text-xs font-bold rounded-xl py-2 border border-orange-200 text-orange-600 disabled:text-slate-400 disabled:border-slate-200">
+                    {resendSeconds > 0 ? `إعادة إرسال الرمز بعد ${resendSeconds} ثانية` : 'إعادة إرسال الرمز مرة أخرى'}
+                  </button>
                   {otpDebugCode && (
                     <p className="text-[10px] text-amber-600 font-bold text-center bg-amber-50 rounded-xl py-1">
                       🔧 وضع تطوير — الرمز: {otpDebugCode}
