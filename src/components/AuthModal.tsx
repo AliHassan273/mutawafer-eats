@@ -122,9 +122,8 @@ export default function AuthModal({
       if (supabaseConfigured) {
         const { data, error } = await supabase.auth.verifyOtp({ email: email.trim(), token: otpCode.trim(), type: 'email' });
         if (error || !data.user) throw error || new Error('رمز التحقق غير صحيح.');
-        const syncResult = await supabase.functions.invoke('sync-profile', { body: { name, email: email.trim(), phone, role } });
-        if (syncResult.error || syncResult.data?.error) throw syncResult.error || new Error(syncResult.data.error);
-        const profile: any = syncResult.data?.profile || { id: data.user.id, name, email: email.trim(), phone, role, status: role === 'captain' ? 'pending' : 'approved' };
+        const { data: profile, error: profileError } = await supabase.rpc('create_my_profile', { p_name: name, p_phone: phone, p_role: role });
+        if (profileError || !profile) throw profileError || new Error('تعذر حفظ الحساب بعد التحقق.');
         setOtpStatus('verified'); setOtpVerified(true); setSuccessText('تم تأكيد البريد وإنشاء الحساب بنجاح.');
         onSuccess({ id: profile.id, name: profile.name || name, email: profile.email || email, phone: profile.phone || phone, role: profile.role || role, status: profile.status || 'approved' });
         setTimeout(() => { onClose(); resetForm(); }, 1000); return;
