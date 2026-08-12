@@ -172,7 +172,7 @@ export default function AuthModal({
 
     try {
       if (supabaseConfigured) {
-        if (!email.trim() || !password.trim() || (mode === 'register' && (!name.trim() || !phone.trim()))) {
+        if (!password.trim() || (mode === 'register' && (!name.trim() || !phone.trim() || !email.trim())) || (mode === 'login' && !phone.trim())) {
           setErrorText('من فضلك أكمل البريد الإلكتروني وكلمة المرور والبيانات المطلوبة.');
           setLoading(false);
           return;
@@ -182,8 +182,9 @@ export default function AuthModal({
           if (otpStatus === 'sent' && !otpVerified) { await handleVerifyOtp(); setLoading(false); return; }
           if (!otpVerified) { setErrorText('أدخل رمز التحقق أولًا.'); setLoading(false); return; }
         } else {
-          const profile: any = await signInWithSupabase(email, password);
-          if (profile.role === 'captain' && profile.status !== 'approved') throw new Error('حساب الطيار لم تتم الموافقة عليه بعد.');
+          const result = await supabase.functions.invoke('login-by-phone', { body: { phone, password } });
+          if (result.error || result.data?.error) throw result.error || new Error(result.data.error);
+          const profile: any = result.data.profile;
           onSuccess({ id: profile.id, name: profile.name, email: profile.email, phone: profile.phone, role: profile.role, status: profile.status });
         }
         onClose();
