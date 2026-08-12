@@ -857,7 +857,9 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           if (!response.ok) throw new Error(data.error || 'فشل تحليل المنيو.');
         }
         if (data.success && Array.isArray(data.items)) {
-          setExtractedItems(data.items);
+          const cleanedItems = data.items.map((item: any) => ({ ...item, sizes: Array.isArray(item.sizes) ? item.sizes.filter((size: any) => !['الوحدة الأساسية', 'الوحدة الاساسية', 'الوحدة', 'basic', 'base', 'regular', 'عادي', 'عادى'].includes(String(size.name || '').trim().toLowerCase())) : [] }));
+          setExtractedItems(cleanedItems);
+          data.items = cleanedItems;
           // إضافة الأقسام التي اكتشفها AI تلقائيًا إلى قائمة فلاتر الصفحة الرئيسية.
           const discovered: string[] = Array.from(new Set(data.items.map((item: any) => String(item.category || 'sides').trim().toLowerCase()))) as string[];
           const icons: Record<string, string> = { burgers: '🍔', pizza: '🍕', salads: '🥗', sushi: '🍣', ramen: '🍜', dessert: '🍦', drinks: '🥤', sides: '🍟', offers: '🏷️' };

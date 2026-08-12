@@ -926,9 +926,9 @@ export default function RestaurantDetail({
                               setDishForm({ ...dishForm, sizes: updated });
                             }}
                             className="p-1 px-1.5 bg-red-50 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg cursor-pointer transition-colors text-[9px] font-bold"
-                            title={isAr ? "حذف" : "Delete"}
+                            title={['الوحدة الأساسية','الوحدة الاساسية','الوحدة','عادي','عادى'].includes(String(sz.name || '').trim()) ? 'حذف الوحدة الأساسية' : (isAr ? 'حذف الحجم' : 'Delete size')}
                           >
-                            {isAr ? "حذف" : "Del"}
+                            {['الوحدة الأساسية','الوحدة الاساسية','الوحدة','عادي','عادى'].includes(String(sz.name || '').trim()) ? 'حذف الوحدة' : (isAr ? 'حذف' : 'Del')}
                           </button>
                         </div>
                       </div>
