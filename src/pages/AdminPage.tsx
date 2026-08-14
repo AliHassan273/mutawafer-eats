@@ -859,16 +859,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           const cleanedItems = data.items.map((item: any) => ({ ...item, sizes: Array.isArray(item.sizes) ? item.sizes.filter((size: any) => !['الوحدة الأساسية', 'الوحدة الاساسية', 'الوحدة', 'basic', 'base', 'regular', 'عادي', 'عادى'].includes(String(size.name || '').trim().toLowerCase())) : [] }));
           setExtractedItems(cleanedItems);
           data.items = cleanedItems;
-          // إضافة الأقسام التي اكتشفها AI تلقائيًا إلى قائمة فلاتر الصفحة الرئيسية.
-          const discovered: string[] = Array.from(new Set(data.items.map((item: any) => String(item.category || 'sides').trim().toLowerCase()))) as string[];
-          const icons: Record<string, string> = { burgers: '🍔', pizza: '🍕', salads: '🥗', sushi: '🍣', ramen: '🍜', dessert: '🍦', drinks: '🥤', sides: '🍟', offers: '🏷️' };
-          const arabic: Record<string, string> = { burgers: 'برجر', pizza: 'بيتزا', salads: 'سلطات', sushi: 'سوشي', ramen: 'رامين', dessert: 'حلويات', drinks: 'مشروبات', sides: 'مقبلات', offers: 'عروض' };
-          setCategoriesList(previous => {
-            const merged = [...previous];
-            for (const id of discovered) if (!merged.some(c => c.id === id)) merged.push({ id, name: id, nameAr: arabic[id] || id, icon: icons[id] || '🍽️' });
-            (supabaseConfigured ? saveSettingsToSupabase({ categories: merged }) : fetchWithRetry('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categories: merged }) })).catch(() => {});
-            return merged;
-          });
+          // ملاحظة: التصنيفات مش بتتحفظ هنا خالص — بتتحفظ بس وقت "استيراد" الأصناف المختارة فعليًا (شوف handleImportExtracted)،
+          // عشان صنف اتشال من الاختيار أو اتعدّل اسم تصنيفه في الجدول قبل الاستيراد مايسيبش تصنيف فاضي وراه.
           setAiWarning(data.warning || null);
           const autoSelect: Record<number, boolean> = {};
           data.items.forEach((_, idx) => {
@@ -1038,23 +1030,37 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         image: item.image || undefined, // السيرفر يضع اللوجو الافتراضي بدون تكرار base64 داخل كل صنف
       }));
     if (itemsToImport.length === 0) {
-      alert("No items selected for import");
+      alert("لازم تختار صنف واحد على الأقل قبل الاستيراد");
       return;
     }
 
+    // نضيف/نحدّث تصنيفات الأقسام بس من الأصناف اللي هتتحفظ فعليًا (بعد أي تعديل عملته على اسم التصنيف بالجدول)
+    const normalize = (value: string) => String(value || '').trim().toLowerCase();
+    const iconsFallback: Record<string, string> = { burgers: '🍔', pizza: '🍕', salads: '🥗', sushi: '🍣', ramen: '🍜', dessert: '🍦', drinks: '🥤', sides: '🍟', offers: '🏷️' };
+    const discoveredCategories: string[] = Array.from(new Set(itemsToImport.map((item: any) => String(item.category || 'أصناف متنوعة').trim()).filter(Boolean)));
+    const newCategories = discoveredCategories.filter(name => !categoriesList.some(c => normalize(c.id) === normalize(name) || normalize(c.nameAr) === normalize(name) || normalize(c.name) === normalize(name)));
+    if (newCategories.length) {
+      const merged = [...categoriesList, ...newCategories.map(name => ({ id: name, name, nameAr: name, icon: iconsFallback[normalize(name)] || '🍽️', visible: true }))];
+      setCategoriesList(merged);
+      try { await saveSettingsToSupabase({ categories: merged }); } catch (err) { console.error('Category sync failed:', err); }
+    }
+
     try {
-      // إرسال دفعات صغيرة يمنع فشل HTTP/2 عندما تكون صور المنيو أو اللوجو كبيرة.
-      for (let start = 0; start < itemsToImport.length; start += 5) {
-        const batch = itemsToImport.slice(start, start + 5);
-        if (supabaseConfigured) {
-        await addMenuItemsToSupabase(selectedRestId, itemsToImport);
+      if (supabaseConfigured) {
+        // إرسال دفعات صغيرة يمنع فشل HTTP/2 عندما تكون صور المنيو أو اللوجو كبيرة.
+        for (let start = 0; start < itemsToImport.length; start += 5) {
+          const batch = itemsToImport.slice(start, start + 5);
+          await addMenuItemsToSupabase(selectedRestId, batch);
+        }
         await onRefreshData();
         setExtractedItems([]);
         setFileName(null);
         triggerSuccess(t("addedSuccess"));
         return;
       }
-      const response = await fetchWithRetry(`/api/restaurants/${selectedRestId}/menu`, {
+      for (let start = 0; start < itemsToImport.length; start += 5) {
+        const batch = itemsToImport.slice(start, start + 5);
+        const response = await fetchWithRetry(`/api/restaurants/${selectedRestId}/menu`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(batch)
