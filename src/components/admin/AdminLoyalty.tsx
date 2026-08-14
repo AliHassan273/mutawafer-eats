@@ -1,5 +1,5 @@
 import React from 'react';
-import { fetchWithRetry } from '../../utils/fetchHelper';
+import { saveSettingsToSupabase } from '../../services/supabaseSettingsService';
 
 export default function AdminLoyalty({ rewardOrderThreshold, setRewardOrderThreshold, loyaltyCustomers, onSuccess }: any) {
   return (
@@ -10,8 +10,12 @@ export default function AdminLoyalty({ rewardOrderThreshold, setRewardOrderThres
             </div>
             <p className="text-[10px] text-slate-400">عند الوصول إلى هذا العدد، تظهر للعميل رسالة الهدية وزر التواصل عبر واتساب.</p>
             <button type="button" onClick={async () => {
-              const res = await fetchWithRetry('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rewardOrderThreshold: Math.max(1, Number(rewardOrderThreshold) || 10) }) });
-              if (res.ok) onSuccess('تم حفظ عدد الطلبات المطلوب للهدية.');
+              try {
+                await saveSettingsToSupabase({ rewardOrderThreshold: Math.max(1, Number(rewardOrderThreshold) || 10) });
+                onSuccess('تم حفظ عدد الطلبات المطلوب للهدية.');
+              } catch (err) {
+                console.error('Save loyalty threshold failed:', err);
+              }
             }} className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-4 py-2 text-xs font-black">حفظ عدد الطلبات</button>
             <div className="overflow-x-auto border border-slate-100 rounded-2xl">
               <table className="w-full text-xs text-right"><thead className="bg-slate-50"><tr><th className="p-3">العميل</th><th className="p-3">الهاتف</th><th className="p-3">طلبات آخر ٣٠ يوم</th><th className="p-3">الحالة</th></tr></thead><tbody>

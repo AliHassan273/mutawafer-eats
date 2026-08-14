@@ -198,12 +198,7 @@ export default function App() {
   const loadInitialData = async () => {
     try {
       // 1. Fetch Restaurants
-      if (supabaseConfigured) {
-        setRestaurants(await listRestaurantsFromSupabase());
-      } else {
-        const res = await fetchWithRetry('/api/restaurants');
-        if (res.ok) setRestaurants(await res.json()); else setRestaurants([]);
-      }
+      setRestaurants(await listRestaurantsFromSupabase());
     } catch {
       setRestaurants([]);
     } finally {
@@ -212,7 +207,7 @@ export default function App() {
 
     try {
       // 2. Fetch Settings
-      const setData = supabaseConfigured ? await getPublicSettingsFromSupabase() : await (async () => { const setRes = await fetchWithRetry('/api/settings'); return setRes.ok ? setRes.json() : null; })();
+      const setData = await getPublicSettingsFromSupabase();
       if (setData) {
           setSettings(setData);
           if (setData.logoImage) {
@@ -229,15 +224,9 @@ export default function App() {
 
     try {
       // 3. Fetch orders
-      // ✅ اجيب الطلبات من السيرفر وادمجها مع المحفوظة محلياً
       if (currentUser) {
-        const ordData = supabaseConfigured ? await listMyOrdersFromSupabase() : await (async () => { const ordRes = await fetchWithRetry('/api/orders'); return ordRes.ok ? ordRes.json() : []; })();
-        setOrders(prev => {
-          if (supabaseConfigured) return ordData;
-          const serverIds = new Set(ordData.map((o: any) => o.id));
-          const localOnly = prev.filter(o => !serverIds.has(o.id));
-          return [...ordData, ...localOnly].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        });
+        const ordData = await listMyOrdersFromSupabase();
+        setOrders(ordData);
       }
     } catch (err) {
       console.error("Error fetching orders:", err);
@@ -245,12 +234,7 @@ export default function App() {
 
     try {
       // 4. Fetch reviews
-      if (supabaseConfigured) {
-        setReviews(await listReviewsFromSupabase());
-      } else {
-        const revRes = await fetchWithRetry('/api/reviews');
-        if (revRes.ok) setReviews(await revRes.json());
-      }
+      setReviews(await listReviewsFromSupabase());
     } catch (err) {
       console.error("Error fetching reviews:", err);
     }
@@ -445,59 +429,10 @@ export default function App() {
     };
 
     try {
-      if (supabaseConfigured) {
-        const persisted = await createOrderInSupabase({ cart, restaurantName: associatedRest.name, customerName, customerPhone, notes, address: fullDeliveryAddress, paymentMethod, paymentDetails, deliveryFee: calculatedDeliveryFee, additionalRestaurantFee, doorstepFee, discount: itemDiscount, total: totalAmount, eta: 0 });
-        const completeOrder = { ...persisted, restaurant: associatedRest, items: cart };
-        setOrders(prev => [completeOrder, ...prev]);
-        setSelectedOrder(completeOrder);
-      } else {
-      const res = await fetchWithRetry('/api/orders', {
-  method: 'POST',
-  body: JSON.stringify({
-    // ✅ بيانات الطلب فقط — الأسعار بتتحسب في السيرفر
-    restaurantId:    primaryRestId,
-    items:           cart.map(c => ({ 
-                       menuItem: { id: c.menuItem.id },  // فقط الـ ID
-                       selectedSize: c.selectedSize ? { id: c.selectedSize.id, name: c.selectedSize.name } : undefined,
-                       restaurantId: c.restaurantId,
-                       quantity: c.quantity 
-                     })),
-    deliveryFee:     calculatedDeliveryFee, // قيمة عرضية؛ السيرفر يعيد حسابها
-    deliveryRegionId,
-    restaurantIds: [...new Set(cart.map(item => item.restaurantId))],
-    deliveryPricingType: settings.deliveryPricingType || 'area',
-    customerName,
-    customerPhone,
-    deliveryAddress: fullDeliveryAddress,
-    paymentMethod,
-    paymentDetails,
-    notes,
-    vodafoneFee,
-    doorstepDelivery,
-  }),
-});
-      if (res.ok) {
-        const persisted = await res.json();
-        setOrders((prev) => [persisted, ...prev]);
-        setSelectedOrder(persisted);
-
-        // Keep track of placed order IDs locally in localStorage as backup
-        try {
-          const stored = localStorage.getItem('mutafer_customer_order_ids');
-          const idsList = stored ? JSON.parse(stored) : [];
-          if (!idsList.includes(persisted.id)) {
-            idsList.push(persisted.id);
-            localStorage.setItem('mutafer_customer_order_ids', JSON.stringify(idsList));
-          }
-        } catch (e) {
-          console.error("Failed to save guest order id:", e);
-        }
-
-      } else {
-        setOrders((prev) => [newOrder, ...prev]);
-        setSelectedOrder(newOrder);
-      }
-      }
+      const persisted = await createOrderInSupabase({ cart, restaurantName: associatedRest.name, customerName, customerPhone, notes, address: fullDeliveryAddress, paymentMethod, paymentDetails, deliveryFee: calculatedDeliveryFee, additionalRestaurantFee, doorstepFee, discount: itemDiscount, total: totalAmount, eta: 0 });
+      const completeOrder = { ...persisted, restaurant: associatedRest, items: cart };
+      setOrders(prev => [completeOrder, ...prev]);
+      setSelectedOrder(completeOrder);
     } catch (err) {
       console.error("Failed to post order:", err);
       setOrders((prev) => [newOrder, ...prev]);
@@ -517,28 +452,9 @@ export default function App() {
     courierPhone?: string
   ) => {
     try {
-      if (supabaseConfigured) {
-        const updated = await updateOrderStatusInSupabase(orderId, { status: newStatus, courierName, courierPhone });
-        setOrders(prev => prev.map(order => order.id === orderId ? { ...order, status: updated.status, eta: updated.eta, courierName, courierPhone } : order));
-        setSelectedOrder(current => current && current.id === orderId ? { ...current, status: updated.status, eta: updated.eta, courierName, courierPhone } : current);
-        return;
-      }
-      const res = await fetchWithRetry(`/api/orders/${orderId}/status`, {
-  method: 'PUT',
-  body: JSON.stringify({ status: newStatus, courierName, courierPhone }),
-});
-      if (res.ok) {
-        const updated = await res.json();
-        setOrders((prevOrders) =>
-          prevOrders.map((ord) => (ord.id === orderId ? updated : ord))
-        );
-        setSelectedOrder((current) => {
-          if (current && current.id === orderId) {
-            return updated;
-          }
-          return current;
-        });
-      }
+      const updated = await updateOrderStatusInSupabase(orderId, { status: newStatus, courierName, courierPhone });
+      setOrders(prev => prev.map(order => order.id === orderId ? { ...order, status: updated.status, eta: updated.eta, courierName, courierPhone } : order));
+      setSelectedOrder(current => current && current.id === orderId ? { ...current, status: updated.status, eta: updated.eta, courierName, courierPhone } : current);
     } catch (err) {
       console.error("Failed to update status:", err);
       // Local fallback
@@ -908,7 +824,7 @@ export default function App() {
                                       {item.name}
                                     </h3>
                                     <span className="text-xs font-black text-[#f94c10] shrink-0">
-                                      {item.price} {t('egp')}
+                                      {item.price > 0 ? `${item.price} ${t('egp')}` : (item.sizes && item.sizes.length > 0 ? `من ${Math.min(...item.sizes.map((s) => s.price))} ${t('egp')}` : `${item.price} ${t('egp')}`)}
                                     </span>
                                   </div>
                                   
@@ -1027,7 +943,7 @@ export default function App() {
                                           {translatedName}
                                         </h3>
                                         <span className="text-xs font-black text-[#f94c10] shrink-0">
-                                          {item.price} {t('egp')}
+                                          {item.price > 0 ? `${item.price} ${t('egp')}` : (item.sizes && item.sizes.length > 0 ? `من ${Math.min(...item.sizes.map((s) => s.price))} ${t('egp')}` : `${item.price} ${t('egp')}`)}
                                         </span>
                                       </div>
                                       
@@ -1232,6 +1148,7 @@ export default function App() {
             onRemoveFromCart={handleRemoveFromCart}
             onRefreshData={loadInitialData}
             reviews={reviews}
+            categoriesList={settings.categories || []}
             hiddenCategories={(settings.categories || []).filter((category: any) => category.visible === false).flatMap((category: any) => [category.id, category.name, category.nameAr])}
           />
         )}

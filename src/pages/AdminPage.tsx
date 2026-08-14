@@ -15,11 +15,13 @@ import AdminPermissions from '../components/admin/AdminPermissions';
 import AdminSettings from '../components/admin/AdminSettings';
 import AdminStatistics from '../components/admin/AdminStatistics';
 import { supabaseConfigured, supabase } from '../lib/supabase';
+import { extractFunctionErrorMessage } from '../utils/functionError';
 import { signInWithSupabase } from '../services/supabaseAuthService';
 import { saveRestaurantInSupabase, deleteRestaurantInSupabase, listAdminOrdersFromSupabase, listCaptainsFromSupabase, listAdminProfilesFromSupabase, updateProfilePermissionsInSupabase, updateCaptainStatusInSupabase, createAdminInSupabase, deleteAdminInSupabase, listLoyaltyCustomersFromSupabase, deleteCaptainInSupabase } from '../services/supabaseAdminService';
 import { saveSettingsToSupabase, getSettingsFromSupabase, deleteCategoryAndItemsFromSupabase } from '../services/supabaseSettingsService';
 import { updateOrderStatusInSupabase } from '../services/supabaseOrderService';
-import { addMenuItemsToSupabase, deleteMenuItemFromSupabase } from '../services/supabaseMenuService';
+import { addMenuItemsToSupabase, deleteMenuItemFromSupabase, updateMenuItemInSupabase, replaceMenuItemSizesInSupabase } from '../services/supabaseMenuService';
+import MenuItemEditor from '../components/admin/MenuItemEditor';
 import AdminOrders from '../components/admin/AdminOrders';
 import AdminCaptains from '../components/admin/AdminCaptains';
 
@@ -124,6 +126,15 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   const [deleteConfirmAdminId, setDeleteConfirmAdminId] = useState<string | null>(null);
   const [deleteConfirmRestId, setDeleteConfirmRestId] = useState<string | null>(null);
   const [deleteConfirmDishId, setDeleteConfirmDishId] = useState<string | null>(null);
+
+  // نافذة إضافة/تعديل الصنف — نفس الكومبوننت المشترك المستخدم أيضًا داخل صفحة المطعم نفسها
+  const [editingDishItem, setEditingDishItem] = useState<MenuItem | null>(null);
+  const [isAddingNewItem, setIsAddingNewItem] = useState(false);
+
+  const handleOpenEditItem = (item: MenuItem) => {
+    setIsAddingNewItem(false);
+    setEditingDishItem(item);
+  };
 
   // Region and distance based delivery options configuration
   const [deliveryOptions, setDeliveryOptions] = useState<{ id: string; name: string; fee: number }[]>([]);
@@ -522,15 +533,9 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
   const handleUpdateCaptainStatus = async (id: string, status: 'approved' | 'suspended' | 'pending') => {
     try {
-      const res = await fetchWithRetry(`/api/captains/${id}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status })
-      });
-      if (res.ok) {
-        triggerSuccess("تم تحديث حالة تفعيل الكابتن بنجاح! 🛵");
-        fetchCaptainsList();
-      }
+      await updateCaptainStatusInSupabase(id, status);
+      triggerSuccess("تم تحديث حالة تفعيل الكابتن بنجاح! 🛵");
+      fetchCaptainsList();
     } catch (err) {
       console.error(err);
     }
@@ -663,14 +668,14 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   const [activeStoreDropdownId, setActiveStoreDropdownId] = useState<string | null>(null);
   const [activeDishDropdownId, setActiveDishDropdownId] = useState<string | null>(null);
 
-  const [restForm, setRestForm] = useState({
+  const [restForm, setRestForm] = useState<{ name: string; coverImage: string; categories: string[]; promo: string; deliveryFee: number; deliveryTime: string; rating: number; distance: number; descriptionString: string; openTime: string; closeTime: string; whatsappNumber: string; _coverFile?: File | null }>({
     name: "",
     coverImage: "",
-    categories: "",
+    categories: [],
     promo: "",
     deliveryFee: 0,
     deliveryTime: "",
-    rating: 4.8,
+    rating: 0,
     distance: 1.2,
     descriptionString: "",
     openTime: "09:00",
@@ -678,7 +683,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     whatsappNumber: ""
   });
 
-  const [manualItemForm, setManualItemForm] = useState({
+  const [setManualItemForm] = useState({
     name: "",
     description: "",
     price: 100,
@@ -846,16 +851,10 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         const mimeType = file.type;
 
         let data: any;
-        if (supabaseConfigured) {
-          const result = await supabase.functions.invoke('parse-menu', { body: { fileData: base64Content, mimeType, fileName: file.name, customInstructions } });
-          if (result.error) throw result.error;
-          data = result.data;
-        } else {
-          const response = await fetchWithRetry("/api/gemini/parse-menu", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileData: base64Content, mimeType, fileName: file.name, customInstructions }) });
-          const raw = await response.text();
-          try { data = JSON.parse(raw); } catch { throw new Error(`استجابة غير صالحة من الخادم (${response.status}).`); }
-          if (!response.ok) throw new Error(data.error || 'فشل تحليل المنيو.');
-        }
+        const result = await supabase.functions.invoke('parse-menu', { body: { fileData: base64Content, mimeType, fileName: file.name, customInstructions } });
+        if (result.error) throw new Error(await extractFunctionErrorMessage(result.error, 'تعذر تحليل صورة المنيو.'));
+        data = result.data;
+        if (data?.error) throw new Error(data.error);
         if (data.success && Array.isArray(data.items)) {
           const cleanedItems = data.items.map((item: any) => ({ ...item, sizes: Array.isArray(item.sizes) ? item.sizes.filter((size: any) => !['الوحدة الأساسية', 'الوحدة الاساسية', 'الوحدة', 'basic', 'base', 'regular', 'عادي', 'عادى'].includes(String(size.name || '').trim().toLowerCase())) : [] }));
           setExtractedItems(cleanedItems);
@@ -928,9 +927,9 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       const formattedData = {
         name: restForm.name,
         coverImage: restForm.coverImage || logoImageSetting || "/logo.png",
-        categories: editingRestId ? (restaurants.find(r => r.id === editingRestId)?.categories || []) : [],
+        categories: restForm.categories,
         promo: restForm.promo || undefined,
-        rating: Number(restForm.rating) || 4.5,
+        rating: editingRestId ? (restaurants.find(r => r.id === editingRestId)?.rating || 0) : 0,
         distance: Number(restForm.distance) || 1.0,
         descriptionString: restForm.descriptionString,
         openTime: restForm.openTime || "09:00",
@@ -1023,44 +1022,6 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     }
   };
 
-  const handleAddManualMenuItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (currentAdmin && currentAdmin.role !== "primary" && !currentAdmin.canManageMenu) {
-      alert("خطأ أمني: لا تمتلك الصلاحية اللازمة لإضافة أو تعديل أصناف المنيو!");
-      return;
-    }
-    if (!selectedRestId) return;
-
-    try {
-      if (supabaseConfigured) {
-        await addMenuItemsToSupabase(selectedRestId, [manualItemForm]);
-        await onRefreshData();
-        setManualItemForm({ name: "", description: "", price: 100, category: "أصناف متنوعة", image: logoImageSetting || "/logo.png" });
-        triggerSuccess('تمت إضافة الصنف بنجاح.');
-        return;
-      }
-      const response = await fetchWithRetry(`/api/restaurants/${selectedRestId}/menu`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(manualItemForm)
-      });
-
-      if (response.ok) {
-        await onRefreshData();
-        setManualItemForm({
-          name: "",
-          description: "",
-          price: 100,
-          category: "Popular",
-          image: logoImageSetting || "/logo.png"
-        });
-        triggerSuccess("Successfully added menu option!");
-      }
-    } catch (err) {
-      console.error("Manual add failed:", err);
-    }
-  };
-
   const handleImportExtracted = async () => {
     if (currentAdmin && currentAdmin.role !== "primary" && !currentAdmin.canManageMenu) {
       alert("خطأ الصلاحية: لا تملك صلاحية لإدراج أو تعديل أصناف المنيو على البرنامج!");
@@ -1123,7 +1084,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     setRestForm({
       name: rest.name,
       coverImage: rest.coverImage,
-      categories: rest.categories.join(", "),
+      categories: rest.categories || [],
       promo: rest.promo || "",
       deliveryFee: rest.deliveryFee,
       deliveryTime: rest.deliveryTime,
@@ -1141,11 +1102,11 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     setRestForm({
       name: "",
       coverImage: "",
-      categories: "",
+      categories: [],
       promo: "",
       deliveryFee: 0,
       deliveryTime: "",
-      rating: 4.8,
+      rating: 0,
       distance: 1.2,
       descriptionString: "",
       openTime: "09:00",
@@ -1250,20 +1211,20 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   // إذا لم يكن هناك مشرف مسجل دخول، نعرض نموذج الدخول
   if (!currentAdmin) {
       return (
-      <div className="max-w-7xl mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[70vh]" dir={isAr ? "rtl" : "ltr"}>
+      <div className="max-w-7xl mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[70vh]" dir={"rtl"}>
         <div className="w-full max-w-md bg-white rounded-[32px] p-6 sm:p-8 shadow-xl border border-slate-100 space-y-6">
           <div className="text-center space-y-2">
             <span className="text-4xl">🔐</span>
             <h2 className="text-2xl font-black text-slate-800 font-display">
               {isAdminRegisterMode
-                ? (isAr ? "إنشاء حساب مشرف جديد" : "Admin Registration")
-                : (isAr ? "لوحة تحكم الإدارة الحصينة" : "Admin Panel Login")
+                ? ("إنشاء حساب مشرف جديد")
+                : ("لوحة تحكم الإدارة الحصينة")
               }
             </h2>
             <p className="text-xs text-slate-500 font-medium">
               {isAdminRegisterMode
-                ? (isAr ? "سجل كأدمن لتتمكن من إضافة مطاعم وتعديل الوجبات وضبط طريقة الشحن" : "Register as supervisor to manage stores and products.")
-                : (isAr ? "الرجاء تسجيل الدخول ببيانات المشرف لمتابعة إدارة المطاعم والمنيوهات والطلبات" : "Please log in to manage restaurants, menus and orders.")
+                ? ("سجل كأدمن لتتمكن من إضافة مطاعم وتعديل الوجبات وضبط طريقة الشحن")
+                : ("الرجاء تسجيل الدخول ببيانات المشرف لمتابعة إدارة المطاعم والمنيوهات والطلبات")
               }
             </p>
           </div>
@@ -1278,7 +1239,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
               className={`flex-1 py-2 text-xs font-black rounded-xl cursor-pointer transition-all ${!isAdminRegisterMode ? "bg-white text-slate-800 shadow-xs" : "text-slate-500 hover:text-slate-700"
                 }`}
             >
-              {isAr ? "تسجيل الدخول" : "Login"}
+              {"تسجيل الدخول"}
             </button>
             <button
               type="button"
@@ -1289,7 +1250,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
               className={`flex-1 py-2 text-xs font-black rounded-xl cursor-pointer transition-all ${isAdminRegisterMode ? "bg-white text-slate-800 shadow-xs" : "text-slate-500 hover:text-slate-700"
                 }`}
             >
-              {isAr ? "إنشاء حساب أدمن 👤" : "Register Admin"}
+              {"إنشاء حساب أدمن 👤"}
             </button>
           </div>
 
@@ -1303,12 +1264,12 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
             <form onSubmit={handleAdminRegister} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-600 block text-right">
-                  {isAr ? "الاسم الكامل" : "Full Name"}
+                  {"الاسم الكامل"}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder={isAr ? "مثال: هاني شاكر" : "e.g. John Doe"}
+                  placeholder={"مثال: هاني شاكر"}
                   value={registerName}
                   onChange={(e) => setRegisterName(e.target.value)}
                   className="w-full bg-slate-50/70 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-[#f94c10]"
@@ -1317,7 +1278,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-600 block text-right">
-                  {isAr ? "البريد الإلكتروني للإدارة" : "Admin Email Address"}
+                  {"البريد الإلكتروني للإدارة"}
                 </label>
                 <input
                   type="email"
@@ -1331,7 +1292,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-600 block text-right">
-                  {isAr ? "كلمة المرور الحصينة" : "Password"}
+                  {"كلمة المرور الحصينة"}
                 </label>
                 <input
                   type="password"
@@ -1351,10 +1312,10 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                 {adminLoginLoading ? (
                   <>
                     <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin inline-block" />
-                    <span>{isAr ? "جاري الحفظ والإنشاء..." : "Creating Account..."}</span>
+                    <span>{"جاري الحفظ والإنشاء..."}</span>
                   </>
                 ) : (
-                  <span>{isAr ? "إنشاء حساب المشرف وتفعيله 🚀" : "Register & Start Administering"}</span>
+                  <span>{"إنشاء حساب المشرف وتفعيله 🚀"}</span>
                 )}
               </button>
             </form>
@@ -1362,7 +1323,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
             <form onSubmit={handleAdminLogin} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-600 block text-right">
-                  {isAr ? "البريد الإلكتروني الخاص بالمشرف" : "Admin Email Address"}
+                  {"البريد الإلكتروني الخاص بالمشرف"}
                 </label>
                 <input
                   type="email"
@@ -1376,7 +1337,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-600 block text-right">
-                  {isAr ? "كلمة المرور" : "Password"}
+                  {"كلمة المرور"}
                 </label>
                 <input
                   type="password"
@@ -1396,10 +1357,10 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                 {adminLoginLoading ? (
                   <>
                     <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin inline-block" />
-                    <span>{isAr ? "جاري فك التشفير..." : "Decoding..."}</span>
+                    <span>{"جاري فك التشفير..."}</span>
                   </>
                 ) : (
-                  <span>{isAr ? "دخول لوحة التحكم 🔑" : "Access Console"}</span>
+                  <span>{"دخول لوحة التحكم 🔑"}</span>
                 )}
               </button>
             </form>
@@ -1411,7 +1372,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
               className="text-xs text-slate-500 hover:text-[#f94c10] font-extrabold transition-all outline-none cursor-pointer flex items-center justify-center gap-1.5 mx-auto"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span>{isAr ? "العودة لتصفح المطابخ" : "Go back to dining map"}</span>
+              <span>{"العودة لتصفح المطابخ"}</span>
             </button>
           </div>
         </div>
@@ -1499,7 +1460,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
             }`}
         >
           <span>🏪</span>
-          <span>{isAr ? 'إدارة المتاجر والمأكولات' : 'Stores & Menus'}</span>
+          <span>{'إدارة المتاجر والمأكولات'}</span>
         </button>
 
         <button
@@ -1510,7 +1471,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
             }`}
         >
           <span>📦</span>
-          <span>{isAr ? 'موافقة وإشراف الطلبات المعلقة' : 'Live WhatsApp Approvals'}</span>
+          <span>{'موافقة وإشراف الطلبات المعلقة'}</span>
           {ordersList.filter(o => o.status === 'Pending').length > 0 && (
             <span className="bg-red-500 text-white font-black text-[9px] h-4 w-4 rounded-full flex items-center justify-center animate-pulse">
               {ordersList.filter(o => o.status === 'Pending').length}
@@ -1526,7 +1487,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
             }`}
         >
           <span>🛵</span>
-          <span>{isAr ? 'حسابات كباتن التوصيل' : 'Captains Directory'}</span>
+          <span>{'حسابات كباتن التوصيل'}</span>
           {captains.filter(c => c.status === 'pending').length > 0 && (
             <span className="bg-red-500 text-white font-black text-[9px] h-4 w-4 rounded-full flex items-center justify-center animate-pulse font-mono">
               {captains.filter(c => c.status === 'pending').length}
@@ -1542,7 +1503,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
             }`}
         >
           <span>⚙️</span>
-          <span>{isAr ? 'المناطق والكوبونات والأسعار' : 'Zones, Coupons & Pricing'}</span>
+          <span>{'المناطق والكوبونات والأسعار'}</span>
         </button>
       </div>
 
@@ -1595,7 +1556,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
             <label className="text-xs font-bold text-slate-600">{t("promoText")}</label>
             <input
               type="text"
-              placeholder="FREE DELIVERY or 50% OFF"
+              placeholder="توصيل مجاني أو خصم 50%"
               value={restForm.promo}
               onChange={(e) => setRestForm({ ...restForm, promo: e.target.value })}
               className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2.5 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-orange-500"
@@ -1634,7 +1595,35 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           </div>
 
           <div className="md:col-span-2 space-y-1 pt-1">
-            <label className="text-xs font-bold text-slate-600">Short Bio / Description</label>
+            <label className="text-xs font-bold text-slate-600">فئات الطعام (نوع المطبخ) *</label>
+            <p className="text-[10px] text-slate-400 mb-1">اختر تصنيف أو أكتر بتوصف نوع أكل المطعم — التصنيفات دي هي نفسها اللي بتظهر للعميل في فلتر الأقسام بالموقع.</p>
+            <div className="flex flex-wrap gap-2">
+              {categoriesList.filter(c => c.id !== 'all').map(cat => {
+                const isSelected = restForm.categories.includes(cat.id);
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setRestForm({
+                      ...restForm,
+                      categories: isSelected ? restForm.categories.filter(c => c !== cat.id) : [...restForm.categories, cat.id],
+                    })}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      isSelected ? 'bg-orange-500 text-white border-orange-500 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {cat.icon} {cat.nameAr || cat.name}
+                  </button>
+                );
+              })}
+              {categoriesList.filter(c => c.id !== 'all').length === 0 && (
+                <p className="text-[10px] text-slate-400">مفيش تصنيفات مضافة لسه — ضيفها من تبويب "التصنيفات" في الإعدادات أولاً.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="md:col-span-2 space-y-1 pt-1">
+            <label className="text-xs font-bold text-slate-600">نبذة مختصرة عن المطعم</label>
             <textarea
               rows={3}
               required
@@ -1674,7 +1663,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
             <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-50">
                 <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <span>🏪 {isAr ? 'المطاعم المسجلة' : 'Stores Registered'}</span>
+                  <span>🏪 {'المطاعم المسجلة'}</span>
                 </h3>
                 <button
                   type="button"
@@ -1683,7 +1672,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                   id="btn-add-store-registered"
                 >
                   <span>➕</span>
-                  <span>{isAr ? 'إضافة مطعم' : 'Add Store'}</span>
+                  <span>{'إضافة مطعم'}</span>
                 </button>
               </div>
 
@@ -1730,80 +1719,22 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
               </div>
             </div>
 
-            {/* ADD ITEM MANUAL PORTAL */}
+            {/* ADD ITEM MANUAL PORTAL — بيفتح نفس نافذة تعديل الصنف المشتركة */}
             <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
               <h3 className="text-sm font-bold text-slate-800 tracking-tight font-display mb-3 flex items-center gap-1.5 border-b border-slate-50 pb-2">
                 <ClipboardList className="text-slate-400 h-4.5 w-4.5" />
                 <span>إضافة صنف يدويًا</span>
               </h3>
-
-              <form onSubmit={handleAddManualMenuItem} className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-slate-400">اسم الصنف</label>
-                  <input
-                    required
-                    type="text"
-                    value={manualItemForm.name}
-                    onChange={(e) => setManualItemForm({ ...manualItemForm, name: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-150 rounded-xl px-3 py-2 text-xs outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-slate-400">الوصف</label>
-                  <textarea
-                    required
-                    placeholder="اكتب وصف الصنف..."
-                    value={manualItemForm.description}
-                    onChange={(e) => setManualItemForm({ ...manualItemForm, description: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-150 rounded-xl p-3 text-xs outline-none resize-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] uppercase font-bold text-slate-400" >السعر ({t("egp")})</label>
-                    <input
-                      required
-                      type="number"
-                      value={manualItemForm.price}
-                      onChange={(e) => setManualItemForm({ ...manualItemForm, price: Number(e.target.value) })}
-                      className="w-full bg-slate-50 border border-slate-150 rounded-xl px-3 py-2 text-xs outline-none"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] uppercase font-black text-slate-500">{'فئة الطعام (القسم) *'}</label>
-                    <select
-                      value={manualItemForm.category}
-                      onChange={(e) => setManualItemForm({ ...manualItemForm, category: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-150 rounded-xl px-3 py-2 text-xs outline-none font-bold"
-                    >
-                      {categoriesList.filter(c => c.id !== 'all').map(cat => (
-                        <option key={cat.id} value={cat.id || cat.name}>
-                          {cat.nameAr || cat.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500">صورة الصنف من الجهاز</label>
-                  <input type="file" accept="image/*" onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    uploadImageFile(file).then(url => setManualItemForm(prev => ({ ...prev, image: url }))).catch(err => setSuccessMsg(err.message));
-                  }} className="w-full text-xs" />
-                  <p className="text-[9px] text-slate-400">إذا لم تختر صورة سيتم استخدام لوجو الموقع.</p>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full mt-2 bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5"
-                >
-                  <span>إضافة الصنف إلى المنيو</span>
-                </button>
-              </form>
+              <p className="text-[11px] text-slate-400 mb-3">هيفتح نفس نافذة تعديل الصنف — اسم، وصف، سعر، فئة، صورة، وأحجام لو حبيت.</p>
+              <button
+                type="button"
+                disabled={!selectedRestId}
+                onClick={() => { setEditingDishItem(null); setIsAddingNewItem(true); }}
+                className="w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>إضافة صنف جديد إلى المنيو</span>
+              </button>
             </div>
           </div>
 
@@ -2190,7 +2121,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                       }}
                       className="bg-slate-800 hover:bg-slate-750 text-slate-300 py-2 px-6 rounded-full text-xs font-bold cursor-pointer transition-all"
                     >
-                      Clear Preview
+                      إلغاء المعاينة
                     </button>
                     <button
                       onClick={handleImportExtracted}
@@ -2214,14 +2145,19 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                   </h3>
 
                   <span className="text-xs font-semibold text-green-700 bg-green-50 px-2.5 py-1 rounded-full border border-green-100">
-                    التقييم: {activeRestaurant.rating} ★
+                    {(() => {
+                      const restReviews = (reviews || []).filter((r: any) => r.restaurantId === activeRestaurant.id);
+                      if (!restReviews.length) return 'لا يوجد تقييمات بعد';
+                      const avg = restReviews.reduce((acc: number, r: any) => acc + (r.ratingFoodQuality || 0), 0) / restReviews.length;
+                      return `التقييم: ${avg.toFixed(1)} ★ (${restReviews.length})`;
+                    })()}
                   </span>
                 </div>
 
                 {(!activeRestaurant.menu || activeRestaurant.menu.length === 0) ? (
                   <div className="text-center py-12 text-slate-400 text-xs font-medium space-y-1">
-                    <p>No dishes in this restaurant's menu yet.</p>
-                    <p className="text-[10px] text-slate-400">Use the Gemini AI Scanner above to scan and upload dishes instantly!</p>
+                    <p>لا يوجد أصناف في منيو هذا المطعم حتى الآن.</p>
+                    <p className="text-[10px] text-slate-400">استخدم قارئ المنيو بالذكاء الاصطناعي بالأعلى لمسح وإضافة الأصناف فورًا!</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[480px] overflow-y-auto no-scrollbar p-1">
@@ -2236,7 +2172,9 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                         <div className="flex-grow min-w-0">
                           <div className="flex justify-between items-start gap-1">
                             <h4 className="font-bold text-xs text-slate-800 truncate">{item.name}</h4>
-                            <span className="text-xs font-mono font-bold text-[#f94c10] shrink-0">{item.price} {t("egp")}</span>
+                            <span className="text-xs font-mono font-bold text-[#f94c10] shrink-0">
+                              {item.price > 0 ? `${item.price} ${t("egp")}` : (item.sizes && item.sizes.length > 0 ? `من ${Math.min(...item.sizes.map((s: any) => s.price))} ${t("egp")}` : `${item.price} ${t("egp")}`)}
+                            </span>
                           </div>
                           <p className="text-[10px] text-slate-400 line-clamp-2 mt-0.5">{item.description}</p>
 
@@ -2273,7 +2211,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                             </select>
                             {item.originalPrice && (
                               <span className="text-[9px] font-bold text-orange-600 bg-orange-100/50 px-2 py-0.5 rounded-md uppercase">
-                                Deal: {item.originalPrice} {t("egp")} original
+                                عرض: {item.originalPrice} {t("egp")} الأصلي
                               </span>
                             )}
                           </div>
@@ -2303,6 +2241,17 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                                   type="button"
                                   onClick={() => {
                                     setActiveDishDropdownId(null);
+                                    handleOpenEditItem(item);
+                                  }}
+                                  className={`w-full text-left px-2.5 py-1.5 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer flex-row-reverse text-right`}
+                                >
+                                  <Edit2 className="h-3.5 w-3.5 text-slate-500" />
+                                  <span>{'تعديل الصنف'}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveDishDropdownId(null);
                                     setDeleteConfirmDishId(item.id);
                                   }}
                                   className={`w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer ${'flex-row-reverse text-right'
@@ -2326,9 +2275,9 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         </div>
       )}
 
-      <AdminOrders ctx={{RestaurantMenuDropdown, aboutUsContentSetting, activeDishDropdownId, activeRestaurant, activeStoreDropdownId, adminEmail, adminLoginError, adminLoginLoading, adminPassword, adminTab, adminsList, aiError, aiLoading, aiWarning, captainLocations, captains, categoriesList, couponsList, currentAdmin, customInstructions, deleteConfirmAdminId, deleteConfirmDishId, deleteConfirmRestId, deliveryCommissionType, deliveryCommissionValue, deliveryOptions, deliveryPricingType, distanceBaseFee, distanceFeePerKm, dragActive, editingRestId, expandedCaptainReviews, extractedItems, fetchAdminsAndSettings, fetchCaptainsList, fileInputRef, fileName, handleAddCoupon, handleAddDeliveryOption, handleAddManualMenuItem, handleAdminLogin, handleAdminLogout, handleAdminRegister, handleCreateNewAdmin, handleDeleteAdmin, handleDeleteCaptain, handleDeleteCoupon, handleDeleteDeliveryOption, handleDeleteRestaurant, handleDrag, handleDrop, handleFileChange, handleFileParse, handleImportExtracted, handleSaveRestaurant, handleSaveSettings, handleScrollToRestaurantForm, handleSetEditRestaurant, handleSettingChange, handleToggleAdminPermission, handleToggleCoupon, handleUpdateAdminFlags, handleUpdateCaptainStatus, handleUpdateOrderCourierStatus, handleUpdateOrderFullStatus, isAdminRegisterMode, isAr, isCreatingRest, isUpdatingSettings, logoImageSetting, loyaltyCustomers, manualItemForm, newAdminForm, newCatIcon, newCatId, newCatName, newCatNameAr, newCouponCode, newCouponMinOrder, newCouponType, newCouponValue, newRegionFee, newRegionName, officeLat, officeLng, onBack, onRefreshData, ordersList, registerEmail, registerName, registerPassword, restForm, restaurants, reviews, rewardOrderThreshold, selectedFile, selectedImportItems, selectedRestId, setAboutUsContentSetting, setActiveDishDropdownId, setActiveStoreDropdownId, setAdminEmail, setAdminLoginError, setAdminLoginLoading, setAdminPassword, setAdminTab, setAdminsList, setAiError, setAiLoading, setAiWarning, setCaptainLocations, setCaptains, setCategoriesList, setCouponsList, setCurrentAdmin, setCustomInstructions, setDeleteConfirmAdminId, setDeleteConfirmDishId, setDeleteConfirmRestId, setDeliveryCommissionType, setDeliveryCommissionValue, setDeliveryOptions, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDragActive, setEditingRestId, setExpandedCaptainReviews, setExtractedItems, setFileName, setIsAdminRegisterMode, setIsCreatingRest, setIsUpdatingSettings, setLogoImageSetting, setLoyaltyCustomers, setManualItemForm, setNewAdminForm, setNewCatIcon, setNewCatId, setNewCatName, setNewCatNameAr, setNewCouponCode, setNewCouponMinOrder, setNewCouponType, setNewCouponValue, setNewRegionFee, setNewRegionName, setOfficeLat, setOfficeLng, setOrdersList, setRegisterEmail, setRegisterName, setRegisterPassword, setRestForm, setRewardOrderThreshold, setSelectedFile, setSelectedImportItems, setSelectedRestId, setSettingsExtra, setSuccessMsg, setWhatsappNumberSetting, settings, settingsExtra, successMsg, t, triggerSuccess, whatsappNumberSetting}} />
+      <AdminOrders ctx={{RestaurantMenuDropdown, aboutUsContentSetting, activeDishDropdownId, activeRestaurant, activeStoreDropdownId, adminEmail, adminLoginError, adminLoginLoading, adminPassword, adminTab, adminsList, aiError, aiLoading, aiWarning, captainLocations, captains, categoriesList, couponsList, currentAdmin, customInstructions, deleteConfirmAdminId, deleteConfirmDishId, deleteConfirmRestId, deliveryCommissionType, deliveryCommissionValue, deliveryOptions, deliveryPricingType, distanceBaseFee, distanceFeePerKm, dragActive, editingRestId, expandedCaptainReviews, extractedItems, fetchAdminsAndSettings, fetchCaptainsList, fileInputRef, fileName, handleAddCoupon, handleAddDeliveryOption, handleAdminLogin, handleAdminLogout, handleAdminRegister, handleCreateNewAdmin, handleDeleteAdmin, handleDeleteCaptain, handleDeleteCoupon, handleDeleteDeliveryOption, handleDeleteRestaurant, handleDrag, handleDrop, handleFileChange, handleFileParse, handleImportExtracted, handleSaveRestaurant, handleSaveSettings, handleScrollToRestaurantForm, handleSetEditRestaurant, handleSettingChange, handleToggleAdminPermission, handleToggleCoupon, handleUpdateAdminFlags, handleUpdateCaptainStatus, handleUpdateOrderCourierStatus, handleUpdateOrderFullStatus, isAdminRegisterMode, isAr, isCreatingRest, isUpdatingSettings, logoImageSetting, loyaltyCustomers, newAdminForm, newCatIcon, newCatId, newCatName, newCatNameAr, newCouponCode, newCouponMinOrder, newCouponType, newCouponValue, newRegionFee, newRegionName, officeLat, officeLng, onBack, onRefreshData, ordersList, registerEmail, registerName, registerPassword, restForm, restaurants, reviews, rewardOrderThreshold, selectedFile, selectedImportItems, selectedRestId, setAboutUsContentSetting, setActiveDishDropdownId, setActiveStoreDropdownId, setAdminEmail, setAdminLoginError, setAdminLoginLoading, setAdminPassword, setAdminTab, setAdminsList, setAiError, setAiLoading, setAiWarning, setCaptainLocations, setCaptains, setCategoriesList, setCouponsList, setCurrentAdmin, setCustomInstructions, setDeleteConfirmAdminId, setDeleteConfirmDishId, setDeleteConfirmRestId, setDeliveryCommissionType, setDeliveryCommissionValue, setDeliveryOptions, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDragActive, setEditingRestId, setExpandedCaptainReviews, setExtractedItems, setFileName, setIsAdminRegisterMode, setIsCreatingRest, setIsUpdatingSettings, setLogoImageSetting, setLoyaltyCustomers, setNewAdminForm, setNewCatIcon, setNewCatId, setNewCatName, setNewCatNameAr, setNewCouponCode, setNewCouponMinOrder, setNewCouponType, setNewCouponValue, setNewRegionFee, setNewRegionName, setOfficeLat, setOfficeLng, setOrdersList, setRegisterEmail, setRegisterName, setRegisterPassword, setRestForm, setRewardOrderThreshold, setSelectedFile, setSelectedImportItems, setSelectedRestId, setSettingsExtra, setSuccessMsg, setWhatsappNumberSetting, settings, settingsExtra, successMsg, t, triggerSuccess, whatsappNumberSetting}} />
 
-      <AdminCaptains ctx={{RestaurantMenuDropdown, aboutUsContentSetting, activeDishDropdownId, activeRestaurant, activeStoreDropdownId, adminEmail, adminLoginError, adminLoginLoading, adminPassword, adminTab, adminsList, aiError, aiLoading, aiWarning, captainLocations, captains, categoriesList, couponsList, currentAdmin, customInstructions, deleteConfirmAdminId, deleteConfirmDishId, deleteConfirmRestId, deliveryCommissionType, deliveryCommissionValue, deliveryOptions, deliveryPricingType, distanceBaseFee, distanceFeePerKm, dragActive, editingRestId, expandedCaptainReviews, extractedItems, fetchAdminsAndSettings, fetchCaptainsList, fileInputRef, fileName, handleAddCoupon, handleAddDeliveryOption, handleAddManualMenuItem, handleAdminLogin, handleAdminLogout, handleAdminRegister, handleCreateNewAdmin, handleDeleteAdmin, handleDeleteCaptain, handleDeleteCoupon, handleDeleteDeliveryOption, handleDeleteRestaurant, handleDrag, handleDrop, handleFileChange, handleFileParse, handleImportExtracted, handleSaveRestaurant, handleSaveSettings, handleScrollToRestaurantForm, handleSetEditRestaurant, handleSettingChange, handleToggleAdminPermission, handleToggleCoupon, handleUpdateAdminFlags, handleUpdateCaptainStatus, handleUpdateOrderCourierStatus, handleUpdateOrderFullStatus, isAdminRegisterMode, isAr, isCreatingRest, isUpdatingSettings, logoImageSetting, loyaltyCustomers, manualItemForm, newAdminForm, newCatIcon, newCatId, newCatName, newCatNameAr, newCouponCode, newCouponMinOrder, newCouponType, newCouponValue, newRegionFee, newRegionName, officeLat, officeLng, onBack, onNavigateCaptain, onRefreshData, ordersList, registerEmail, registerName, registerPassword, restForm, restaurants, reviews, rewardOrderThreshold, selectedFile, selectedImportItems, selectedRestId, setAboutUsContentSetting, setActiveDishDropdownId, setActiveStoreDropdownId, setAdminEmail, setAdminLoginError, setAdminLoginLoading, setAdminPassword, setAdminTab, setAdminsList, setAiError, setAiLoading, setAiWarning, setCaptainLocations, setCaptains, setCategoriesList, setCouponsList, setCurrentAdmin, setCustomInstructions, setDeleteConfirmAdminId, setDeleteConfirmDishId, setDeleteConfirmRestId, setDeliveryCommissionType, setDeliveryCommissionValue, setDeliveryOptions, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDragActive, setEditingRestId, setExpandedCaptainReviews, setExtractedItems, setFileName, setIsAdminRegisterMode, setIsCreatingRest, setIsUpdatingSettings, setLogoImageSetting, setLoyaltyCustomers, setManualItemForm, setNewAdminForm, setNewCatIcon, setNewCatId, setNewCatName, setNewCatNameAr, setNewCouponCode, setNewCouponMinOrder, setNewCouponType, setNewCouponValue, setNewRegionFee, setNewRegionName, setOfficeLat, setOfficeLng, setOrdersList, setRegisterEmail, setRegisterName, setRegisterPassword, setRestForm, setRewardOrderThreshold, setSelectedFile, setSelectedImportItems, setSelectedRestId, setSettingsExtra, setSuccessMsg, setWhatsappNumberSetting, settings, settingsExtra, successMsg, t, triggerSuccess, whatsappNumberSetting}} />
+      <AdminCaptains ctx={{RestaurantMenuDropdown, aboutUsContentSetting, activeDishDropdownId, activeRestaurant, activeStoreDropdownId, adminEmail, adminLoginError, adminLoginLoading, adminPassword, adminTab, adminsList, aiError, aiLoading, aiWarning, captainLocations, captains, categoriesList, couponsList, currentAdmin, customInstructions, deleteConfirmAdminId, deleteConfirmDishId, deleteConfirmRestId, deliveryCommissionType, deliveryCommissionValue, deliveryOptions, deliveryPricingType, distanceBaseFee, distanceFeePerKm, dragActive, editingRestId, expandedCaptainReviews, extractedItems, fetchAdminsAndSettings, fetchCaptainsList, fileInputRef, fileName, handleAddCoupon, handleAddDeliveryOption, handleAdminLogin, handleAdminLogout, handleAdminRegister, handleCreateNewAdmin, handleDeleteAdmin, handleDeleteCaptain, handleDeleteCoupon, handleDeleteDeliveryOption, handleDeleteRestaurant, handleDrag, handleDrop, handleFileChange, handleFileParse, handleImportExtracted, handleSaveRestaurant, handleSaveSettings, handleScrollToRestaurantForm, handleSetEditRestaurant, handleSettingChange, handleToggleAdminPermission, handleToggleCoupon, handleUpdateAdminFlags, handleUpdateCaptainStatus, handleUpdateOrderCourierStatus, handleUpdateOrderFullStatus, isAdminRegisterMode, isAr, isCreatingRest, isUpdatingSettings, logoImageSetting, loyaltyCustomers, newAdminForm, newCatIcon, newCatId, newCatName, newCatNameAr, newCouponCode, newCouponMinOrder, newCouponType, newCouponValue, newRegionFee, newRegionName, officeLat, officeLng, onBack, onNavigateCaptain, onRefreshData, ordersList, registerEmail, registerName, registerPassword, restForm, restaurants, reviews, rewardOrderThreshold, selectedFile, selectedImportItems, selectedRestId, setAboutUsContentSetting, setActiveDishDropdownId, setActiveStoreDropdownId, setAdminEmail, setAdminLoginError, setAdminLoginLoading, setAdminPassword, setAdminTab, setAdminsList, setAiError, setAiLoading, setAiWarning, setCaptainLocations, setCaptains, setCategoriesList, setCouponsList, setCurrentAdmin, setCustomInstructions, setDeleteConfirmAdminId, setDeleteConfirmDishId, setDeleteConfirmRestId, setDeliveryCommissionType, setDeliveryCommissionValue, setDeliveryOptions, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDragActive, setEditingRestId, setExpandedCaptainReviews, setExtractedItems, setFileName, setIsAdminRegisterMode, setIsCreatingRest, setIsUpdatingSettings, setLogoImageSetting, setLoyaltyCustomers, setNewAdminForm, setNewCatIcon, setNewCatId, setNewCatName, setNewCatNameAr, setNewCouponCode, setNewCouponMinOrder, setNewCouponType, setNewCouponValue, setNewRegionFee, setNewRegionName, setOfficeLat, setOfficeLng, setOrdersList, setRegisterEmail, setRegisterName, setRegisterPassword, setRestForm, setRewardOrderThreshold, setSelectedFile, setSelectedImportItems, setSelectedRestId, setSettingsExtra, setSuccessMsg, setWhatsappNumberSetting, settings, settingsExtra, successMsg, t, triggerSuccess, whatsappNumberSetting}} />
 
       <AdminSettings ctx={{restaurants, onBack, onRefreshData, onAdminLogin, onAdminLogout, reviews, adminsList, currentAdmin, rewardOrderThreshold, setRewardOrderThreshold, loyaltyCustomers, categoriesList, setCategoriesList, newCatId, setNewCatId, newCatNameAr, setNewCatNameAr, newCatIcon, setNewCatIcon, triggerSuccess, refreshAdminPage, handleDeleteCategory, adminTab, whatsappNumberSetting, deliveryPricingType, distanceBaseFee, distanceFeePerKm, deliveryCommissionType, deliveryCommissionValue, aboutUsContentSetting, logoImageSetting, deliveryOptions, couponsList, isUpdatingSettings, handleSaveSettings, handleAddDeliveryOption, handleDeleteDeliveryOption, handleAddCoupon, handleToggleCoupon, handleDeleteCoupon, setWhatsappNumberSetting, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDeliveryCommissionType, setDeliveryCommissionValue, setAboutUsContentSetting, setLogoImageSetting, setDeliveryOptions, setCouponsList, setNewRegionName, setNewRegionFee, handleSettingChange, settings, settingsExtra, officeLat, officeLng}} />
 
@@ -2390,17 +2339,9 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                   const itemToDelete = activeRestaurant?.menu?.find((m: any) => m.id === deleteConfirmDishId);
                   if (itemToDelete && activeRestaurant) {
                     try {
-                      const updatedMenu = activeRestaurant.menu.filter((m) => m.id !== deleteConfirmDishId);
-                      const res = await fetchWithRetry(`/api/restaurants/${activeRestaurant.id}`, {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ menu: updatedMenu })
-                      });
-                      if (res.ok) {
-                        await onRefreshData();
-                        const successMsg = `تم إزالة "${itemToDelete.name}" بنجاح!`;
-                        triggerSuccess(successMsg);
-                      }
+                      await deleteMenuItemFromSupabase(itemToDelete.id);
+                      await onRefreshData();
+                      triggerSuccess(`تم إزالة "${itemToDelete.name}" بنجاح!`);
                     } catch (err) {
                       console.error("Delete menu item failed:", err);
                     }
@@ -2422,6 +2363,18 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           </div>
         </div>
       )}
+
+      {(editingDishItem || isAddingNewItem) && activeRestaurant && (
+        <MenuItemEditor
+          item={editingDishItem}
+          restaurantId={activeRestaurant.id}
+          categoriesList={categoriesList}
+          defaultImage={activeRestaurant.coverImage}
+          onClose={() => { setEditingDishItem(null); setIsAddingNewItem(false); }}
+          onSaved={async () => { await onRefreshData(); triggerSuccess(editingDishItem ? 'تم حفظ تعديلات الصنف بنجاح!' : 'تم إضافة الصنف بنجاح!'); }}
+        />
+      )}
+
 
     </div>
   );

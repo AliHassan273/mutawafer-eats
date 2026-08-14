@@ -20,7 +20,7 @@ export default function BestSellersAndReviews({
 }: BestSellersAndReviewsProps) {
   const isAr = true;
 
-  const t = (arText: string, enText: string) => (isAr ? arText : enText);
+  const t = (arText: string, _enText?: string) => arText;
 
   // Render stars for rating
   const renderStars = (rating: number) => {
@@ -41,7 +41,7 @@ export default function BestSellersAndReviews({
   };
 
   return (
-    <div className="space-y-12 my-10 max-w-7xl mx-auto px-4 md:px-8" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="space-y-12 my-10 max-w-7xl mx-auto px-4 md:px-8" dir={'rtl'}>
       {/* 1. Best Sellers Area */}
       {bestSellers && bestSellers.length > 0 && (
         <section className="space-y-6">

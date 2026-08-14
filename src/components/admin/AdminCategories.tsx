@@ -1,6 +1,4 @@
 import React from 'react';
-import { fetchWithRetry } from '../../utils/fetchHelper';
-import { supabaseConfigured } from '../../lib/supabase';
 import { saveSettingsToSupabase } from '../../services/supabaseSettingsService';
 
 type Category = { id: string; name: string; nameAr: string; icon: string; visible?: boolean };
@@ -20,6 +18,6 @@ export default function AdminCategories({ categories, setCategories, newId, setN
       <input value={newIcon} onChange={e => setNewIcon(e.target.value)} placeholder="الأيقونة" className="border rounded-lg px-2 py-2 text-xs" />
       <button type="button" onClick={() => { if (!newId || !newNameAr || categories.some((c: Category) => c.id === newId)) return; setCategories((list: Category[]) => [...list, { id: newId, name: newId, nameAr: newNameAr, icon: newIcon || '🍽️', visible: true }]); setNewId(''); setNewNameAr(''); setNewIcon(''); }} className="bg-emerald-600 text-white rounded-lg px-2 py-2 text-xs font-black">إضافة تصنيف</button>
     </div>
-    <button type="button" onClick={async () => { if (supabaseConfigured) { await saveSettingsToSupabase({ categories }); onSuccess('تم حفظ التصنيفات على Supabase بنجاح ✅'); if (onRefresh) setTimeout(onRefresh, 500); } else { const res = await fetchWithRetry('/api/settings', { method: 'PUT', body: JSON.stringify({ categories }) }); if (res.ok) { onSuccess('تم حفظ التصنيفات بنجاح ✅'); if (onRefresh) setTimeout(onRefresh, 500); } } }} className="bg-[#f94c10] text-white rounded-xl px-4 py-2 text-xs font-black">حفظ التصنيفات</button>
+    <button type="button" onClick={async () => { try { await saveSettingsToSupabase({ categories }); onSuccess('تم حفظ التصنيفات بنجاح ✅'); if (onRefresh) setTimeout(onRefresh, 500); } catch (err) { console.error('Save categories failed:', err); } }} className="bg-[#f94c10] text-white rounded-xl px-4 py-2 text-xs font-black">حفظ التصنيفات</button>
   </div>;
 }

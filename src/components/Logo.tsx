@@ -17,7 +17,7 @@ export default function Logo({
       {src ? (
         <img
           src={src}
-          alt={alt || 'App Logo'}
+          alt={alt || 'شعار التطبيق'}
           className="w-full h-full object-contain rounded-2xl border border-slate-200/50 shadow-sm"
         />
       ) : (

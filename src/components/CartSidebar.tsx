@@ -101,9 +101,7 @@ export default function CartSidebar({
     
     if (!coupon) {
       setPromoError(
-        isAr 
-          ? 'عفوًا! هذا الكود غير صالح أو منتهي الصلاحية.' 
-          : 'Sorry! This coupon code is invalid or expired.'
+        'عفوًا! هذا الكود غير صالح أو منتهي الصلاحية.'
       );
       setPromoSuccessMessage('');
       return;
@@ -111,9 +109,7 @@ export default function CartSidebar({
 
     if (!coupon.isActive) {
       setPromoError(
-        isAr 
-          ? 'عفوًا! هذا الكوبون غير مفعّل حاليًا.' 
-          : 'Sorry! This coupon is currently inactive.'
+        'عفوًا! هذا الكوبون غير مفعّل حاليًا.'
       );
       setPromoSuccessMessage('');
       return;
@@ -121,9 +117,7 @@ export default function CartSidebar({
 
     if (subtotal < coupon.minOrder) {
       setPromoError(
-        isAr 
-          ? `عفوًا! يتطلب هذا الكوبون حد أدنى للطلب بقيمة ${coupon.minOrder} ج.م` 
-          : `Sorry! This coupon requires a minimum subtotal of ${coupon.minOrder} EGP`
+        `عفوًا! يتطلب هذا الكوبون حد أدنى للطلب بقيمة ${coupon.minOrder} ج.م`
       );
       setPromoSuccessMessage('');
       return;
@@ -137,9 +131,7 @@ export default function CartSidebar({
       : `${coupon.discountValue} ج.م`;
 
     setPromoSuccessMessage(
-      isAr 
-        ? `تم تطبيق الكود "${coupon.code}" بنجاح! حصلت على خصم بقيمة ${discountAmount}.` 
-        : `Coupon "${coupon.code}" successfully applied! You saved ${discountAmount}.`
+      `تم تطبيق الكود "${coupon.code}" بنجاح! حصلت على خصم بقيمة ${discountAmount}.`
     );
   };
 
@@ -151,14 +143,14 @@ export default function CartSidebar({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="fixed inset-0 z-50 overflow-hidden" dir={'rtl'}>
       {/* Background Dim layer */}
       <div 
         className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity" 
         onClick={onClose}
       />
 
-      <div className={`fixed inset-y-0 ${isAr ? 'left-0 pl-10' : 'right-0 pr-10'} max-w-full flex`}>
+      <div className={`fixed inset-y-0 ${'left-0 pl-10'} max-w-full flex`}>
         <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col h-full rounded-r-3xl rounded-l-3xl overflow-hidden border-l border-slate-100">
           
           {/* Cart Header */}
@@ -167,12 +159,12 @@ export default function CartSidebar({
               <div className="bg-orange-50 text-[#f94c10] p-1.5 rounded-xl">
                 <ShoppingBag className="h-5 w-5" />
               </div>
-              <div style={{ textAlign: isAr ? 'right' : 'left' }}>
+              <div style={{ textAlign: 'right' }}>
                 <h2 className="text-base font-extrabold text-slate-800 font-display">
-                  {isAr ? 'سلة الأكيلة 🧺' : 'Your Basket'}
+                  {'سلة الأكيلة 🧺'}
                 </h2>
                 <p className="text-[10px] text-slate-400 font-medium">
-                  ({cart.length} {isAr ? 'أصناف مضافة' : 'items added'})
+                  ({cart.length} {'أصناف مضافة'})
                 </p>
               </div>
             </div>
@@ -194,12 +186,10 @@ export default function CartSidebar({
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-700">
-                    {isAr ? 'سلتك لسة فاضية خالص!' : 'Your basket is empty'}
+                    {'سلتك لسة فاضية خالص!'}
                   </h3>
                   <p className="text-xs text-slate-400 font-semibold max-w-xs mt-1.5 leading-normal">
-                    {isAr 
-                      ? 'الكرش بيلف ويدور! لف على المطاعم القريبة واختارلك أكلة جامدة تفرتك الجوع.' 
-                      : 'Browse restaurants nearby and add delicious food items to satisfy your cravings!'}
+                    {'الكرش بيلف ويدور! لف على المطاعم القريبة واختارلك أكلة جامدة تفرتك الجوع.'}
                   </p>
                 </div>
               </div>
@@ -210,7 +200,7 @@ export default function CartSidebar({
                   const itemsForRestaurant = cart.filter(item => item.restaurantName === restaurantName);
                   
                   return (
-                    <div key={restaurantName} className="border-b border-slate-50 pb-4 last:border-0 last:pb-0" style={{ textAlign: isAr ? 'right' : 'left' }}>
+                    <div key={restaurantName} className="border-b border-slate-50 pb-4 last:border-0 last:pb-0" style={{ textAlign: 'right' }}>
                       <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">
                         {restaurantName}
                       </div>
@@ -222,7 +212,7 @@ export default function CartSidebar({
                           return (
                             <div 
                               key={`${item.menuItem.id}-${item.selectedSize?.id || 'default'}`} 
-                              className={`flex items-center justify-between gap-4 p-2 hover:bg-slate-50 rounded-2xl transition-all ${isAr ? 'flex-row-reverse' : ''}`}
+                              className={`flex items-center justify-between gap-4 p-2 hover:bg-slate-50 rounded-2xl transition-all ${'flex-row-reverse'}`}
                             >
                               {/* Food small representation */}
                               <div className="flex items-center gap-3">
@@ -232,7 +222,7 @@ export default function CartSidebar({
                                   alt={dishName} 
                                   className="h-11 w-11 object-cover rounded-xl bg-slate-50 border border-slate-100"
                                 />
-                                <div className="min-w-0" style={{ textAlign: isAr ? 'right' : 'left' }}>
+                                <div className="min-w-0" style={{ textAlign: 'right' }}>
                                   <h4 className="text-xs font-bold text-slate-800 truncate max-w-[150px]">
                                     {dishName}
                                   </h4>
@@ -287,20 +277,20 @@ export default function CartSidebar({
 
           {/* Cart Pricing Breakdown and Promo codes */}
           {cart.length > 0 && (
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 space-y-4 shrink-0" style={{ textAlign: isAr ? 'right' : 'left' }}>
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 space-y-4 shrink-0" style={{ textAlign: 'right' }}>
               {/* Promo code area */}
               <div className="space-y-1.5">
-                <div className={`flex gap-2 ${isAr ? 'flex-row-reverse' : ''}`}>
+                <div className={`flex gap-2 ${'flex-row-reverse'}`}>
                   <div className="relative flex-1">
-                    <Tag className={`absolute ${isAr ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400`} />
+                    <Tag className={`absolute ${'right-3'} top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400`} />
                     <input
                       type="text"
-                      placeholder={isAr ? 'اكتب كود الخصم هنا' : 'ENTER PROMO CODE'}
+                      placeholder={'اكتب كود الخصم هنا'}
                       value={promoCode}
                       onChange={(e) => setPromoCode(e.target.value)}
                       disabled={!!appliedPromo}
                       className={`w-full bg-white border border-slate-200 focus:border-slate-300 rounded-xl py-1.5 text-xs outline-none uppercase font-mono tracking-wider transition-all disabled:bg-slate-100 disabled:text-slate-400 ${
-                        isAr ? 'pr-9 pl-3 text-right' : 'pl-9 pr-3'
+                        'pr-9 pl-3 text-right'
                       }`}
                     />
                   </div>
@@ -309,14 +299,14 @@ export default function CartSidebar({
                       onClick={handleRemovePromo}
                       className="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border border-red-100"
                     >
-                      {isAr ? 'مسح' : 'Remove'}
+                      {'مسح'}
                     </button>
                   ) : (
                     <button
                       onClick={handleApplyPromo}
                       className="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
                     >
-                      {isAr ? 'تطبيق' : 'Apply'}
+                      {'تطبيق'}
                     </button>
                   )}
                 </div>
@@ -339,19 +329,19 @@ export default function CartSidebar({
               {/* Price break-down list */}
               <div className="space-y-2 border-t border-b border-slate-100/80 py-3 text-xs">
                 <div className="flex justify-between font-medium text-slate-500">
-                  <span>{isAr ? 'تمن الأكل' : 'Subtotal'}</span>
+                  <span>{'تمن الأكل'}</span>
                   <span>{subtotal.toFixed(0)} {t('egp')}</span>
                 </div>
 
                 {discount > 0 && (
                   <div className="flex justify-between font-bold text-green-600">
-                    <span>{isAr ? `خصم الكوبون (${appliedPromo})` : `Discount Coupon (${appliedPromo})`}</span>
+                    <span>{`خصم الكوبون (${appliedPromo})`}</span>
                     <span>-{discount.toFixed(0)} {t('egp')}</span>
                   </div>
                 )}
 
                 <div className="flex justify-between font-extrabold text-[#0f172a] text-sm sm:text-base pt-1">
-                  <span>{isAr ? 'الحساب كلو' : 'Total Amount'}</span>
+                  <span>{'الحساب كلو'}</span>
                   <span className="font-display">{finalTotal.toFixed(0)} {t('egp')}</span>
                 </div>
               </div>

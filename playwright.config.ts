@@ -12,6 +12,6 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   ...(process.env.E2E_BASE_URL ? {} : {
-    webServer: { command: 'npm run dev', url: 'http://127.0.0.1:3001/health', reuseExistingServer: true, timeout: 120_000 },
+    webServer: { command: 'npm run dev -- --port 3001', url: 'http://127.0.0.1:3001', reuseExistingServer: true, timeout: 120_000 },
   }),
 });

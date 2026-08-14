@@ -1,5 +1,4 @@
 import React from 'react';
-import { fetchWithRetry } from '../../utils/fetchHelper';
 import { supabaseConfigured, supabase } from '../../lib/supabase';
 
 export default function AdminCaptains({ ctx }: { ctx: any }) {
@@ -34,10 +33,10 @@ export default function AdminCaptains({ ctx }: { ctx: any }) {
                 type="button"
                 onClick={async () => {
                   try {
-                    const res = await fetchWithRetry('/api/captain/locations/all');
-                    if (res.ok) {
-                      const locs = await res.json();
-                      setCaptainLocations(locs);
+                    const { data: locs, error } = await supabase.from('captain_locations').select('*');
+                    if (!error && locs) {
+                      const mapped = locs.map((row: any) => ({ captainId: row.captain_id, orderId: row.order_id, lat: Number(row.lat), lng: Number(row.lng), updatedAt: row.updated_at }));
+                      setCaptainLocations(mapped);
                       const mapDiv = document.getElementById('admin-captains-map');
                       if (!mapDiv) return;
                       const L = (window as any).L;

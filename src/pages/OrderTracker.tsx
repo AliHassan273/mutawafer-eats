@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Clock, MapPin, Phone, MessageSquare, Check, RotateCw, Bike, ChefHat, CheckCircle2, Star } from 'lucide-react';
 import { Order } from '../types';
 import { lang } from '../translations';
-import { fetchWithRetry, getApiUrl } from '../utils/fetchHelper';
 import { supabaseConfigured, supabase } from '../lib/supabase';
 import { submitReviewToSupabase } from '../services/supabaseOrderService';
 import { getOrderCaptainLocation } from '../services/supabaseCaptainService';
@@ -44,20 +43,15 @@ export default function OrderTracker({
         customerName: currentOrder.customerName,
         restaurantId: currentOrder.restaurant?.id || '',
         restaurantName: currentOrder.restaurant?.name || 'المطعم',
-        courierName: currentOrder.courierName || "Captain Ahmed",
+        courierName: currentOrder.courierName || "الكابتن أحمد",
         ratingDeliverySpeed: ratingSpeed,
         ratingDeliveryManner: ratingManner,
         ratingFoodQuality: ratingFood,
         comment: reviewComment,
       };
 
-      if (supabaseConfigured) {
-        await submitReviewToSupabase(payload);
-        setRatedLocally(true);
-      } else {
-        const res = await fetchWithRetry('/api/reviews', { method: 'POST', body: JSON.stringify(payload) });
-        if (res.ok) setRatedLocally(true);
-      }
+      await submitReviewToSupabase(payload);
+      setRatedLocally(true);
     } catch (err) {
       console.error("Failed to post review in OrderTracker:", err);
     } finally {
@@ -73,7 +67,7 @@ export default function OrderTracker({
   // Load WhatsApp settings
   useEffect(() => {
     const load = async () => {
-      const data = supabaseConfigured ? await getPublicSettingsFromSupabase() : await (await fetchWithRetry('/api/settings')).json();
+      const data = await getPublicSettingsFromSupabase();
       if (data?.whatsappNumber) setWhatsappNumber(data.whatsappNumber);
     };
     load().catch(err => console.error("Error loading settings in OrderTracker:", err));
@@ -84,12 +78,7 @@ export default function OrderTracker({
     if (currentOrder.status !== 'OutForDelivery') return;
     const fetchLoc = async () => {
       try {
-        if (supabaseConfigured) {
-          setCourierLocation(await getOrderCaptainLocation(currentOrder.id));
-        } else {
-          const res = await fetchWithRetry('/api/captain/location/' + currentOrder.id);
-          if (res.ok) { const data = await res.json(); setCourierLocation(data.location || null); }
-        }
+        setCourierLocation(await getOrderCaptainLocation(currentOrder.id));
       } catch {}
     };
     fetchLoc();
@@ -190,44 +179,7 @@ export default function OrderTracker({
     map.panTo([courierLocation.lat, courierLocation.lng]);
   }, [courierLocation]);
 
-  // في النسخة المبسطة يعتمد تحديث الحالة على Supabase Realtime ولا يستدعي API القديم.
-  useEffect(() => {
-    if (supabaseConfigured) return;
-    let consecutiveFailures = 0;
-    const poll = async () => {
-      try {
-        // ✅ اجيب الأوردر مباشرة بـ id — مش محتاج token
-        const res = await fetch(getApiUrl('/api/orders/' + order.id));
-        if (!res.ok) {
-          consecutiveFailures++;
-          return;
-        }
-        const freshOrder = await res.json();
-        consecutiveFailures = 0;
-        if (freshOrder && freshOrder.id) {
-          if (freshOrder.status !== currentOrder.status) {
-            onUpdateStatus(order.id, freshOrder.status);
-          }
-          setCurrentOrder(prev => {
-            if (JSON.stringify(prev) !== JSON.stringify(freshOrder)) return freshOrder;
-            return prev;
-          });
-        }
-      } catch (err) {
-        consecutiveFailures++;
-      }
-    };
-
-    // initial immediate poll then interval
-    poll();
-    const pollInterval = setInterval(() => {
-      // if many consecutive failures, slow down polling to reduce noise
-      if (consecutiveFailures >= 5) return;
-      poll();
-    }, 3000);
-
-    return () => clearInterval(pollInterval);
-  }, [order.id, currentOrder, onUpdateStatus]);
+  // تحديث الحالة يعتمد بالكامل على Supabase Realtime (راجع الـ useEffect بالأعلى).
 
 
   // Status index mapping
@@ -241,15 +193,15 @@ export default function OrderTracker({
   const currentStepIndex = statuses.indexOf(currentOrder.status);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-6" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-6" dir={'rtl'}>
       
       {/* Back button */}
       <button 
         onClick={onBack}
         className="flex items-center gap-2 text-slate-600 hover:text-[#f94c10] text-xs sm:text-sm font-semibold mb-6 group cursor-pointer transition-colors"
       >
-        <ArrowLeft className={`h-4 w-4 transition-transform ${isAr ? 'rotate-180 group-hover:translate-x-1' : 'group-hover:-translate-x-1'}`} />
-        <span>{isAr ? 'الرجوع للرئيسية' : 'Back To Dashboard'}</span>
+        <ArrowLeft className={`h-4 w-4 transition-transform ${'rotate-180 group-hover:translate-x-1'}`} />
+        <span>{'الرجوع للرئيسية'}</span>
       </button>
 
       {/* تفاصيل الطلب الكاملة */}
@@ -283,11 +235,11 @@ export default function OrderTracker({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* Left Side: Simulation timeline steps */}
-        <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-slate-100 flex flex-col justify-between" style={{ textAlign: isAr ? 'right' : 'left' }}>
+        <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-slate-100 flex flex-col justify-between" style={{ textAlign: 'right' }}>
           <div>
-            <div className={`flex items-center justify-between mb-2 ${isAr ? 'flex-row-reverse' : ''}`}>
+            <div className={`flex items-center justify-between mb-2 ${'flex-row-reverse'}`}>
               <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">
-                {isAr ? 'تتبع طلبك مباشر 🔴' : 'Active Order Tracking'}
+                {'تتبع طلبك مباشر 🔴'}
               </span>
               <span className="text-xs text-[#f94c10] font-mono font-bold bg-orange-50 px-2 py-0.5 rounded-full">
                 #{order.id.slice(6, 12).toUpperCase()}
@@ -298,17 +250,17 @@ export default function OrderTracker({
               {order.restaurant?.name || 'المطعم'}
             </h2>
             <p className="text-xs text-slate-400 font-semibold mt-0.5">
-              {isAr ? 'الكباتن في المطعم بيجهزو طلبك الدلع بكل حب.' : 'We started cooking your delicious bite.'}
+              {'الكباتن في المطعم بيجهزو طلبك الدلع بكل حب.'}
             </p>
 
             {/* Steps Timeline in UI */}
-            <div className={`mt-8 space-y-6 relative ${isAr ? 'pr-6' : 'pl-6'}`}>
+            <div className={`mt-8 space-y-6 relative ${'pr-6'}`}>
               {/* Timeline join line */}
-              <div className={`absolute ${isAr ? 'right-[9px]' : 'left-[9px]'} top-3 bottom-3 w-0.5 bg-slate-100`} />
+              <div className={`absolute ${'right-[9px]'} top-3 bottom-3 w-0.5 bg-slate-100`} />
 
               {/* Step 1: Received */}
               <div className="relative flex items-start gap-4">
-                <div className={`absolute ${isAr ? 'right-[-21px]' : 'left-[-21px]'} h-[10px] w-[10px] rounded-full border-2 ${
+                <div className={`absolute ${'right-[-21px]'} h-[10px] w-[10px] rounded-full border-2 ${
                   currentStepIndex >= 0 
                     ? 'bg-green-500 border-green-500 ring-4 ring-green-100' 
                     : 'bg-white border-slate-300'
@@ -319,16 +271,16 @@ export default function OrderTracker({
                   </div>
                   <div>
                     <h4 className={`text-xs font-bold ${currentStepIndex >= 0 ? 'text-slate-800' : 'text-slate-400'}`}>
-                      {isAr ? 'تم استلام الطلب 📝' : 'Order Placed'}
+                      {'تم استلام الطلب 📝'}
                     </h4>
-                    <p className="text-[11px] text-slate-400 font-semibold">{isAr ? 'تم التحقق من تفاصيل الطلب بنجاح' : 'Secure merchant channel checked first'}</p>
+                    <p className="text-[11px] text-slate-400 font-semibold">{'تم التحقق من تفاصيل الطلب بنجاح'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Step 2: Preparing */}
               <div className="relative flex items-start gap-4">
-                <div className={`absolute ${isAr ? 'right-[-21px]' : 'left-[-21px]'} h-[10px] w-[10px] rounded-full border-2 ${
+                <div className={`absolute ${'right-[-21px]'} h-[10px] w-[10px] rounded-full border-2 ${
                   currentStepIndex >= 1 
                     ? 'bg-green-500 border-green-500 ring-4 ring-green-100' 
                     : 'bg-white border-slate-300'
@@ -339,16 +291,16 @@ export default function OrderTracker({
                   </div>
                   <div>
                     <h4 className={`text-xs font-bold ${currentStepIndex >= 1 ? 'text-slate-800' : 'text-slate-400'}`}>
-                      {isAr ? 'جاري الطبخ والتحضير 👨‍🍳' : 'Kitchen Cooking'}
+                      {'جاري الطبخ والتحضير 👨‍🍳'}
                     </h4>
-                    <p className="text-[11px] text-slate-400 font-semibold">{isAr ? 'الشيفات بيحضروا أكلتك الجميلة' : 'Our master cooks are prepping your items'}</p>
+                    <p className="text-[11px] text-slate-400 font-semibold">{'الشيفات بيحضروا أكلتك الجميلة'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Step 3: OutForDelivery */}
               <div className="relative flex items-start gap-4">
-                <div className={`absolute ${isAr ? 'right-[-21px]' : 'left-[-21px]'} h-[10px] w-[10px] rounded-full border-2 ${
+                <div className={`absolute ${'right-[-21px]'} h-[10px] w-[10px] rounded-full border-2 ${
                   currentStepIndex >= 2 
                     ? 'bg-green-500 border-green-500 ring-4 ring-green-100' 
                     : 'bg-white border-slate-300'
@@ -359,16 +311,16 @@ export default function OrderTracker({
                   </div>
                   <div>
                     <h4 className={`text-xs font-bold ${currentStepIndex >= 2 ? 'text-slate-800' : 'text-slate-400'}`}>
-                      {isAr ? 'الكابتن طار في الطريق 🛵' : 'Rider On The Way'}
+                      {'الكابتن طار في الطريق 🛵'}
                     </h4>
-                    <p className="text-[11px] text-slate-400 font-semibold">{isAr ? 'كابتن أحمد استلم الوجبة وطاير عليك' : 'We dispatched Captain Ahmed on a scooter'}</p>
+                    <p className="text-[11px] text-slate-400 font-semibold">{'كابتن أحمد استلم الوجبة وطاير عليك'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Step 4: Delivered */}
               <div className="relative flex items-start gap-4">
-                <div className={`absolute ${isAr ? 'right-[1px]' : 'left-[1px]'} h-[10px] w-[10px] rounded-full border-2 ${
+                <div className={`absolute ${'right-[1px]'} h-[10px] w-[10px] rounded-full border-2 ${
                   currentStepIndex >= 3 
                     ? 'bg-green-500 border-green-500 ring-4 ring-green-150' 
                     : 'bg-white border-slate-300'
@@ -379,9 +331,9 @@ export default function OrderTracker({
                   </div>
                   <div>
                     <h4 className={`text-xs font-bold ${currentStepIndex >= 3 ? 'text-slate-800' : 'text-slate-400'}`}>
-                      {isAr ? 'وصل بالسلامية! 🎉' : 'Arrived!'}
+                      {'وصل بالسلامية! 🎉'}
                     </h4>
-                    <p className="text-[11px] text-slate-400 font-semibold">{isAr ? 'ألف هنا وشفا على قلبك يا غالي!' : 'Enjoy your fresh premium bite!'}</p>
+                    <p className="text-[11px] text-slate-400 font-semibold">{'ألف هنا وشفا على قلبك يا غالي!'}</p>
                   </div>
                 </div>
               </div>
@@ -389,15 +341,15 @@ export default function OrderTracker({
           </div>
 
           {/* Courier rider details card */}
-          <div className={`border-t border-slate-100 pt-6 mt-6 flex items-center justify-between ${isAr ? 'flex-row-reverse' : ''}`}>
-            <div className={`flex items-center gap-3 ${isAr ? 'flex-row-reverse' : ''}`}>
+          <div className={`border-t border-slate-100 pt-6 mt-6 flex items-center justify-between ${'flex-row-reverse'}`}>
+            <div className={`flex items-center gap-3 ${'flex-row-reverse'}`}>
               <div className="h-11 w-11 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center border border-orange-200 text-xl">🛵</div>
-              <div style={{ textAlign: isAr ? 'right' : 'left' }}>
+              <div style={{ textAlign: 'right' }}>
                 <p className="text-xs font-bold text-slate-850">{currentOrder.courierName || 'الطيار غير محدد'} 🛵</p>
                 <p className="text-[10px] text-slate-500 font-bold">{currentOrder.courierPhone || 'سيظهر رقم التواصل عند إسناد الطلب'}</p>
                 <p className="text-[10px] text-green-600 font-bold uppercase flex items-center gap-1">
                   <span className="h-1.5 w-1.5 bg-green-500 rounded-full inline-block animate-pulse" />
-                  <span>{isAr ? 'سواق وموثق ممتاز' : 'Verified courier'}</span>
+                  <span>{'سواق وموثق ممتاز'}</span>
                 </p>
               </div>
             </div>
@@ -405,21 +357,21 @@ export default function OrderTracker({
             <div className="flex gap-2" style={{ direction: 'ltr' }}>
               <button 
                 onClick={() => {
-                  setCourierContactActiveMessage(isAr ? `📞 جاري الاتصال بـ ${currentOrder.courierName || 'الطيار'} على الرقم ${currentOrder.courierPhone || 'غير متاح'}` : 'Dialing Captain Ahmed at +20114002008...');
+                  setCourierContactActiveMessage(`📞 جاري الاتصال بـ ${currentOrder.courierName || 'الطيار'} على الرقم ${currentOrder.courierPhone || 'غير متاح'}`);
                   setTimeout(() => setCourierContactActiveMessage(''), 4500);
                 }}
                 className="h-9 w-9 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-full flex items-center justify-center border border-slate-100 cursor-pointer transition-colors"
-                title="Call Captain"
+                title="اتصال بالكابتن"
               >
                 <Phone className="h-4 w-4" />
               </button>
               <button 
                 onClick={() => {
-                  setCourierContactActiveMessage(isAr ? `💬 تم إرسال رسالتك السريعة إلى ${currentOrder.courierName || 'الطيار'}!` : 'Status update message sent to courier!');
+                  setCourierContactActiveMessage(`💬 تم إرسال رسالتك السريعة إلى ${currentOrder.courierName || 'الطيار'}!`);
                   setTimeout(() => setCourierContactActiveMessage(''), 4500);
                 }}
                 className="h-9 w-9 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-full flex items-center justify-center border border-slate-100 cursor-pointer transition-colors"
-                title="Message Captain"
+                title="رسالة للكابتن"
               >
                 <MessageSquare className="h-4 w-4" />
               </button>
@@ -440,17 +392,17 @@ export default function OrderTracker({
         <div className="lg:col-span-7 bg-slate-100 rounded-3xl p-4 sm:p-6 border border-slate-200 flex flex-col justify-between relative overflow-hidden h-[380px] sm:h-[450px]">
           {/* Map Title panel */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl px-4 py-3 flex justify-between items-center z-10 border border-white/50 shadow-xs relative">
-            <div style={{ textAlign: isAr ? 'right' : 'left' }}>
-              <p className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">{isAr ? 'خريطة التوصيل المباشرة 🗺️' : 'Live Map Tracker'}</p>
+            <div style={{ textAlign: 'right' }}>
+              <p className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">{'خريطة التوصيل المباشرة 🗺️'}</p>
               <p className="text-xs font-bold text-slate-805">
                 {courierLocation
-                  ? (isAr ? 'موقع الكابتن حي الآن' : 'Live courier location')
-                  : (isAr ? 'في انتظار موقع الكابتن...' : 'Waiting for courier location...')}
+                  ? ('موقع الكابتن حي الآن')
+                  : ('في انتظار موقع الكابتن...')}
               </p>
             </div>
             <div className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase shadow-xs">
               <RotateCw className={`h-3 w-3 ${courierLocation ? 'animate-spin text-[#f94c10]' : 'text-slate-300'}`} />
-              <span>{courierLocation ? (isAr ? 'حي' : 'Live') : (isAr ? 'انتظار' : 'Waiting')}</span>
+              <span>{courierLocation ? ('حي') : ('انتظار')}</span>
             </div>
           </div>
 
@@ -461,8 +413,8 @@ export default function OrderTracker({
             <div className="absolute inset-0 z-5 flex items-center justify-center bg-slate-100/80 rounded-3xl">
               <div className="text-center space-y-2">
                 <span className="text-4xl">🛵</span>
-                <p className="text-xs font-bold text-slate-500">{isAr ? 'الكابتن في الطريق...' : 'Courier on the way...'}</p>
-                <p className="text-[10px] text-slate-400">{isAr ? 'الخريطة ستظهر بمجرد تحديث موقعه' : 'Map will appear once GPS syncs'}</p>
+                <p className="text-xs font-bold text-slate-500">{'الكابتن في الطريق...'}</p>
+                <p className="text-[10px] text-slate-400">{'الخريطة ستظهر بمجرد تحديث موقعه'}</p>
               </div>
             </div>
           )}
@@ -472,16 +424,16 @@ export default function OrderTracker({
             <div className="bg-[#10b981]/15 p-2 text-[#10b981] rounded-xl shrink-0">
               <Bike className="h-5 w-5" />
             </div>
-            <div style={{ textAlign: isAr ? 'right' : 'left' }}>
-              <p className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">{isAr ? 'حالة التوصيل الفورية' : 'Live dispatch feedback'}</p>
+            <div style={{ textAlign: 'right' }}>
+              <p className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">{'حالة التوصيل الفورية'}</p>
               <h4 className="text-xs font-bold text-slate-805 leading-snug">
-                {currentOrder.status === 'Pending' && (isAr ? 'طلبك معلّق الآن قيد المراجعة والموافقة من الإدارة. تم توجيهه للواتساب لتأكيده والموافقة عليه قريبًا! ⏳' : 'Your order is pending review and approval by management. It was sent to WhatsApp and will be approved soon! ⏳')}
-                {currentOrder.status === 'Received' && (isAr ? 'تم قبول الطلب وجاري توجيهه للمطبخ.' : 'Order acknowledged and sent to the kitchen.')}
-                {currentOrder.status === 'Preparing' && (isAr ? 'المطبخ مشغول في طبخ طلبك بكل حب الآن. 👨‍🍳' : 'Kitchen cooking is underway.')}
-                {currentOrder.status === 'OutForDelivery' && (isAr 
-                  ? `الكابتن ${currentOrder.courierName || 'أحمد'} استلم طلبك وانطلق في الطريق لعنوانك! 🏍️ ${currentOrder.courierPhone ? `(تواصل: ${currentOrder.courierPhone})` : ''}` 
-                  : `Courier ${currentOrder.courierName || 'Ahmed'} has picked up your order and is on the way! 🏍️ ${currentOrder.courierPhone ? `(phone: ${currentOrder.courierPhone})` : ''}`)}
-                {currentOrder.status === 'Delivered' && (isAr ? 'تم التوصيل بنجاح وبألف هنا وشفا! شكراً لاختيارك مسافر إيتس. 🥰' : 'Delivered successfully. Thank you for choosing Mutafer Eats! 🥰')}
+                {currentOrder.status === 'Pending' && ('طلبك معلّق الآن قيد المراجعة والموافقة من الإدارة. تم توجيهه للواتساب لتأكيده والموافقة عليه قريبًا! ⏳')}
+                {currentOrder.status === 'Received' && ('تم قبول الطلب وجاري توجيهه للمطبخ.')}
+                {currentOrder.status === 'Preparing' && ('المطبخ مشغول في طبخ طلبك بكل حب الآن. 👨‍🍳')}
+                {currentOrder.status === 'OutForDelivery' && (
+                  `الكابتن ${currentOrder.courierName || 'أحمد'} استلم طلبك وانطلق في الطريق لعنوانك! 🏍️ ${currentOrder.courierPhone ? `(تواصل: ${currentOrder.courierPhone})` : ''}`
+                )}
+                {currentOrder.status === 'Delivered' && ('تم التوصيل بنجاح وبألف هنا وشفا! شكراً لاختيارك مسافر إيتس. 🥰')}
               </h4>
             </div>
           </div>
@@ -494,16 +446,14 @@ export default function OrderTracker({
       {currentOrder.status === 'Delivered' && !currentOrder.reviewed && !ratedLocally && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" />
-          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-50 relative z-10 p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200" style={{ direction: isAr ? 'rtl' : 'ltr' }}>
+          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-50 relative z-10 p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200" style={{ direction: 'rtl' }}>
             <div className="text-center space-y-2">
               <span className="text-4xl block">🎉🍕</span>
               <h3 className="font-display font-extrabold text-slate-800 text-lg">
-                {isAr ? 'تقييم تجربة طلبك ورأيك يهمنا' : 'Rate Your Delivery & Experience!'}
+                {'تقييم تجربة طلبك ورأيك يهمنا'}
               </h3>
               <p className="text-xs text-slate-400 font-bold leading-relaxed">
-                {isAr 
-                  ? 'طلبك وصل بألف سلامة وبألف هنا وشفا! ساعدنا نتطور وشاركنا رأيك بكل أمانة حول الجودة والخدمة.'
-                  : 'Your order has been delivered! Help us improve our daily food and delivery services.'}
+                {'طلبك وصل بألف سلامة وبألف هنا وشفا! ساعدنا نتطور وشاركنا رأيك بكل أمانة حول الجودة والخدمة.'}
               </p>
             </div>
 
@@ -511,7 +461,7 @@ export default function OrderTracker({
               {/* Rating 1: Delivery Speed */}
               <div className="space-y-1 text-center">
                 <label className="text-[11px] font-black text-slate-500 block uppercase tracking-wider">
-                  {isAr ? '⚡ سرعة الدليفري والتوصيل:' : '⚡ Delivery speed:'}
+                  {'⚡ سرعة الدليفري والتوصيل:'}
                 </label>
                 <div className="flex justify-center gap-2" style={{ direction: 'ltr' }}>
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -530,7 +480,7 @@ export default function OrderTracker({
               {/* Rating 2: Delivery Manner */}
               <div className="space-y-1 text-center">
                 <label className="text-[11px] font-black text-slate-500 block uppercase tracking-wider">
-                  {isAr ? '🤝 أسلوب ومعاملة كابتن التوصيل:' : '🤝 Courier Attitude & Respect:'}
+                  {'🤝 أسلوب ومعاملة كابتن التوصيل:'}
                 </label>
                 <div className="flex justify-center gap-2" style={{ direction: 'ltr' }}>
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -549,7 +499,7 @@ export default function OrderTracker({
               {/* Rating 3: Food Quality */}
               <div className="space-y-1 text-center">
                 <label className="text-[11px] font-black text-slate-500 block uppercase tracking-wider">
-                  {isAr ? '😋 جودة وطعم الأكل الفريش:' : '😋 Food Taste & Freshness:'}
+                  {'😋 جودة وطعم الأكل الفريش:'}
                 </label>
                 <div className="flex justify-center gap-2" style={{ direction: 'ltr' }}>
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -566,14 +516,14 @@ export default function OrderTracker({
               </div>
 
               {/* Custom comment input */}
-              <div className="space-y-1.5" style={{ textAlign: isAr ? 'right' : 'left' }}>
+              <div className="space-y-1.5" style={{ textAlign: 'right' }}>
                 <label className="text-xs font-black text-slate-600">
-                  {isAr ? '💬 اكتب كلمة حلوة أو رسالتك للعملاء الجايين:' : '💬 Leave an optional review comment:'}
+                  {'💬 اكتب كلمة حلوة أو رسالتك للعملاء الجايين:'}
                 </label>
                 <textarea
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder={isAr ? 'الأكل كان جامد ومقرمش جداً والدليفري سريع ومحترم للغاية...' : 'E.g. Food was fresh and tasty, delivery boy is polite...'}
+                  placeholder={'الأكل كان جامد ومقرمش جداً والدليفري سريع ومحترم للغاية...'}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-[#f94c10]/20 h-16 resize-none font-semibold transition-all"
                 />
               </div>
@@ -590,7 +540,7 @@ export default function OrderTracker({
               ) : (
                 <>
                   <span>⭐</span>
-                  <span>{isAr ? 'إرسال التقييم المباشر' : 'Submit Review'}</span>
+                  <span>{'إرسال التقييم المباشر'}</span>
                 </>
               )}
             </button>

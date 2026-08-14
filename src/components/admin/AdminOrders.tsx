@@ -9,17 +9,15 @@ export default function AdminOrders({ ctx }: { ctx: any }) {
           <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
             <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2 mb-2">
               <span>📦</span>
-              <span>{isAr ? 'موافقة وإشراف الطلبات المعلقة' : 'Pending & Live Orders'}</span>
+              <span>{'موافقة وإشراف الطلبات المعلقة'}</span>
             </h2>
             <p className="text-xs text-slate-500 mb-6">
-              {isAr
-                ? 'تحكم في سريان الطلبات: العميل عندما يطلب يتحول طلبه أولاً لحالة "معلق بالإدارة" ويتم التوجيه للواتساب، لتقوم بقبولها من هنا وتمريرها للمطابخ وتعيين كابتن توصيل نشط!'
-                : 'Manage the flow of customer orders here. Incoming orders start as "Pending". Approve them to send to the kitchen, and designate active Captains!'}
+              {'تحكم في سريان الطلبات: العميل عندما يطلب يتحول طلبه أولاً لحالة "معلق بالإدارة" ويتم التوجيه للواتساب، لتقوم بقبولها من هنا وتمريرها للمطابخ وتعيين كابتن توصيل نشط!'}
             </p>
 
             {ordersList.length === 0 ? (
               <div className="text-center py-16 bg-slate-50 rounded-2xl border border-slate-100 text-slate-400 text-xs font-bold">
-                {isAr ? 'لا يوجد أي طلبات مسجلة في التطبيق حالياً!' : 'No orders recorded in the platform.'}
+                {'لا يوجد أي طلبات مسجلة في التطبيق حالياً!'}
               </div>
             ) : (
               <div className="space-y-4">
@@ -53,11 +51,11 @@ export default function AdminOrders({ ctx }: { ctx: any }) {
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : 'bg-sky-100 text-sky-850 border border-sky-200'
                             }`}>
-                            {order.status === 'Pending' && (isAr ? '⏳ قيد مراجعة وموافقة المدير' : 'Pending Approval')}
-                            {order.status === 'Received' && (isAr ? '👍 تم القبول (بانتظار المطبخ)' : 'Received')}
-                            {order.status === 'Preparing' && (isAr ? '👨‍🍳 يطبخ حالياً بالمطبخ' : 'Preparing')}
-                            {order.status === 'OutForDelivery' && (isAr ? '🛵 في الطريق مع الطيار' : 'Out For Delivery')}
-                            {order.status === 'Delivered' && (isAr ? '🥰 تم التوصيل للعميل' : 'Delivered')}
+                            {order.status === 'Pending' && ('⏳ قيد مراجعة وموافقة المدير')}
+                            {order.status === 'Received' && ('👍 تم القبول (بانتظار المطبخ)')}
+                            {order.status === 'Preparing' && ('👨‍🍳 يطبخ حالياً بالمطبخ')}
+                            {order.status === 'OutForDelivery' && ('🛵 في الطريق مع الطيار')}
+                            {order.status === 'Delivered' && ('🥰 تم التوصيل للعميل')}
                           </span>
                         </div>
                       </div>
@@ -155,12 +153,12 @@ export default function AdminOrders({ ctx }: { ctx: any }) {
                             >
                               <option value="">-- اختر كابتن توصيل معتمد --</option>
                               {currentAdmin && (
-                                <option value={JSON.stringify({ name: `${currentAdmin.name} (آدمن)`, phone: currentAdmin.phone || '01016789012' })}>
+                                <option value={JSON.stringify({ name: currentAdmin.name, phone: currentAdmin.phone || '01016789012' })}>
                                   👑 نفسي ({currentAdmin.name} - الآدمن الحالي)
                                 </option>
                               )}
                               {adminsList.filter(a => a.id !== currentAdmin?.id).map((admin: any) => (
-                                <option key={`admin-select-${admin.id}`} value={JSON.stringify({ name: `${admin.name} (آدمن)`, phone: admin.phone || '01012345678' })}>
+                                <option key={`admin-select-${admin.id}`} value={JSON.stringify({ name: admin.name, phone: admin.phone || '01012345678' })}>
                                   👑 {admin.name} (مشرف)
                                 </option>
                               ))}

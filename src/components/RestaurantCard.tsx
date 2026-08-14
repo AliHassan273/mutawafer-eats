@@ -59,14 +59,14 @@ export default function RestaurantCard({
   
   const isOpen = isRestaurantOpen(restaurant.openTime, restaurant.closeTime);
 
-  // Dynamic average rating
+  // متوسط التقييم الحقيقي — محسوب من تقييمات العملاء الفعلية فقط، بدون أي رقم افتراضي
+  const restReviewsCount = React.useMemo(() => (reviews || []).filter((r) => r.restaurantId === restaurant.id).length, [reviews, restaurant.id]);
   const dynamicRating = React.useMemo(() => {
-    if (!reviews || reviews.length === 0) return restaurant.rating;
-    const restReviews = reviews.filter((r) => r.restaurantId === restaurant.id);
-    if (restReviews.length === 0) return restaurant.rating;
-    const sum = restReviews.reduce((acc, r) => acc + (r.ratingFoodQuality || 5), 0);
+    const restReviews = (reviews || []).filter((r) => r.restaurantId === restaurant.id);
+    if (restReviews.length === 0) return null;
+    const sum = restReviews.reduce((acc, r) => acc + (r.ratingFoodQuality || 0), 0);
     return Number((sum / restReviews.length).toFixed(1));
-  }, [reviews, restaurant.id, restaurant.rating]);
+  }, [reviews, restaurant.id]);
 
   // Localize categories list
   const getLocalizedCategories = () => {
@@ -143,11 +143,17 @@ export default function RestaurantCard({
             {displayName}
           </h3>
 
-          {/* Green Star Rating badge */}
-          <div className="flex items-center gap-1 bg-green-50 text-green-700 text-xs font-bold px-2.5 py-1 rounded-xl shrink-0 border border-green-100">
-            <span>{dynamicRating}</span>
-            <Star className="h-3 w-3 fill-current text-green-600" />
-          </div>
+          {/* Green Star Rating badge — يظهر فقط لو فيه تقييمات حقيقية */}
+          {dynamicRating !== null ? (
+            <div className="flex items-center gap-1 bg-green-50 text-green-700 text-xs font-bold px-2.5 py-1 rounded-xl shrink-0 border border-green-100">
+              <span>{dynamicRating}</span>
+              <Star className="h-3 w-3 fill-current text-green-600" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 bg-slate-50 text-slate-400 text-[10px] font-bold px-2.5 py-1 rounded-xl shrink-0 border border-slate-100">
+              <span>جديد</span>
+            </div>
+          )}
         </div>
 
         {/* Subtitles */}

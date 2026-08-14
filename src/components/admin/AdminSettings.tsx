@@ -34,12 +34,10 @@ export default function AdminSettings({ ctx }: { ctx: any }) {
             <div className="bg-white border border-slate-105 rounded-3xl p-6 shadow-sm space-y-4">
               <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
                 <span>📍</span>
-                <span>{isAr ? "إدارة مناطق التوصيل والأسعار" : "Delivery Regions & Fees"}</span>
+                <span>{"إدارة مناطق التوصيل والأسعار"}</span>
               </h2>
               <p className="text-xs text-slate-500">
-                {isAr
-                  ? "قم بتسجيل وتعديل الأحياء السكنية والبلاد المتاحة للتوصيل مع تحديد السعر الخاص بكل منطقة."
-                  : "Register neighborhoods, zones or cities available for delivery along with their custom delivery fee."}
+                {"قم بتسجيل وتعديل الأحياء السكنية والبلاد المتاحة للتوصيل مع تحديد السعر الخاص بكل منطقة."}
               </p>
 
               <form
@@ -48,28 +46,28 @@ export default function AdminSettings({ ctx }: { ctx: any }) {
               >
                 <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1">
                   <span>➕</span>
-                  <span>{isAr ? "تسجيل منطقة توصيل جديدة" : "Add New Delivery Zone"}</span>
+                  <span>{"تسجيل منطقة توصيل جديدة"}</span>
                 </h3>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">{isAr ? "اسم المنطقة (بالكامل)" : "Region Name"}</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">{"اسم المنطقة (بالكامل)"}</label>
                     <input
                       required
                       type="text"
                       value={newRegionName}
                       onChange={(e) => setNewRegionName(e.target.value)}
-                      placeholder={isAr ? "مثال: المعادي" : "e.g., Maadi"}
+                      placeholder={"مثال: المعادي"}
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none text-slate-800"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">{isAr ? "سعر التوصيل (ج.م)" : "Delivery Fee (EGP)"}</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">{"سعر التوصيل (ج.م)"}</label>
                     <input
                       required
                       type="number"
                       value={newRegionFee}
                       onChange={(e) => setNewRegionFee(e.target.value)}
-                      placeholder="e.g., 20"
+                      placeholder="مثال: 20"
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none text-slate-800"
                     />
                   </div>
@@ -78,17 +76,17 @@ export default function AdminSettings({ ctx }: { ctx: any }) {
                   type="submit"
                   className="w-full bg-emerald-600 hover:bg-emerald-700 hover:scale-[1.01] active:scale-[0.99] text-white rounded-xl py-2 text-xs font-bold transition-all cursor-pointer shadow-xs"
                 >
-                  {isAr ? "حفظ وتسجيل المنطقة" : "Save Region"}
+                  {"حفظ وتسجيل المنطقة"}
                 </button>
               </form>
 
               <div className="space-y-2 max-h-80 overflow-y-auto no-scrollbar">
                 <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  {isAr ? `المناطق المسجلة (${deliveryOptions.length})` : `Registered Areas (${deliveryOptions.length})`}
+                  {`المناطق المسجلة (${deliveryOptions.length})`}
                 </h3>
                 {deliveryOptions.length === 0 ? (
                   <div className="text-center py-6 text-xs text-slate-400 font-bold bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                    {isAr ? "لا يوجد مناطق مسجلة بعد" : "No regions registered yet"}
+                    {"لا يوجد مناطق مسجلة بعد"}
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100 bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-xs">
@@ -97,13 +95,13 @@ export default function AdminSettings({ ctx }: { ctx: any }) {
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-slate-800">{opt.name}</span>
                           <span className="text-slate-300">|</span>
-                          <span className="font-semibold text-emerald-600">{opt.fee} {isAr ? "ج.م توصيل" : "EGP Fee"}</span>
+                          <span className="font-semibold text-emerald-600">{opt.fee} {"ج.م توصيل"}</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => handleDeleteDeliveryOption(opt.id, opt.name)}
                           className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 transition-all cursor-pointer"
-                          title={isAr ? "حذف المنطقة" : "Delete Region"}
+                          title={"حذف المنطقة"}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -117,12 +115,10 @@ export default function AdminSettings({ ctx }: { ctx: any }) {
             <div className="bg-white border border-slate-105 rounded-3xl p-6 shadow-sm space-y-4">
               <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
                 <span>🏷️</span>
-                <span>{isAr ? "إدارة وتفعيل كوبونات الخصم" : "Discount Coupons Manager"}</span>
+                <span>{"إدارة وتفعيل كوبونات الخصم"}</span>
               </h2>
               <p className="text-xs text-slate-500">
-                {isAr
-                  ? "تحكم بالكوبونات المتوفرة للتطبيق. قم بتفعيل أو تعطيل الكوبونات وسيقوم المستخدم بإدخالها يدوياً."
-                  : "Create discount codes. Toggle activation on/off. Users must enter these codes manually inside checkout."}
+                {"تحكم بالكوبونات المتوفرة للتطبيق. قم بتفعيل أو تعطيل الكوبونات وسيقوم المستخدم بإدخالها يدوياً."}
               </p>
 
               <form
@@ -131,49 +127,49 @@ export default function AdminSettings({ ctx }: { ctx: any }) {
               >
                 <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1">
                   <span>➕</span>
-                  <span>{isAr ? "إضافة كوبون خصم جديد" : "Create New Promo Code"}</span>
+                  <span>{"إضافة كوبون خصم جديد"}</span>
                 </h3>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">{isAr ? "رمز الكوبون" : "Coupon Code"}</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">{"رمز الكوبون"}</label>
                     <input
                       required
                       type="text"
                       value={newCouponCode}
                       onChange={(e) => setNewCouponCode(e.target.value)}
-                      placeholder="e.g., MEGA20"
+                      placeholder="مثال: MEGA20"
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none uppercase font-mono text-slate-800"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">{isAr ? "نوع الخصم" : "Discount Type"}</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">{"نوع الخصم"}</label>
                     <select
                       value={newCouponType}
                       onChange={(e) => setNewCouponType(e.target.value as any)}
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none text-slate-800 font-medium"
                     >
-                      <option value="percentage">{isAr ? "نسبة مئوية (%)" : "Percentage (%)"}</option>
-                      <option value="flat">{isAr ? "قيمة ثابتة (ج.م)" : "Flat Cash (EGP)"}</option>
+                      <option value="percentage">{"نسبة مئوية (%)"}</option>
+                      <option value="flat">{"قيمة ثابتة (ج.م)"}</option>
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">{isAr ? "قيمة الخصم" : "Discount Amount"}</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">{"قيمة الخصم"}</label>
                     <input
                       required
                       type="number"
                       value={newCouponValue}
                       onChange={(e) => setNewCouponValue(e.target.value)}
-                      placeholder="e.g., 20"
+                      placeholder="مثال: 20"
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none text-slate-800"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">{isAr ? "الحد الأدنى للطلب (ج.م)" : "Min Order (EGP)"}</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">{"الحد الأدنى للطلب (ج.م)"}</label>
                     <input
                       type="number"
                       value={newCouponMinOrder}
                       onChange={(e) => setNewCouponMinOrder(e.target.value)}
-                      placeholder="e.g., 100"
+                      placeholder="مثال: 100"
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none text-slate-800"
                     />
                   </div>
@@ -182,17 +178,17 @@ export default function AdminSettings({ ctx }: { ctx: any }) {
                   type="submit"
                   className="w-full bg-[#f94c10] hover:bg-[#d83f0c] hover:scale-[1.01] active:scale-[0.99] text-white rounded-xl py-2 text-xs font-bold transition-all cursor-pointer shadow-xs"
                 >
-                  {isAr ? "توليد وإدراج الكوبون" : "Publish Coupon"}
+                  {"توليد وإدراج الكوبون"}
                 </button>
               </form>
 
               <div className="space-y-2 max-h-80 overflow-y-auto no-scrollbar">
                 <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  {isAr ? `الكوبونات المتوفرة (${couponsList.length})` : `Available Coupons (${couponsList.length})`}
+                  {`الكوبونات المتوفرة (${couponsList.length})`}
                 </h3>
                 {couponsList.length === 0 ? (
                   <div className="text-center py-6 text-xs text-slate-400 font-bold bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                    {isAr ? "لا يوجد كوبونات مسجلة" : "No coupons published yet"}
+                    {"لا يوجد كوبونات مسجلة"}
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100 bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-xs">
@@ -205,18 +201,18 @@ export default function AdminSettings({ ctx }: { ctx: any }) {
                                 ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
                                 : "bg-slate-100 text-slate-500"
                               }`}>
-                              {cp.isActive ? (isAr ? "نشط" : "Active") : (isAr ? "معطل" : "Disabled")}
+                              {cp.isActive ? ("نشط") : ("معطل")}
                             </span>
                           </div>
                           <div className="text-[10px] text-slate-500">
                             <span>
-                              {isAr ? "خصم: " : "Discount: "}
+                              {"خصم: "}
                               <strong className="text-slate-700">{cp.discountValue}{cp.discountType === 'percentage' ? '%' : ' ج.م'}</strong>
                             </span>
                             {cp.minOrder > 0 && (
                               <>
                                 <span className="mx-2">•</span>
-                                <span>{isAr ? "حد أدنى: " : "Min: "} <strong className="text-slate-750">{cp.minOrder} ج.م</strong></span>
+                                <span>{"حد أدنى: "} <strong className="text-slate-750">{cp.minOrder} ج.م</strong></span>
                               </>
                             )}
                           </div>
@@ -231,7 +227,7 @@ export default function AdminSettings({ ctx }: { ctx: any }) {
                                 : "bg-emerald-50 hover:bg-emerald-100 text-emerald-600"
                               }`}
                           >
-                            {cp.isActive ? (isAr ? "تعطيل" : "Disable") : (isAr ? "تفعيل" : "Enable")}
+                            {cp.isActive ? ("تعطيل") : ("تفعيل")}
                           </button>
                           <button
                             type="button"
@@ -253,22 +249,22 @@ export default function AdminSettings({ ctx }: { ctx: any }) {
           <div className="bg-white border border-slate-105 rounded-3xl p-6 shadow-sm space-y-4">
             <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
               <span>⚙️</span>
-              <span>{isAr ? "إعدادات قواعد الشحن العامة والطلب" : "Global Order & Pricing Settings"}</span>
+              <span>{"إعدادات قواعد الشحن العامة والطلب"}</span>
             </h2>
             <form onSubmit={handleSaveSettings} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 block">{isAr ? "رقم الواتساب لاستقبال الطلبات" : "WhatsApp Order Receiver Number"}</label>
+                  <label className="text-xs font-bold text-slate-700 block">{"رقم الواتساب لاستقبال الطلبات"}</label>
                   <input
                     type="text"
                     value={whatsappNumberSetting}
                     onChange={(e) => setWhatsappNumberSetting(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2 text-xs font-medium outline-none text-slate-800"
                   />
-                  <p className="text-[10px] text-slate-400">{isAr ? "مثال: 201016789012 (مع كود الدولة وبدون علامة +)" : "e.g., 201016789012 (with country code, no +)"}</p>
+                  <p className="text-[10px] text-slate-400">{"مثال: 201016789012 (مع كود الدولة وبدون علامة +)"}</p>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 block">{isAr ? "لوجو التطبيق من الجهاز" : "App Logo from Device"}</label>
+                  <label className="text-xs font-bold text-slate-700 block">{"لوجو التطبيق من الجهاز"}</label>
                   <input
                     type="file"
                     accept="image/*"
@@ -282,22 +278,22 @@ export default function AdminSettings({ ctx }: { ctx: any }) {
                   />
                   {logoImageSetting ? (
                     <div className="mt-2 rounded-2xl overflow-hidden border border-slate-200 shadow-sm w-full max-w-xs">
-                      <img src={logoImageSetting} alt={isAr ? 'شعار التطبيق' : 'App logo preview'} className="w-full h-auto object-contain" />
+                      <img src={logoImageSetting} alt={'شعار التطبيق'} className="w-full h-auto object-contain" />
                     </div>
                   ) : (
-                    <p className="text-[10px] text-slate-400">{isAr ? "اختر صورة من جهازك لتظهر كلوجو التطبيق" : "Choose a device image to use as the app logo."}</p>
+                    <p className="text-[10px] text-slate-400">{"اختر صورة من جهازك لتظهر كلوجو التطبيق"}</p>
                   )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 block">{isAr ? "نوع حساب تسعير التوصيل" : "Delivery Pricing Engine"}</label>
+                  <label className="text-xs font-bold text-slate-700 block">{"نوع حساب تسعير التوصيل"}</label>
                   <select
                     value={deliveryPricingType}
                     onChange={(e) => setDeliveryPricingType(e.target.value as any)}
                     className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2 text-xs font-medium outline-none text-slate-800"
                   >
-                    <option value="area">{isAr ? "حسب المنطقة الجغرافية (توصيل مخصّص)" : "By Geographical Area (Custom fees)"}</option>
-                    <option value="distance">{isAr ? "حسب المسافة بالكيلومتر (توصيل تلقائي)" : "By GPS Distance (Automatic distance calculation)"}</option>
+                    <option value="area">{"حسب المنطقة الجغرافية (توصيل مخصّص)"}</option>
+                    <option value="distance">{"حسب المسافة بالكيلومتر (توصيل تلقائي)"}</option>
                   </select>
                 </div>
               </div>
@@ -311,10 +307,10 @@ export default function AdminSettings({ ctx }: { ctx: any }) {
                   {isUpdatingSettings ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin text-white" />
-                      <span>{isAr ? "جاري التحديث..." : "Updating Settings..."}</span>
+                      <span>{"جاري التحديث..."}</span>
                     </>
                   ) : (
-                    <span>{isAr ? "حفظ الإعدادات بالكامل" : "Save Settings"}</span>
+                    <span>{"حفظ الإعدادات بالكامل"}</span>
                   )}
                 </button>
               </div>

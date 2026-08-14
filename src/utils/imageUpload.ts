@@ -1,5 +1,5 @@
-import { fetchWithRetry } from './fetchHelper';
-import { supabaseConfigured, supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
+import { extractFunctionErrorMessage } from './functionError';
 
 export async function uploadImageFile(file: File): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -12,7 +12,7 @@ export async function uploadImageFile(file: File): Promise<string> {
   const data = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
   const cloudName = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = (import.meta as any).env?.VITE_CLOUDINARY_UPLOAD_PRESET;
-  if (supabaseConfigured && cloudName && uploadPreset) {
+  if (cloudName && uploadPreset) {
     const form = new FormData();
     form.append('file', file);
     form.append('upload_preset', uploadPreset);
@@ -22,13 +22,8 @@ export async function uploadImageFile(file: File): Promise<string> {
     if (!cloudResponse.ok || !cloudResult.secure_url) throw new Error(cloudResult.error?.message || 'تعذر رفع الصورة إلى Cloudinary');
     return cloudResult.secure_url;
   }
-  if (supabaseConfigured) {
-    const { data: result, error } = await supabase.functions.invoke('upload-image', { body: { data, mimeType: file.type || 'image/jpeg', fileName: file.name } });
-    if (error || !result?.url) throw new Error(error?.message || result?.error || 'تعذر رفع الصورة');
-    return result.url;
-  }
-  const response = await fetchWithRetry('/api/uploads/image', { method: 'POST', body: JSON.stringify({ data, mimeType: file.type || 'image/jpeg', fileName: file.name }) }, 2, 700);
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok || !result.url) throw new Error(result.error || 'تعذر رفع الصورة');
+  const { data: result, error } = await supabase.functions.invoke('upload-image', { body: { data, mimeType: file.type || 'image/jpeg', fileName: file.name } });
+  if (error) throw new Error(await extractFunctionErrorMessage(error, 'تعذر رفع الصورة.'));
+  if (!result?.url) throw new Error(result?.error || 'تعذر رفع الصورة');
   return result.url;
 }

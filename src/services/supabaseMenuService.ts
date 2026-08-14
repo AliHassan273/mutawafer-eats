@@ -22,6 +22,16 @@ export async function updateMenuItemInSupabase(itemId: string, item: any) {
   return data;
 }
 
+export async function replaceMenuItemSizesInSupabase(itemId: string, sizes: { name: string; price: number; originalPrice?: number | null }[]) {
+  const { error: deleteError } = await supabase.from('menu_item_sizes').delete().eq('menu_item_id', itemId);
+  if (deleteError) throw deleteError;
+  if (!sizes.length) return [];
+  const rows = sizes.map(size => ({ menu_item_id: itemId, name: size.name, price: Number(size.price || 0), original_price: size.originalPrice ?? null }));
+  const { data, error } = await supabase.from('menu_item_sizes').insert(rows).select();
+  if (error) throw error;
+  return data || [];
+}
+
 export async function deleteMenuItemFromSupabase(itemId: string) {
   const { error } = await supabase.from('menu_items').delete().eq('id', itemId);
   if (error) throw error;

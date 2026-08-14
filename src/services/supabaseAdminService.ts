@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { extractFunctionErrorMessage } from '../utils/functionError';
 
 export async function saveRestaurantInSupabase(data: any, id?: string) {
   const row = { name: data.name, cover_image: data.coverImage || '', categories: data.categories || [], promo: data.promo || null, delivery_fee: data.deliveryFee || 0, delivery_time: data.deliveryTime || '', rating: data.rating || 0, distance: data.distance || 0, description: data.descriptionString || '', open_time: data.openTime || null, close_time: data.closeTime || null, whatsapp_number: data.whatsappNumber || null };
@@ -54,13 +55,15 @@ export async function updateCaptainStatusInSupabase(id: string, status: string) 
 
 export async function createAdminInSupabase(input: any) {
   const { data, error } = await supabase.functions.invoke('create-admin', { body: input });
-  if (error || data?.error) throw error || new Error(data.error);
+  if (error) throw new Error(await extractFunctionErrorMessage(error, 'تعذر إنشاء حساب الأدمن.'));
+  if (data?.error) throw new Error(data.error);
   return data;
 }
 
 export async function deleteAdminInSupabase(id: string) {
   const { data, error } = await supabase.functions.invoke('delete-admin', { body: { id } });
-  if (error || data?.error) throw error || new Error(data.error);
+  if (error) throw new Error(await extractFunctionErrorMessage(error, 'تعذر حذف حساب الأدمن.'));
+  if (data?.error) throw new Error(data.error);
 }
 
 export async function listLoyaltyCustomersFromSupabase(threshold = 10) {

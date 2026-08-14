@@ -3,10 +3,8 @@ import { ArrowLeft, Star, Clock, Truck, Plus, Minus, Search, Edit, Trash2, Spark
 import { Restaurant, MenuItem, CartItem, Review } from '../types';
 import { isRestaurantOpen } from './RestaurantCard';
 import { lang } from '../translations';
-import { fetchWithRetry } from '../utils/fetchHelper';
-import { uploadImageFile } from '../utils/imageUpload';
-import { supabaseConfigured } from '../lib/supabase';
-import { updateMenuItemInSupabase, deleteMenuItemFromSupabase } from '../services/supabaseMenuService';
+import { deleteMenuItemFromSupabase } from '../services/supabaseMenuService';
+import MenuItemEditor from './admin/MenuItemEditor';
 
 interface RestaurantDetailProps {
   restaurant: Restaurant;
@@ -16,6 +14,7 @@ interface RestaurantDetailProps {
   onRemoveFromCart: (itemId: string, selectedSizeId?: string, forceRemoveAll?: boolean) => void;
   onRefreshData?: () => Promise<void>;
   reviews?: Review[];
+  categoriesList?: { id: string; name: string; nameAr: string; icon: string }[];
   hiddenCategories?: string[];
 }
 
@@ -92,6 +91,7 @@ export default function RestaurantDetail({
   onRemoveFromCart,
   onRefreshData,
   reviews,
+  categoriesList = [],
   hiddenCategories = [],
 }: RestaurantDetailProps) {
   const [selectedSubCategory, setSelectedSubCategory] = useState('All');
@@ -103,18 +103,17 @@ export default function RestaurantDetail({
 
   const isOpen = isRestaurantOpen(restaurant.openTime, restaurant.closeTime);
 
-  // Dynamic average rating
+  // متوسط التقييم الحقيقي — محسوب من تقييمات العملاء الفعلية فقط، بدون أي رقم افتراضي
   const dynamicRating = React.useMemo(() => {
-    if (!reviews || reviews.length === 0) return restaurant.rating;
-    const restReviews = reviews.filter((r) => r.restaurantId === restaurant.id);
-    if (restReviews.length === 0) return restaurant.rating;
-    const sum = restReviews.reduce((acc, r) => acc + (r.ratingFoodQuality || 5), 0);
+    const restReviews = (reviews || []).filter((r) => r.restaurantId === restaurant.id);
+    if (restReviews.length === 0) return null;
+    const sum = restReviews.reduce((acc, r) => acc + (r.ratingFoodQuality || 0), 0);
     return Number((sum / restReviews.length).toFixed(1));
-  }, [reviews, restaurant.id, restaurant.rating]);
+  }, [reviews, restaurant.id]);
 
   const handleAddToCartSecure = (item: MenuItem, rest: Restaurant, selectedSize?: any) => {
     if (!isOpen) {
-      alert(isAr ? "عذراً، هذا المطعم مغلق حالياً وبرا أوقات العمل الرسمية المحددة." : "Sorry, this restaurant is currently closed.");
+      alert("عذراً، هذا المطعم مغلق حالياً وبرا أوقات العمل الرسمية المحددة.");
       return;
     }
     onAddToCart(item, rest, selectedSize);
@@ -132,155 +131,33 @@ export default function RestaurantDetail({
 
   const canModifyMenu = currentAdmin && (currentAdmin.role === 'primary' || currentAdmin.canManageMenu === true);
 
-  // Modal & form states for inline dish editor
-  const [isDishModalOpen, setIsDishModalOpen] = useState(false);
-  const [editingDishId, setEditingDishId] = useState<string | null>(null);
+  // نافذة إضافة/تعديل الصنف — نفس الكومبوننت المشترك المستخدم أيضًا في لوحة تحكم الأدمن
+  const [editingDishItem, setEditingDishItem] = useState<MenuItem | null>(null);
+  const [isAddingNewDish, setIsAddingNewDish] = useState(false);
   const [deleteConfirmDishId, setDeleteConfirmDishId] = useState<string | null>(null);
-  
+
   // Toast notifications state
   const [successToast, setSuccessToast] = useState("");
 
-  const [dishForm, setDishForm] = useState<{
-    name: string;
-    description: string;
-    price: string;
-    originalPrice: string;
-    category: string;
-    image: string;
-    sizes: { id: string; name: string; price: number; originalPrice?: number }[];
-  }>({
-    name: "",
-    description: "",
-    price: "",
-    originalPrice: "",
-    category: "",
-    image: "",
-    sizes: []
-  });
-
   const handleOpenAddDish = () => {
-    setEditingDishId(null);
-    setDishForm({
-      name: "",
-      description: "",
-      price: "120",
-      originalPrice: "",
-      category: "",
-      image: restaurant.coverImage || "/logo.png",
-      sizes: []
-    });
-    setIsDishModalOpen(true);
+    setEditingDishItem(null);
+    setIsAddingNewDish(true);
   };
 
   const handleOpenEditDish = (item: MenuItem) => {
-    setEditingDishId(item.id);
-    setDishForm({
-      name: item.name,
-      description: item.description || "",
-      price: String(item.price),
-      originalPrice: item.originalPrice ? String(item.originalPrice) : "",
-      category: item.category || "",
-      image: item.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
-      sizes: item.sizes ? [...item.sizes] : []
-    });
-    setIsDishModalOpen(true);
-  };
-
-  const handleSaveDish = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!canModifyMenu) {
-      alert("عفوًا، لا تملك الصلاحية لتعديل محتوى المنيو.");
-      return;
-    }
-
-    try {
-      let updatedMenu = [...restaurant.menu];
-      const numericPrice = Number(dishForm.price) || 0;
-      const numericOriginalPrice = dishForm.originalPrice ? Number(dishForm.originalPrice) : undefined;
-
-      const formattedDish = {
-        name: dishForm.name.trim(),
-        description: dishForm.description.trim(),
-        price: numericPrice,
-        originalPrice: numericOriginalPrice,
-        category: dishForm.category.trim(),
-        image: dishForm.image.trim() || restaurant.coverImage || "/logo.png",
-        sizes: dishForm.sizes
-      };
-
-      if (supabaseConfigured && editingDishId) {
-        await updateMenuItemInSupabase(editingDishId, formattedDish);
-        if (onRefreshData) await onRefreshData();
-        setIsDishModalOpen(false);
-        setSuccessToast('تم حفظ الصنف بنجاح.');
-        setTimeout(() => setSuccessToast(''), 3000);
-        return;
-      }
-      if (editingDishId) {
-        // Edit flow
-        updatedMenu = updatedMenu.map(d => 
-          d.id === editingDishId ? { ...d, ...formattedDish } : d
-        );
-      } else {
-        // Create flow
-        const newDish = {
-          id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-          ...formattedDish
-        };
-        updatedMenu.push(newDish);
-      }
-
-      // Commit changes over the PUT API
-      const res = await fetchWithRetry(`/api/restaurants/${restaurant.id}`, {
-        method: "PUT",
-        body: JSON.stringify({ menu: updatedMenu })
-      });
-
-      if (res.ok) {
-        if (onRefreshData) {
-          await onRefreshData();
-        }
-        setIsDishModalOpen(false);
-        setSuccessToast(isAr ? "تم حفظ التعديلات بنجاح! 🎉" : "Menu changes successfully saved! 🎉");
-        setTimeout(() => setSuccessToast(""), 3000);
-      } else {
-        alert("Failed to commit changes to the backend database.");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error saving menu option.");
-    }
+    setIsAddingNewDish(false);
+    setEditingDishItem(item);
   };
 
   const handleDeleteDishConfirm = async (itemId: string) => {
     if (!canModifyMenu) return;
 
     try {
-      if (supabaseConfigured) {
-        await deleteMenuItemFromSupabase(itemId);
-        if (onRefreshData) await onRefreshData();
-        setDeleteConfirmDishId(null);
-        setSuccessToast('تم حذف الصنف بنجاح.');
-        setTimeout(() => setSuccessToast(''), 3000);
-        return;
-      }
-      const updatedMenu = restaurant.menu.filter(d => d.id !== itemId);
-
-      const res = await fetchWithRetry(`/api/restaurants/${restaurant.id}`, {
-        method: "PUT",
-        body: JSON.stringify({ menu: updatedMenu })
-      });
-
-      if (res.ok) {
-        if (onRefreshData) {
-          await onRefreshData();
-        }
-        setDeleteConfirmDishId(null);
-        setSuccessToast(isAr ? "تم حذف الصنف بنجاح! ⚠️" : "Dish deleted successfully! ⚠️");
-        setTimeout(() => setSuccessToast(""), 3000);
-      } else {
-        alert("Failed to delete the selected product.");
-      }
+      await deleteMenuItemFromSupabase(itemId);
+      if (onRefreshData) await onRefreshData();
+      setDeleteConfirmDishId(null);
+      setSuccessToast('تم حذف الصنف بنجاح.');
+      setTimeout(() => setSuccessToast(''), 3000);
     } catch (err) {
       console.error(err);
     }
@@ -311,25 +188,23 @@ export default function RestaurantDetail({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-6" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-6" dir={'rtl'}>
       
       {/* Back navigation button */}
       <button
         onClick={onBack}
         className="flex items-center gap-2 text-slate-600 hover:text-[#f94c10] text-xs sm:text-sm font-semibold mb-6 group cursor-pointer transition-colors"
       >
-        <ArrowLeft className={`h-4 w-4 transition-transform ${isAr ? 'rotate-180 group-hover:translate-x-1' : 'group-hover:-translate-x-1'}`} />
+        <ArrowLeft className={`h-4 w-4 transition-transform ${'rotate-180 group-hover:translate-x-1'}`} />
         <span>{t('backToHome')}</span>
       </button>
 
       {canModifyMenu && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl mb-6 p-4 flex flex-col sm:flex-row justify-between items-center gap-3 animate-in fade-in duration-200">
           <div className="flex items-center gap-2">
-            <span className="p-1 px-2 bg-amber-100 rounded-lg text-amber-800 text-xs font-bold">🛠️ {isAr ? "تحرير القائمة" : "Menu Editor"}</span>
+            <span className="p-1 px-2 bg-amber-100 rounded-lg text-amber-800 text-xs font-bold">🛠️ {"تحرير القائمة"}</span>
             <p className="text-xs font-bold text-slate-700 text-right sm:text-left">
-              {isAr 
-                ? `مرحباً يا معلم ${currentAdmin.name}! يمكنك تعديل الأصناف أو إضافة وجبات جديدة لهذا المطعم فورياً.` 
-                : `Welcome ${currentAdmin.name}! You can modify existing items or add new dishes for this store.`}
+              {`مرحباً يا معلم ${currentAdmin.name}! يمكنك تعديل الأصناف أو إضافة وجبات جديدة لهذا المطعم فورياً.`}
             </p>
           </div>
           <button
@@ -337,7 +212,7 @@ export default function RestaurantDetail({
             className="bg-[#f94c10] hover:bg-orange-600 text-white font-black text-xs px-4 py-2 rounded-full cursor-pointer transition-all shadow-sm flex items-center gap-1.5 shrink-0"
           >
             <Plus className="h-4 w-4" />
-            <span>{isAr ? "إضافة صنف جديد بالمنيو" : "Add New dish"}</span>
+            <span>{"إضافة صنف جديد بالمنيو"}</span>
           </button>
         </div>
       )}
@@ -354,11 +229,9 @@ export default function RestaurantDetail({
         <div className="bg-red-550/10 border-2 border-red-550/30 text-red-750 bg-red-50 border-red-200 text-red-800 rounded-3xl p-5 mb-8 flex items-start gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
           <span className="text-2xl pt-1">🔒</span>
           <div>
-            <h4 className="text-sm font-black text-slate-800">{isAr ? "عذراً، هذا المطعم مغلق حالياً ولا يستقبل طلبات جديدة! 🚫" : "Sorry, this restaurant is currently closed"}</h4>
+            <h4 className="text-sm font-black text-slate-800">{"عذراً، هذا المطعم مغلق حالياً ولا يستقبل طلبات جديدة! 🚫"}</h4>
             <p className="text-xs font-bold text-slate-500 mt-1 leading-normal">
-              {isAr 
-                ? `المطعم خارج أوقات العمل الرسمية التي حددها الأدمن. نتشرف بخدمتكم اليوم خلال مواعيد العمل الرسمية: من ${restaurant.openTime} إلى ${restaurant.closeTime}.`
-                : `This store is currently offline outside corporate business hours: ${restaurant.openTime} to ${restaurant.closeTime}.`}
+              {`المطعم خارج أوقات العمل الرسمية التي حددها الأدمن. نتشرف بخدمتكم اليوم خلال مواعيد العمل الرسمية: من ${restaurant.openTime} إلى ${restaurant.closeTime}.`}
             </p>
           </div>
         </div>
@@ -375,7 +248,7 @@ export default function RestaurantDetail({
           />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-slate-900/10" />
           
-          <div className={`absolute bottom-6 ${isAr ? 'right-6 text-right' : 'left-6 text-left'} right-6 text-white`}>
+          <div className={`absolute bottom-6 ${'right-6 text-right'} right-6 text-white`}>
             <h1 className="font-display font-black text-2xl sm:text-3xl md:text-4xl tracking-tight leading-tight">
               {restaurant.name}
             </h1>
@@ -391,22 +264,28 @@ export default function RestaurantDetail({
             <div className="flex flex-col">
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('rating')}</span>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-sm font-extrabold text-[#0f172a] font-display">{dynamicRating}</span>
-                <Star className="h-4 w-4 fill-current text-green-500 shrink-0" />
+                {dynamicRating !== null ? (
+                  <>
+                    <span className="text-sm font-extrabold text-[#0f172a] font-display">{dynamicRating}</span>
+                    <Star className="h-4 w-4 fill-current text-green-500 shrink-0" />
+                  </>
+                ) : (
+                  <span className="text-xs font-bold text-slate-400">لا يوجد تقييمات بعد</span>
+                )}
               </div>
             </div>
           </div>
 
           {/* Micro Search within Menu */}
           <div className="relative w-full sm:w-64">
-            <Search className={`absolute ${isAr ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400`} />
+            <Search className={`absolute ${'right-3'} top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400`} />
             <input
               type="text"
-              placeholder={isAr ? 'دور في المنيو...' : 'Search dishes...'}
+              placeholder={'دور في المنيو...'}
               value={itemSearch}
               onChange={(e) => setItemSearch(e.target.value)}
               className={`w-full bg-slate-50 border-0 text-slate-800 placeholder-slate-400 rounded-full py-1.5 text-xs outline-none focus:ring-2 focus:ring-orange-500/20 focus:bg-white transition-all font-medium ${
-                isAr ? 'pr-9 pl-3 text-right' : 'pl-9 pr-3'
+                'pr-9 pl-3 text-right'
               }`}
             />
           </div>
@@ -439,13 +318,13 @@ export default function RestaurantDetail({
       {filteredMenu.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-3xl border border-slate-50 p-6">
           <p className="text-slate-400 text-sm font-medium">
-            {isAr ? 'ملقيناش أكلات مطابقة للبحث أو التثبيت.' : 'No menu items match your search or filter configuration.'}
+            {'ملقيناش أكلات مطابقة للبحث أو التثبيت.'}
           </p>
           <button 
             onClick={() => { setItemSearch(''); setSelectedSubCategory('All'); }}
             className="text-xs text-[#f94c10] font-bold mt-2 hover:underline cursor-pointer"
           >
-            {isAr ? 'إعادة تعيين القائمة' : 'Reset filter'}
+            {'إعادة تعيين القائمة'}
           </button>
         </div>
       ) : (
@@ -470,14 +349,14 @@ export default function RestaurantDetail({
                   />
                   
                   {/* Category Tag overlay */}
-                  <span className={`absolute bottom-1 ${isAr ? 'right-1' : 'left-1'} bg-black/60 backdrop-blur-xxs text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase`}>
+                  <span className={`absolute bottom-1 ${'right-1'} bg-black/60 backdrop-blur-xxs text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase`}>
                     {(CATEGORIES_LABELS_MAP[lang] as any)?.[item.category] || item.category}
                   </span>
                 </div>
 
                 {/* Food Details and Order Widget */}
                 <div className="flex-1 flex flex-col justify-between min-w-0">
-                  <div style={{ textAlign: isAr ? 'right' : 'left' }}>
+                  <div style={{ textAlign: 'right' }}>
                     <div className="flex justify-between items-start gap-2">
                       <h3 className="text-xs sm:text-sm font-black text-slate-805 leading-tight flex flex-wrap items-center gap-2 justify-start">
                         <span>{dishName}</span>
@@ -491,7 +370,7 @@ export default function RestaurantDetail({
                             type="button"
                             onClick={() => handleOpenEditDish(item)}
                             className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg cursor-pointer transition-all"
-                            title={isAr ? "تعديل الصنف" : "Edit Dish"}
+                            title={"تعديل الصنف"}
                           >
                             <Edit className="h-3.5 w-3.5" />
                           </button>
@@ -499,7 +378,7 @@ export default function RestaurantDetail({
                             type="button"
                             onClick={() => setDeleteConfirmDishId(item.id)}
                             className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-all"
-                            title={isAr ? "حذف الصنف" : "Delete Dish"}
+                            title={"حذف الصنف"}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -513,8 +392,8 @@ export default function RestaurantDetail({
 
                   {item.sizes && item.sizes.length > 0 ? (
                     <div className="space-y-2 mt-3 w-full border-t border-slate-50 pt-3">
-                      <p className="text-[10px] font-black text-slate-550 mb-1" style={{ textAlign: isAr ? 'right' : 'left' }}>
-                        {isAr ? "📐 الوحدات والأحجام المتوفرة:" : "📐 Available Units & Sizes:"}
+                      <p className="text-[10px] font-black text-slate-550 mb-1" style={{ textAlign: 'right' }}>
+                        {"📐 الوحدات والأحجام المتوفرة:"}
                       </p>
                    
                       {/* Prepend Base/Standard Unit if item has price */}
@@ -524,9 +403,9 @@ export default function RestaurantDetail({
                           <div 
                             className="flex items-center justify-between gap-2 bg-slate-50/70 p-1.5 px-2.5 rounded-xl border border-slate-100 hover:border-orange-100 transition-colors"
                           >
-                            <div className="min-w-0" style={{ textAlign: isAr ? 'right' : 'left' }}>
+                            <div className="min-w-0" style={{ textAlign: 'right' }}>
                               <span className="text-xs font-bold text-slate-800 block">
-                                {isAr ? "الوحدة الأساسية" : "Standard Unit"}
+                                {"الوحدة الأساسية"}
                               </span>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <span className="text-[11px] font-black text-[#f94c10] font-mono">
@@ -567,11 +446,11 @@ export default function RestaurantDetail({
                                     className="flex items-center gap-1 bg-[#f94c10] hover:bg-[#e03d08] hover:scale-102 text-white font-black text-[10px] px-2.5 py-1 rounded-full cursor-pointer transition-all shadow-xxs"
                                   >
                                     <Plus className="h-2.5 w-2.5" />
-                                    <span>{isAr ? 'شيل' : 'Add'}</span>
+                                    <span>{'شيل'}</span>
                                   </button>
                                 ) : (
                                   <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
-                                    {isAr ? 'مغلق' : 'Closed'}
+                                    {'مغلق'}
                                   </span>
                                    )
                               )}
@@ -587,7 +466,7 @@ export default function RestaurantDetail({
                             key={sz.id} 
                             className="flex items-center justify-between gap-2 bg-slate-50/70 p-1.5 px-2.5 rounded-xl border border-slate-100 hover:border-orange-100 transition-colors"
                           >
-                            <div className="min-w-0" style={{ textAlign: isAr ? 'right' : 'left' }}>
+                            <div className="min-w-0" style={{ textAlign: 'right' }}>
                               <span className="text-xs font-bold text-slate-800 block">
                                 {sz.name}
                               </span>
@@ -630,11 +509,11 @@ export default function RestaurantDetail({
                                     className="flex items-center gap-1 bg-[#f94c10] hover:bg-[#e03d08] hover:scale-102 text-white font-black text-[10px] px-2.5 py-1 rounded-full cursor-pointer transition-all shadow-xxs"
                                   >
                                     <Plus className="h-2.5 w-2.5" />
-                                    <span>{isAr ? 'شيل' : 'Add'}</span>
+                                    <span>{'شيل'}</span>
                                   </button>
                                 ) : (
                                   <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
-                                    {isAr ? 'مغلق' : 'Closed'}
+                                    {'مغلق'}
                                   </span>
                                 )
                               )}
@@ -644,7 +523,7 @@ export default function RestaurantDetail({
                       })}
                     </div>
                   ) : (
-                    <div className={`flex items-center justify-between gap-4 mt-3 w-full ${isAr ? 'flex-row-reverse' : ''}`}>
+                    <div className={`flex items-center justify-between gap-4 mt-3 w-full ${'flex-row-reverse'}`}>
                       <div className="flex items-center gap-2">
                         <span className="font-display font-black text-[#0f172a] text-sm sm:text-base">
                           {item.price.toFixed(0)} {t('egp')}
@@ -683,14 +562,14 @@ export default function RestaurantDetail({
                             className="flex items-center gap-1 bg-[#f94c10] hover:bg-[#e03d08] hover:scale-102 text-white font-extrabold text-xs px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full cursor-pointer transition-all shadow-xs"
                           >
                             <Plus className="h-3.5 w-3.5" />
-                            <span>{isAr ? 'شيل وحط' : 'Add'}</span>
+                            <span>{'شيل وحط'}</span>
                           </button>
                         ) : (
                           <button
                             disabled
                             className="flex items-center gap-1 bg-slate-200 text-slate-400 font-extrabold text-xs px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full cursor-not-allowed transition-all"
                           >
-                            <span>{isAr ? 'مغلق 🚪' : 'Closed 🚪'}</span>
+                            <span>{'مغلق 🚪'}</span>
                           </button>
                         )
                       )}
@@ -706,277 +585,38 @@ export default function RestaurantDetail({
       {/* ──────────────────────────────────────────────────────── */}
       {/* DISH ADD / EDIT MODAL (FOR AUTHORIZED MENU MANAGERS)     */}
       {/* ──────────────────────────────────────────────────────── */}
-      {isDishModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[100]">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-105" dir={isAr ? 'rtl' : 'ltr'}>
-            <div className="flex justify-between items-center pb-2 border-b border-slate-100 shrink-0">
-              <h3 className="font-display font-black text-sm sm:text-base text-slate-800 flex items-center gap-2">
-                <span className="p-1 px-1.5 bg-orange-100 rounded-lg text-[#f94c10]">🍔</span>
-                <span>
-                  {editingDishId 
-                    ? (isAr ? "تعديل بيانات وجبة قائمة الطعام" : "Edit Menu Item") 
-                    : (isAr ? "إضافة صنف وجبة جديد بالمنيو" : "Add New Menu Item")
-                  }
-                </span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsDishModalOpen(false)}
-                 className="text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer animate-none"
-              >
-                ✕
-              </button>
-            </div>
-
-             <form onSubmit={handleSaveDish} className="flex flex-col flex-grow min-h-0 overflow-hidden">
-              {/* Scrollable inputs wrapper */}
-              <div className="space-y-4 overflow-y-auto pr-1.5 pl-0.5 flex-grow pb-4 scrollbar-thin">
-              {/* Item Name */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-500">
-                  {isAr ? "اسم الوجبة بالصنف *" : "Dish Name *"}
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={dishForm.name}
-                  onChange={(e) => setDishForm({ ...dishForm, name: e.target.value })}
-                  placeholder={isAr ? "مثال: تشيكن رويال الأسطورية" : "e.g., Legendary Royal Chicken"}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
-                />
-              </div>
-
-              {/* Item Description */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-500">
-                  {isAr ? "المكونات ووصف الوجبة *" : "Description & Ingredients *"}
-                </label>
-                <textarea
-                  required
-                  value={dishForm.description}
-                  onChange={(e) => setDishForm({ ...dishForm, description: e.target.value })}
-                  placeholder={isAr ? "مثال: صدر دجاج مع طبقة جبنة فيلادلفيا، صوص رانش مدخن مع الخيار المخلل والتشيدر الذائبة..." : "Describe toppings, weights, etc."}
-                  rows={3}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all resize-none"
-                />
-              </div>
-
-              {/* Prices side by side */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-500">
-                    {isAr ? "السعر الفعلي (بالجنيه) *" : "Active Price (EGP) *"}
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    value={dishForm.price}
-                    onChange={(e) => setDishForm({ ...dishForm, price: e.target.value })}
-                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-500">
-                    {isAr ? "السعر المشطوب (قبل الخصم)" : "Original Price (Strikeout)"}
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder={isAr ? "اختياري" : "Optional"}
-                    value={dishForm.originalPrice}
-                    onChange={(e) => setDishForm({ ...dishForm, originalPrice: e.target.value })}
-                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Categories selection list */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-500">
-                  {isAr ? "فئة الطعام (القسم) *" : "Menu Category (Section) *"}
-                </label>
-                <select
-                  value={dishForm.category}
-                  onChange={(e) => setDishForm({ ...dishForm, category: e.target.value })}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-855 focus:outline-none focus:border-[#f94c10] focus:ring-1 focus:ring-[#f94c10] transition-all"
-                >
-                  <option value="Burgers">{isAr ? "برجر 🍔" : "Burgers"}</option>
-                  <option value="Pizza">{isAr ? "بيتزا 🍕" : "Pizza"}</option>
-                  <option value="Salads">{isAr ? "سلطات 🥗" : "Salads"}</option>
-                  <option value="Sushi">{isAr ? "سوشي 🍣" : "Sushi"}</option>
-                  <option value="Ramen">{isAr ? "رامين 🍜" : "Ramen"}</option>
-                  <option value="Dessert">{isAr ? "حلويات 🍰" : "Dessert"}</option>
-                  <option value="Sides">{isAr ? "المقبلات والجانبية 🍟" : "Sides"}</option>
-                  <option value="Drinks">{isAr ? "مشروبات فريش 🥤" : "Drinks"}</option>
-                </select>
-              </div>
-
-              {/* Dish photo from device */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-500">صورة الوجبة من الجهاز</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    uploadImageFile(file).then(url => setDishForm(prev => ({ ...prev, image: url }))).catch(err => setSuccessToast(err.message));
-                  }}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2"
-                />
-                <p className="text-[9px] text-slate-400">لو لم تختَر صورة سيتم استخدام صورة اللوجو تلقائيًا.</p>
-                {dishForm.image && <img src={dishForm.image} alt="معاينة الصنف" className="h-16 w-16 rounded-xl object-cover border" />}
-              </div>
-
-              {/* Sizes / Units Management */}
-              <div className="space-y-2 border-t border-slate-100 pt-3">
-                <div className="flex justify-between items-center">
-                  <span className="block text-xs font-black text-slate-700">
-                    {isAr ? "📐 وحدات وأحجام الصنف المتوفرة" : "📐 Item Custom Portions/Sizes"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const sizeName = isAr ? "حجم جديد" : "New Size";
-                      setDishForm({
-                        ...dishForm,
-                        sizes: [
-                          ...dishForm.sizes,
-                          {
-                            id: `size_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-                            name: sizeName,
-                            price: Number(dishForm.price) || 100
-                          }
-                        ]
-                      });
-                    }}
-                   className="text-[10px] bg-orange-50 hover:bg-orange-100/80 text-[#f94c10] font-black px-2 py-1 rounded-lg border border-orange-100/50 cursor-pointer transition-all shrink-0"
-                  >
-                    {isAr ? "➕ إضافة حجم/وحدة" : "➕ Add Size"}
-                  </button>
-                </div>
-                
-                {dishForm.sizes.length === 0 ? (
-                  <p className="text-[10px] text-slate-400 font-medium pb-1">
-                    {isAr 
-                      ? "لا توجد أحجام لهذا الصنف بعد. يتم استخدام السعر الرئيسي. (اضغط على إضافة حجم بالمنيو لتقسيمه)"
-                      : "No size variants added yet. Falls back to standard main price."
-                    }
-                  </p>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1 pb-1">
-                    {dishForm.sizes.map((sz, index) => (
-                      <div key={sz.id} className="grid grid-cols-12 gap-1.5 items-center bg-slate-50 p-2 rounded-xl border border-slate-100 relative">
-                        {/* Size Name inputs */}
-                        <div className="col-span-4">
-                          <input
-                            type="text"
-                            required
-                            placeholder={isAr ? "وسط / عائلي" : "e.g., Medium / Family"}
-                            value={sz.name}
-                            onChange={(e) => {
-                              const updated = [...dishForm.sizes];
-                              updated[index].name = e.target.value;
-                              setDishForm({ ...dishForm, sizes: updated });
-                            }}
-                            className="w-full text-[10.5px] bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 outline-none focus:border-[#f94c10]"
-                          />
-                        </div>
-
-                        {/* Size Price inputs */}
-                        <div className="col-span-3">
-                          <input
-                            type="number"
-                            required
-                            min="1"
-                            placeholder={isAr ? "سعر" : "Price"}
-                            value={sz.price || ''}
-                            onChange={(e) => {
-                              const updated = [...dishForm.sizes];
-                              updated[index].price = Number(e.target.value) || 0;
-                              setDishForm({ ...dishForm, sizes: updated });
-                            }}
-                            className="w-full text-[10.5px] bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 outline-none focus:border-[#f94c10]"
-                          />
-                        </div>
-
-                        {/* Optional strike price */}
-                        <div className="col-span-3">
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder={isAr ? "شطب" : "Strike"}
-                            value={sz.originalPrice || ''}
-                            onChange={(e) => {
-                              const updated = [...dishForm.sizes];
-                              updated[index].originalPrice = e.target.value ? Number(e.target.value) : undefined;
-                              setDishForm({ ...dishForm, sizes: updated });
-                            }}
-                            className="w-full text-[10.5px] bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 outline-none focus:border-[#f94c10]"
-                          />
-                        </div>
-
-                        {/* Delete single size button */}
-                        <div className="col-span-2 flex justify-center">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = dishForm.sizes.filter((_, idx) => idx !== index);
-                              setDishForm({ ...dishForm, sizes: updated });
-                            }}
-                            className="p-1 px-1.5 bg-red-50 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg cursor-pointer transition-colors text-[9px] font-bold"
-                            title={['الوحدة الأساسية','الوحدة الاساسية','الوحدة','عادي','عادى'].includes(String(sz.name || '').trim()) ? 'حذف الوحدة الأساسية' : (isAr ? 'حذف الحجم' : 'Delete size')}
-                          >
-                            {['الوحدة الأساسية','الوحدة الاساسية','الوحدة','عادي','عادى'].includes(String(sz.name || '').trim()) ? 'حذف الوحدة' : (isAr ? 'حذف' : 'Del')}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                 </div>
-              </div>
-
-              {/* Submit / Cancel Buttons */}
-               <div className="flex gap-2 pt-3 border-t border-slate-100 shrink-0">
-                <button
-                  type="submit"
-                  className="flex-1 bg-[#f94c10] hover:bg-[#e03d08] text-white font-extrabold py-2.5 rounded-xl text-xs sm:text-sm cursor-pointer transition-all shadow-sm"
-                >
-                  {isAr ? "حفظ وتثبيت بالبرنامج ✅" : "Save Changes"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsDishModalOpen(false)}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs sm:text-sm cursor-pointer transition-all"
-                >
-                  {isAr ? "تراجع" : "Cancel"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {(editingDishItem || isAddingNewDish) && (
+        <MenuItemEditor
+          item={editingDishItem}
+          restaurantId={restaurant.id}
+          categoriesList={categoriesList}
+          defaultImage={restaurant.coverImage}
+          onClose={() => { setEditingDishItem(null); setIsAddingNewDish(false); }}
+          onSaved={async () => {
+            if (onRefreshData) await onRefreshData();
+            setSuccessToast('تم حفظ الصنف بنجاح.');
+            setTimeout(() => setSuccessToast(''), 3000);
+          }}
+        />
       )}
+
 
       {/* ──────────────────────────────────────────────────────── */}
       {/* DELETE CONFIRMATION INTERSTITIAL MODAL                   */}
       {/* ──────────────────────────────────────────────────────── */}
       {deleteConfirmDishId && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[100]">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-105" dir={isAr ? 'rtl' : 'ltr'}>
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-105" dir={'rtl'}>
             <div className="flex items-center gap-3 text-red-650">
               <div className="bg-red-50 p-2.5 rounded-2xl">
                 <Trash2 className="h-6 w-6 text-red-600" />
               </div>
               <h3 className="font-extrabold text-sm sm:text-base text-slate-805">
-                {isAr ? 'تأكيد حذف وجبة' : 'Confirm Dish Deletion'}
+                {'تأكيد حذف وجبة'}
               </h3>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed text-right sm:text-left">
-              {isAr 
-                ? 'هل أنت متأكد من رغبتك في حذف هذا الصنف من قائمة الطعام؟ هذا الإجراء فوري وسينعكس فورًا عند جميع المستخدمين.' 
-                : 'Are you sure you want to delete this menu item? This action is immediate and will reflect across all client devices.'}
+              {'هل أنت متأكد من رغبتك في حذف هذا الصنف من قائمة الطعام؟ هذا الإجراء فوري وسينعكس فورًا عند جميع المستخدمين.'}
             </p>
             <div className="flex gap-2 pt-2">
               <button
@@ -984,14 +624,14 @@ export default function RestaurantDetail({
                 onClick={() => handleDeleteDishConfirm(deleteConfirmDishId)}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm cursor-pointer shadow-sm transition-all animate-pulse"
               >
-                {isAr ? 'نعم، احذف ⚠️' : 'Yes, Delete'}
+                {'نعم، احذف ⚠️'}
               </button>
               <button
                 type="button"
                 onClick={() => setDeleteConfirmDishId(null)}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs sm:text-sm cursor-pointer transition-all"
               >
-                {isAr ? 'تراجع' : 'Cancel'}
+                {'تراجع'}
               </button>
             </div>
           </div>

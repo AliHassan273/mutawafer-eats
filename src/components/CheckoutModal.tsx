@@ -162,13 +162,13 @@ export default function CheckoutModal({
               }
             } else {
               if (isSubscribed) {
-                setExactAddress(`${isAr ? 'احداثيات موقع محدد' : 'Pinned Location'} (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
+                setExactAddress(`${'احداثيات موقع محدد'} (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
               }
             }
           } catch (e) {
             console.error("OSM Geocoding connection issue:", e);
             if (isSubscribed) {
-              setExactAddress(`${isAr ? 'موقع الخريطة المحدد' : 'Pinned Map Location'} (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
+              setExactAddress(`${'موقع الخريطة المحدد'} (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
             }
           }
         };
@@ -253,37 +253,37 @@ export default function CheckoutModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setErrorText(isAr ? 'من فضلك دخل اسم المستلم بشكل صحيح.' : 'Please provide your full delivery candidate name.');
+      setErrorText('من فضلك دخل اسم المستلم بشكل صحيح.');
       return;
     }
     if (!phone.trim()) {
-      setErrorText(isAr ? 'من فضلك رقم تليفون شغال عشان الكابتن يتواصل معاك.' : 'Please provide a contact phone number.');
+      setErrorText('من فضلك رقم تليفون شغال عشان الكابتن يتواصل معاك.');
       return;
     }
     if (!exactAddress.trim()) {
-      setErrorText(isAr ? 'من فضلك دخل عنوانك التفصيلي لضمان سرعة الوصول.' : 'Please enter your detailed delivery address.');
+      setErrorText('من فضلك دخل عنوانك التفصيلي لضمان سرعة الوصول.');
       return;
     }
 
     if (paymentMethod === 'card') {
       const cleanCard = cardNumber.replace(/\s/g, '');
       if (!cleanCard || cleanCard.length !== 16) {
-        setErrorText(isAr ? 'يرجى إدخال رقم بطاقة الفيزا بشكل صحيح (16 رقم).' : 'Please enter a valid 16-digit card number.');
+        setErrorText('يرجى إدخال رقم بطاقة الفيزا بشكل صحيح (16 رقم).');
         return;
       }
       if (!cardExpiry.trim() || !cardExpiry.includes('/')) {
-        setErrorText(isAr ? 'يرجى إدخال تاريخ انتهاء الكارت بشكل صحيح (MM/YY).' : 'Please enter a valid expiry date (MM/YY).');
+        setErrorText('يرجى إدخال تاريخ انتهاء الكارت بشكل صحيح (MM/YY).');
         return;
       }
       if (!cardCvv.trim() || cardCvv.length < 3) {
-        setErrorText(isAr ? 'يرجى إدخال رمز التحقق (CVV) المكون من 3 أرقام.' : 'Please enter a valid 3-digit CVV.');
+        setErrorText('يرجى إدخال رمز التحقق (CVV) المكون من 3 أرقام.');
         return;
       }
     }
 
     if (paymentMethod === 'vodafone') {
       if (!vodafoneNumber.trim() || vodafoneNumber.length < 11) {
-        setErrorText(isAr ? 'يرجى إدخال رقم محفظة فودافون كاش المكون من 11 رقم.' : 'Please enter a valid 11-digit Vodafone Cash wallet number.');
+        setErrorText('يرجى إدخال رقم محفظة فودافون كاش المكون من 11 رقم.');
         return;
       }
     }
@@ -314,7 +314,7 @@ export default function CheckoutModal({
       {/* Dim overlay */}
       <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs" onClick={onClose} />
 
-      <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-50 relative z-10 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] sm:max-h-[88vh] flex flex-col" dir={isAr ? 'rtl' : 'ltr'}>
+      <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-50 relative z-10 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] sm:max-h-[88vh] flex flex-col" dir={'rtl'}>
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
           <div className="flex items-center gap-2">
@@ -322,7 +322,7 @@ export default function CheckoutModal({
               <ShoppingBag className="h-5 w-5" />
             </div>
             <h3 className="font-display font-extrabold text-slate-800 text-sm sm:text-base">
-              {isAr ? 'إتمام الطلب بأمان 🔒' : 'Secure Gateway Checkout'}
+              {'إتمام الطلب بأمان 🔒'}
             </h3>
           </div>
           <button 
@@ -343,31 +343,31 @@ export default function CheckoutModal({
 
           {/* Customer Details section */}
           <div className="space-y-4">
-            <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider" style={{ textAlign: isAr ? 'right' : 'left' }}>
-              {isAr ? 'بيانات المستلم الكِرِام' : 'Delivery Candidates'}
+            <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider" style={{ textAlign: 'right' }}>
+              {'بيانات المستلم الكِرِام'}
             </h4>
             
             {/* Full Name input */}
-            <div className="space-y-1.5" style={{ textAlign: isAr ? 'right' : 'left' }}>
+            <div className="space-y-1.5" style={{ textAlign: 'right' }}>
               <label className="text-xs font-bold text-slate-650 flex items-center gap-1.5 justify-start">
                 <User className="h-3.5 w-3.5 text-slate-400" />
-                <span>{isAr ? 'الاسم بالكامل' : 'Full Name'}</span>
+                <span>{'الاسم بالكامل'}</span>
               </label>
               <input
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={isAr ? 'دخل اسمك هنا...' : 'Enter your name'}
+                placeholder={'دخل اسمك هنا...'}
                 className="w-full bg-slate-50 hover:bg-slate-50/80 focus:bg-white border-0 rounded-xl px-4 py-2 text-xs sm:text-sm text-slate-800 focus:ring-2 focus:ring-orange-500/20 transition-all outline-none font-medium"
               />
             </div>
 
             {/* Phone Number input */}
-            <div className="space-y-1.5" style={{ textAlign: isAr ? 'right' : 'left' }}>
+            <div className="space-y-1.5" style={{ textAlign: 'right' }}>
               <label className="text-xs font-bold text-slate-650 flex items-center gap-1.5 justify-start">
                 <Phone className="h-3.5 w-3.5 text-slate-400" /> 
-                <span>{isAr ? 'رقم التليفون' : 'Phone Number'}</span>
+                <span>{'رقم التليفون'}</span>
               </label>
               <input
                 type="text"
@@ -380,10 +380,10 @@ export default function CheckoutModal({
             </div>
 
             {/* Map Pinpoint and Typed Address Widget */}
-            <div className="space-y-2" style={{ textAlign: isAr ? 'right' : 'left' }}>
+            <div className="space-y-2" style={{ textAlign: 'right' }}>
               <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 justify-start">
                 <MapPin className="h-4 w-4 text-orange-500" />
-                <span className="font-black text-xs">{isAr ? 'مكان التوصيل (حدد موقعك بالخريطة أو اكتبه بالكامل) 🗺️' : 'Delivery Place (Pin on map or type full address)'}</span>
+                <span className="font-black text-xs">{'مكان التوصيل (حدد موقعك بالخريطة أو اكتبه بالكامل) 🗺️'}</span>
               </label>
 
               {/* Interactive Leaflet Map Div — بيظهر بس مع التسعير بالمسافة */}
@@ -395,19 +395,17 @@ export default function CheckoutModal({
                 />
               )}
 
-              <p className="text-[10px] text-slate-450 leading-normal" style={{ textAlign: isAr ? 'right' : 'left' }}>
-                💡 {isAr 
-                  ? 'يمكنك سحب الدبوس 📍 أو الضغط على أي مكان بالخريطة لتحديد موقعك تلقائياً.' 
-                  : 'You can drag the pin or click anywhere in the map frame to retrieve the address.'}
+              <p className="text-[10px] text-slate-450 leading-normal" style={{ textAlign: 'right' }}>
+                💡 {'يمكنك سحب الدبوس 📍 أو الضغط على أي مكان بالخريطة لتحديد موقعك تلقائياً.'}
               </p>
             </div>
 
             {/* Region selection if By Region Pricing is active */}
             {!isDistancePricing && (
-              <div className="space-y-1.5" style={{ textAlign: isAr ? 'right' : 'left' }}>
+              <div className="space-y-1.5" style={{ textAlign: 'right' }}>
                 <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5 justify-start">
                   <span>🏢</span>
-                  <span>{isAr ? 'منطقة التوصيل (الحي)' : 'Delivery Region'}</span>
+                  <span>{'منطقة التوصيل (الحي)'}</span>
                 </label>
                 <select
                   value={selectedRegion?.id || ''}
@@ -419,7 +417,7 @@ export default function CheckoutModal({
                 >
                   {deliveryOptions.map(opt => (
                     <option key={opt.id} value={opt.id}>
-                      {opt.name} ({opt.fee} {isAr ? 'جنيه شحن' : 'EGP Fee'})
+                      {opt.name} ({opt.fee} {'جنيه شحن'})
                     </option>
                   ))}
                 </select>
@@ -427,31 +425,31 @@ export default function CheckoutModal({
             )}
 
             {/* Exact address input */}
-            <div className="space-y-1.5" style={{ textAlign: isAr ? 'right' : 'left' }}>
+            <div className="space-y-1.5" style={{ textAlign: 'right' }}>
               <label className="text-xs font-bold text-slate-650 flex items-center gap-1.5 justify-start">
                 <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                <span>{isAr ? 'العنوان التفصيلي للتوصيل 🏢' : 'Detailed Delivery Address'}</span>
+                <span>{'العنوان التفصيلي للتوصيل 🏢'}</span>
               </label>
               <input
                 type="text"
                 required
                 value={exactAddress}
                 onChange={(e) => setExactAddress(e.target.value)}
-                placeholder={isAr ? 'تأكيد اسم الشارع، رقم العمارة، الطابق، ورقم الشقة...' : 'Confirm street title, building number, floors, flat no...'}
+                placeholder={'تأكيد اسم الشارع، رقم العمارة، الطابق، ورقم الشقة...'}
                 className="w-full bg-slate-50 hover:bg-slate-50/80 focus:bg-white border text-slate-800 border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-orange-500/20 transition-all outline-none font-semibold"
               />
             </div>
 
             {/* Doorstep Delivery Option */}
-            <div className="bg-orange-50/20 border border-orange-100 p-4 rounded-2xl flex items-center justify-between gap-3 select-none" style={{ direction: isAr ? 'rtl' : 'ltr' }}>
+            <div className="bg-orange-50/20 border border-orange-100 p-4 rounded-2xl flex items-center justify-between gap-3 select-none" style={{ direction: 'rtl' }}>
               <div className="flex items-center gap-3">
                 <span className="text-xl">🚪</span>
-                <div style={{ textAlign: isAr ? 'right' : 'left' }}>
+                <div style={{ textAlign: 'right' }}>
                   <p className="text-xs font-black text-slate-800">
-                    {isAr ? 'توصيل لحد باب البيت 🚪' : 'Deliver to Doorstep 🚪'}
+                    {'توصيل لحد باب البيت 🚪'}
                   </p>
                   <p className="text-[10px] font-bold text-slate-500 mt-0.5">
-                    {isAr ? 'الكابتن هيطلعلك لحد باب الشقة (+5 جنيه شحن إضافي)' : 'Courier delivers right to your apartment door (+5 EGP)'}
+                    {'الكابتن هيطلعلك لحد باب الشقة (+5 جنيه شحن إضافي)'}
                   </p>
                 </div>
               </div>
@@ -464,14 +462,14 @@ export default function CheckoutModal({
             </div>
 
             {/* Optional kitchen driver notes */}
-            <div className="space-y-1.5" style={{ textAlign: isAr ? 'right' : 'left' }}>
+            <div className="space-y-1.5" style={{ textAlign: 'right' }}>
               <label className="text-xs font-bold text-slate-650">
-                {isAr ? 'ملاحظات الطلب' : 'ملاحظات الطلب'}
+                {'ملاحظات الطلب'}
               </label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder={isAr ? 'مثال: رن جرس شقة ٢ب، سيب الطلب ع الباب' : 'E.g. Ring apartment 2B, leave near green door mat'}
+                placeholder={'مثال: رن جرس شقة ٢ب، سيب الطلب ع الباب'}
                 className="w-full bg-slate-50 hover:bg-slate-50/80 focus:bg-white border-0 rounded-xl px-4 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-orange-500/20 transition-all outline-none resize-none h-16 font-medium"
               />
             </div>
@@ -479,8 +477,8 @@ export default function CheckoutModal({
 
           {/* Payment Method Selector */}
           <div className="space-y-4">
-            <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider" style={{ textAlign: isAr ? 'right' : 'left' }}>
-              {isAr ? 'طريقة الدفع' : 'Payment Method'}
+            <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider" style={{ textAlign: 'right' }}>
+              {'طريقة الدفع'}
             </h4>
             
             <div className="grid grid-cols-3 gap-2">
@@ -494,7 +492,7 @@ export default function CheckoutModal({
                 }`}
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="text-[11px] font-bold tracking-tight">{isAr ? 'كاش عند الاستلام' : 'Cash'}</span>
+                  <span className="text-[11px] font-bold tracking-tight">{'كاش عند الاستلام'}</span>
                   <input 
                     type="radio" 
                     checked={paymentMethod === 'cod'} 
@@ -503,7 +501,7 @@ export default function CheckoutModal({
                   />
                 </div>
                 <span className="text-[9px] text-slate-400 leading-tight">
-                  {isAr ? 'الدفع نقدًا للكابتن عند الباب' : 'Pay at door'}
+                  {'الدفع نقدًا للكابتن عند الباب'}
                 </span>
               </div>
 
@@ -517,7 +515,7 @@ export default function CheckoutModal({
                 }`}
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="text-[11px] font-bold tracking-tight">{isAr ? 'فيزا / كارت 💳' : 'Visa/Card'}</span>
+                  <span className="text-[11px] font-bold tracking-tight">{'فيزا / كارت 💳'}</span>
                   <input 
                     type="radio" 
                     checked={paymentMethod === 'card'} 
@@ -526,7 +524,7 @@ export default function CheckoutModal({
                   />
                 </div>
                 <span className="text-[9px] text-slate-400 leading-tight">
-                  {isAr ? 'دفع آمن بالفيزا والماستر كارد' : 'Secure Online Payment'}
+                  {'دفع آمن بالفيزا والماستر كارد'}
                 </span>
               </div>
 
@@ -540,7 +538,7 @@ export default function CheckoutModal({
                 }`}
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="text-[11px] font-bold tracking-tight">{isAr ? 'فودافون كاش 🔴' : 'Vodafone Cash'}</span>
+                  <span className="text-[11px] font-bold tracking-tight">{'فودافون كاش 🔴'}</span>
                   <input 
                     type="radio" 
                     checked={paymentMethod === 'vodafone'} 
@@ -549,21 +547,21 @@ export default function CheckoutModal({
                   />
                 </div>
                 <span className="text-[9px] text-slate-400 leading-tight">
-                  {isAr ? 'تحويل فودافون كاش فوري' : 'Mobile Wallet transfer'}
+                  {'تحويل فودافون كاش فوري'}
                 </span>
               </div>
             </div>
 
             {/* Conditional input details for Visa Card payment */}
             {paymentMethod === 'card' && (
-              <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-3 animate-in fade-in slide-in-from-top-2 duration-150" style={{ textAlign: isAr ? 'right' : 'left' }}>
+              <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-3 animate-in fade-in slide-in-from-top-2 duration-150" style={{ textAlign: 'right' }}>
                 <div className="flex items-center gap-2 mb-1">
                   <CreditCard className="h-4 w-4 text-[#f94c10]" />
-                  <span className="text-xs font-extrabold text-slate-800">{isAr ? 'تفاصيل بطاقة الفيزا / ماستركارد' : 'Card payment details'}</span>
+                  <span className="text-xs font-extrabold text-slate-800">{'تفاصيل بطاقة الفيزا / ماستركارد'}</span>
                 </div>
                 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500">{isAr ? 'رقم الكارت (16 رقم)' : 'Card number (16-digits)'}</label>
+                  <label className="text-[10px] font-bold text-slate-500">{'رقم الكارت (16 رقم)'}</label>
                   <input 
                     type="text" 
                     maxLength={19}
@@ -581,7 +579,7 @@ export default function CheckoutModal({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500">{isAr ? 'تاريخ الانتهاء' : 'Expiry Date'}</label>
+                    <label className="text-[10px] font-bold text-slate-500">{'تاريخ الانتهاء'}</label>
                     <input 
                       type="text" 
                       maxLength={5}
@@ -599,7 +597,7 @@ export default function CheckoutModal({
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500">{isAr ? 'الرمز السري (CVV)' : 'Security code (CVV)'}</label>
+                    <label className="text-[10px] font-bold text-slate-500">{'الرمز السري (CVV)'}</label>
                     <input 
                       type="password" 
                       maxLength={3}
@@ -612,10 +610,10 @@ export default function CheckoutModal({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500">{isAr ? 'اسم صاحب البطاقة' : 'Cardholder name'}</label>
+                  <label className="text-[10px] font-bold text-slate-500">{'اسم صاحب البطاقة'}</label>
                   <input 
                     type="text" 
-                    placeholder="Ahmed Mohamed" 
+                    placeholder="أحمد محمد" 
                     value={cardName}
                     onChange={(e) => setCardName(e.target.value)}
                     className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-orange-500/20 outline-none"
@@ -626,30 +624,26 @@ export default function CheckoutModal({
 
             {/* Conditional input details for Vodafone Cash payments */}
             {paymentMethod === 'vodafone' && (
-              <div className="bg-red-50/50 border border-red-100 p-4 rounded-2xl space-y-3 animate-in fade-in slide-in-from-top-2 duration-150" style={{ textAlign: isAr ? 'right' : 'left' }}>
+              <div className="bg-red-50/50 border border-red-100 p-4 rounded-2xl space-y-3 animate-in fade-in slide-in-from-top-2 duration-150" style={{ textAlign: 'right' }}>
                 <div className="flex items-center gap-2 mb-1 text-red-700">
                   <span className="text-base">🔴</span>
-                  <span className="text-xs font-extrabold">{isAr ? 'خطوات التحويل فودافون كاش' : 'Vodafone Cash steps'}</span>
+                  <span className="text-xs font-extrabold">{'خطوات التحويل فودافون كاش'}</span>
                 </div>
                 
                 <div className="text-xs text-slate-600 leading-relaxed space-y-1 font-semibold">
                   <p>
-                    {isAr 
-                      ? `1. قم بتحويل مبلغ ${(subtotal + activeDeliveryFee + vodafoneFee - discount).toFixed(0)} جنيه مصري إلى رقم محفظتنا التالي:`
-                      : `1. Transfer ${(subtotal + activeDeliveryFee + vodafoneFee - discount).toFixed(0)} EGP to our wallet:`}
+                    {`1. قم بتحويل مبلغ ${(subtotal + activeDeliveryFee + vodafoneFee - discount).toFixed(0)} جنيه مصري إلى رقم محفظتنا التالي:`}
                   </p>
                   <div className="bg-white border border-red-100 rounded-xl p-2.5 text-center font-mono text-sm font-black text-red-600 tracking-wider">
                     {settings?.whatsappNumber || "01016789012"}
                   </div>
                   <p className="text-[10px] text-red-600">
-                    💡 {isAr 
-                      ? 'رسوم فودافون كاش الإضافية (+5 جنيه لكل 500 جنيه) تم احتسابها تلقائياً بالأسفل.' 
-                      : 'Extra cash charge (+5 EGP per 500 EGP) has been computed below.'}
+                    💡 {'رسوم فودافون كاش الإضافية (+5 جنيه لكل 500 جنيه) تم احتسابها تلقائياً بالأسفل.'}
                   </p>
                 </div>
 
                 <div className="space-y-1 pt-1">
-                  <label className="text-[10px] font-bold text-slate-600">{isAr ? 'رقم المحفظة التي قمت بالتحويل منها' : 'Sender wallet number'}</label>
+                  <label className="text-[10px] font-bold text-slate-600">{'رقم المحفظة التي قمت بالتحويل منها'}</label>
                   <input 
                     type="text" 
                     maxLength={11}
@@ -665,14 +659,14 @@ export default function CheckoutModal({
 
           {/* Itemized pricing audit */}
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2">
-            <h5 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2" style={{ textAlign: isAr ? 'right' : 'left' }}>
-              {isAr ? 'تفاصيل الفاتورة 🧾' : 'Invoice Audit'}
+            <h5 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2" style={{ textAlign: 'right' }}>
+              {'تفاصيل الفاتورة 🧾'}
             </h5>
             {cart.map(item => {
               const dishName = (DISH_NAMES_MAP[lang] as any)?.[item.menuItem.name] || item.menuItem.name;
               const unitPrice = item.selectedSize ? item.selectedSize.price : item.menuItem.price;
               return (
-                <div key={`${item.menuItem.id}-${item.selectedSize?.id || 'default'}`} className={`flex justify-between items-center text-xs font-semibold text-slate-600 ${isAr ? 'flex-row-reverse' : ''}`}>
+                <div key={`${item.menuItem.id}-${item.selectedSize?.id || 'default'}`} className={`flex justify-between items-center text-xs font-semibold text-slate-600 ${'flex-row-reverse'}`}>
                   <span className="truncate max-w-[200px]">
                     {item.quantity}x {dishName}
                     {item.selectedSize && (
@@ -687,40 +681,40 @@ export default function CheckoutModal({
             })}
             
             <div className="border-t border-slate-200/50 pt-2 my-2 space-y-1 text-xs">
-              <div className={`flex justify-between text-slate-500 font-semibold ${isAr ? 'flex-row-reverse' : ''}`}>
-                <span>{isAr ? 'تمن الأكل' : 'Subtotal'}</span>
+              <div className={`flex justify-between text-slate-500 font-semibold ${'flex-row-reverse'}`}>
+                <span>{'تمن الأكل'}</span>
                 <span>{subtotal.toFixed(0)} {t('egp')}</span>
               </div>
               {discount > 0 && (
-                <div className={`flex justify-between text-green-600 font-bold ${isAr ? 'flex-row-reverse' : ''}`}>
-                  <span>{isAr ? 'خصم الكوبون' : 'Voucher Reduction'}</span>
+                <div className={`flex justify-between text-green-600 font-bold ${'flex-row-reverse'}`}>
+                  <span>{'خصم الكوبون'}</span>
                   <span>-{discount.toFixed(0)} {t('egp')}</span>
                 </div>
               )}
-              <div className={`flex justify-between text-slate-500 font-semibold ${isAr ? 'flex-row-reverse' : ''}`}>
-                <span>{isAr ? 'حساب الدليفري' : 'Delivery fees'}</span>
-                <span>{activeDeliveryFee === 0 ? (isAr ? 'مجاني يا بطل' : 'FREE') : `${activeDeliveryFee.toFixed(0)} ${t('egp')}`}</span>
+              <div className={`flex justify-between text-slate-500 font-semibold ${'flex-row-reverse'}`}>
+                <span>{'حساب الدليفري'}</span>
+                <span>{activeDeliveryFee === 0 ? ('مجاني يا بطل') : `${activeDeliveryFee.toFixed(0)} ${t('egp')}`}</span>
               </div>
               {paymentMethod === 'vodafone' && (
-                <div className={`flex justify-between text-red-600 font-bold ${isAr ? 'flex-row-reverse' : ''}`}>
-                  <span>{isAr ? 'رسوم فودافون كاش (+5 لكل 500)' : 'Vodafone cash charge'}</span>
+                <div className={`flex justify-between text-red-600 font-bold ${'flex-row-reverse'}`}>
+                  <span>{'رسوم فودافون كاش (+5 لكل 500)'}</span>
                   <span>+{vodafoneFee.toFixed(0)} {t('egp')}</span>
                 </div>
               )}
               {additionalRestaurantFee > 0 && (
-                <div className={`flex justify-between text-orange-600 font-bold ${isAr ? 'flex-row-reverse' : ''}`}>
+                <div className={`flex justify-between text-orange-600 font-bold ${'flex-row-reverse'}`}>
                   <span>رسوم تعدد المطاعم ({restaurantCount} مطاعم)</span>
                   <span>+{additionalRestaurantFee} {t('egp')}</span>
                 </div>
               )}
               {doorstepDelivery && (
-                <div className={`flex justify-between text-[#f94c15] font-bold ${isAr ? 'flex-row-reverse' : ''}`}>
-                  <span>{isAr ? 'خدمة حد باب البيت 🚪' : 'Doorstep Delivery 🚪'}</span>
+                <div className={`flex justify-between text-[#f94c15] font-bold ${'flex-row-reverse'}`}>
+                  <span>{'خدمة حد باب البيت 🚪'}</span>
                   <span>+5 {t('egp')}</span>
                 </div>
               )}
-              <div className={`flex justify-between text-slate-900 font-extrabold text-sm pt-1 ${isAr ? 'flex-row-reverse' : ''}`}>
-                <span>{isAr ? 'إجمالي الدفع' : 'Grand Total'}</span>
+              <div className={`flex justify-between text-slate-900 font-extrabold text-sm pt-1 ${'flex-row-reverse'}`}>
+                <span>{'إجمالي الدفع'}</span>
                 <span className="font-display text-[#f94c15]">{activeTotal.toFixed(0)} {t('egp')}</span>
               </div>
             </div>
@@ -738,7 +732,7 @@ export default function CheckoutModal({
             {loading ? (
               <div className="flex items-center gap-2">
                 <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                <span>{isAr ? 'جاري تسجيل وإرسال طلبك للواتساب...' : 'Recording your order...'}</span>
+                <span>{'جاري تسجيل وإرسال طلبك للواتساب...'}</span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5">

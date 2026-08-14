@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { extractFunctionErrorMessage } from '../utils/functionError';
 
 export async function getSettingsFromSupabase() {
   const { data, error } = await supabase.from('settings').select('key,value');
@@ -21,6 +22,7 @@ export async function saveSettingsToSupabase(value: any) {
 
 export async function deleteCategoryAndItemsFromSupabase(categoryId: string) {
   const { data, error } = await supabase.functions.invoke('delete-category', { body: { categoryId } });
-  if (error || data?.error) throw error || new Error(data.error);
+  if (error) throw new Error(await extractFunctionErrorMessage(error, 'تعذر حذف التصنيف.'));
+  if (data?.error) throw new Error(data.error);
   return data;
 }

@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Clock, MapPin, Bike, User, Phone, CheckCircle, Flame, DollarSign, LogOut, Check, ShieldAlert } from 'lucide-react';
 import { Order, CartItem, Review } from '../types';
 import { lang, getTranslation } from '../translations';
-import { fetchWithRetry } from '../utils/fetchHelper';
-import { supabaseConfigured } from '../lib/supabase';
 import { saveCaptainLocation, removeCaptainLocation } from '../services/supabaseCaptainService';
 
 interface CaptainPageProps {
@@ -80,19 +78,15 @@ export default function CaptainPage({
           },
           (err) => {
             console.log("GPS blocked:", err.message);
-            setGpsError(isAr
-              ? '⚠️ الـ GPS مقفول! افتح إعدادات المتصفح ← الخصوصية ← الموقع ← اسمح للموقع. لن تتمكن من استلام طلبات بدون GPS حقيقي.'
-              : '⚠️ GPS is blocked! Open browser Settings → Privacy → Location → Allow. You cannot accept orders without real GPS.');
+            setGpsError('⚠️ الـ GPS مقفول! افتح إعدادات المتصفح ← الخصوصية ← الموقع ← اسمح للموقع. لن تتمكن من استلام طلبات بدون GPS حقيقي.');
             setGpsCoords(null);
             // إزالة مكان الطيار فورًا من خريطة العميل والأدمن.
-            (supabaseConfigured ? removeCaptainLocation() : fetchWithRetry('/api/captain/location/offline', { method: 'POST' })).catch(() => {});
+            removeCaptainLocation().catch(() => {});
           },
           { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
       } else {
-        setGpsError(isAr
-          ? '⚠️ متصفحك لا يدعم GPS. لا يمكن استلام طلبات.'
-          : '⚠️ Your browser does not support GPS. Cannot accept orders.');
+        setGpsError('⚠️ متصفحك لا يدعم GPS. لا يمكن استلام طلبات.');
         setGpsCoords(null);
       }
     }
@@ -120,8 +114,7 @@ export default function CaptainPage({
     );
     const sendLocation = async () => {
       try {
-        if (supabaseConfigured) await saveCaptainLocation({ lat: gpsCoords.lat, lng: gpsCoords.lng, orderId: activeOrder?.id });
-        else await fetchWithRetry('/api/captain/location', { method: 'POST', body: JSON.stringify({ lat: gpsCoords.lat, lng: gpsCoords.lng, orderId: activeOrder?.id }) });
+        await saveCaptainLocation({ lat: gpsCoords.lat, lng: gpsCoords.lng, orderId: activeOrder?.id });
       } catch {}
     };
     sendLocation();
@@ -148,38 +141,36 @@ export default function CaptainPage({
             </div>
             <div>
               <h2 className="text-lg sm:text-xl font-black text-slate-900 leading-tight">
-                {isAr ? '⚠️ متطلب أمني أساسي وجوهري للعمل' : '⚠️ Core Operational GPS Requirement'}
+                {'⚠️ متطلب أمني أساسي وجوهري للعمل'}
               </h2>
               <p className="text-xs sm:text-sm font-bold text-[#f94c10] uppercase tracking-wider mt-1">
-                {isAr ? 'بروتوكول تتبع الكباتن مفعّل' : 'Captain Active Tracking Protocol'}
+                {'بروتوكول تتبع الكباتن مفعّل'}
               </p>
             </div>
           </div>
 
           <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs sm:text-xs leading-relaxed space-y-3 font-semibold text-slate-650">
             <p className="text-slate-800 font-extrabold text-center text-xs sm:text-sm border-b border-slate-200 pb-2">
-              {isAr ? 'طلب أساسي وإلزامي من الإدارة والعملاء:' : 'Mandatory Request From Logistics Admin & Customers:'}
+              {'طلب أساسي وإلزامي من الإدارة والعملاء:'}
             </p>
             <div className="space-y-2.5">
               <div className="flex gap-2 items-start">
                 <span className="text-sm shrink-0">📱</span>
-                <p>{isAr ? 'إبقاء الشاشة مضيئة طوال فترة تسليم الطلب وعدم إغلاق الهاتف.' : 'Keep your screen backlight on and the app open during deliveries.'}</p>
+                <p>{'إبقاء الشاشة مضيئة طوال فترة تسليم الطلب وعدم إغلاق الهاتف.'}</p>
               </div>
               <div className="flex gap-2 items-start">
                 <span className="text-sm shrink-0">🛰️</span>
-                <p>{isAr ? 'فتح وتشغيل الموقع الجغرافي الـ GPS بالمتصفح ليتم تتبع تحركاتك.' : 'Keep browser GPS and location permission fully enabled.'}</p>
+                <p>{'فتح وتشغيل الموقع الجغرافي الـ GPS بالمتصفح ليتم تتبع تحركاتك.'}</p>
               </div>
               <div className="flex gap-2 items-start">
                 <span className="text-sm shrink-0">⚡</span>
-                <p>{isAr ? 'تشغيل الموقع بالخلفية طوال الوقت لكي تحصل على الطلبات الجديدة تلقائياً.' : 'Let background location stream to receive nearby active orders.'}</p>
+                <p>{'تشغيل الموقع بالخلفية طوال الوقت لكي تحصل على الطلبات الجديدة تلقائياً.'}</p>
               </div>
             </div>
           </div>
 
           <p className="text-[11px] text-slate-400 font-bold text-center">
-            {isAr 
-              ? 'مخالفة هذا المتطلب يؤدي لعدم احتساب التوصيلات ووقف إسناد الطلبات الجارية.'
-              : 'Failure to strictly adhere to GPS requirements leads to delivery flow pauses.'}
+            {'مخالفة هذا المتطلب يؤدي لعدم احتساب التوصيلات ووقف إسناد الطلبات الجارية.'}
           </p>
 
           <button
@@ -192,7 +183,7 @@ export default function CaptainPage({
             className="w-full bg-[#f94c10] hover:bg-orange-600 text-white font-extrabold py-3.5 px-6 rounded-2xl text-xs sm:text-sm transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2"
           >
             <Check className="h-4.5 w-4.5" />
-            <span>{isAr ? 'أوافق، وألتزم بتشغيل الموقع طوال الوقت 👍' : 'I agree and commit keeping location active 👍'}</span>
+            <span>{'أوافق، وألتزم بتشغيل الموقع طوال الوقت 👍'}</span>
           </button>
         </div>
       </div>
@@ -206,28 +197,24 @@ export default function CaptainPage({
   const handlePickUpOrder = (orderId: string) => {
     // ✅ GPS حقيقي إلزامي
     if (!gpsCoords) {
-      alert(isAr
-        ? '⚠️ يجب تفعيل الـ GPS الفعلي من إعدادات المتصفح أولاً قبل استلام الطلب!'
-        : '⚠️ You must enable real GPS from browser settings before picking up an order!');
+      alert('⚠️ يجب تفعيل الـ GPS الفعلي من إعدادات المتصفح أولاً قبل استلام الطلب!');
       return;
     }
     onUpdateStatus(orderId, 'OutForDelivery', currentUser.name, currentUser.phone);
     // ✅ refresh فوري عشان الطلب يتشال من القائمة
     setTimeout(() => onRefreshData(), 500);
-    setSuccessMsg(isAr ? '🥳 تم استلام الطلب وبدأ الرحلة بنجاح! طير للعميل بالسلامة.' : 'Picked up order successfully! Take care on the road.');
+    setSuccessMsg('🥳 تم استلام الطلب وبدأ الرحلة بنجاح! طير للعميل بالسلامة.');
     setTimeout(() => setSuccessMsg(''), 4000);
   };
 
   const handleCompleteOrder = (orderId: string) => {
     // ✅ اشترط وجود GPS حقيقي قبل التسليم
     if (!gpsCoords) {
-      alert(isAr
-        ? '⚠️ يجب تفعيل الـ GPS الفعلي قبل تسليم الطلب!'
-        : '⚠️ GPS required to mark order as delivered!');
+      alert('⚠️ يجب تفعيل الـ GPS الفعلي قبل تسليم الطلب!');
       return;
     }
     onUpdateStatus(orderId, 'Delivered', currentUser.name, currentUser.phone);
-    setSuccessMsg(isAr ? '🎉 مبروك! تم تسليم الطلب للعميل وإضافة عمولتك لمحفظتك.' : 'Successfully completed delivery! Money added to earnings.');
+    setSuccessMsg('🎉 مبروك! تم تسليم الطلب للعميل وإضافة عمولتك لمحفظتك.');
     setTimeout(() => setSuccessMsg(''), 4000);
   };
 
@@ -249,7 +236,7 @@ export default function CaptainPage({
   const totalEarnings = myCompletedDeliveries.reduce((sum, o) => sum + (o.deliveryFee || 15), 0);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 sm:py-10 space-y-8" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="max-w-5xl mx-auto px-4 py-6 sm:py-10 space-y-8" dir={'rtl'}>
       
       {/* Header and Back navigation */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
@@ -257,18 +244,16 @@ export default function CaptainPage({
           <button
             onClick={onBack}
             className="p-2 bg-slate-100 hover:bg-slate-205 text-slate-700 rounded-full cursor-pointer transition-all active:scale-95 flex items-center justify-center shrink-0"
-            title={isAr ? 'الرجوع للرئيسية' : 'Go back to HomePage'}
+            title={'الرجوع للرئيسية'}
           >
-            <ArrowLeft className={`h-5 w-5 ${isAr ? 'rotate-180' : ''}`} />
+            <ArrowLeft className={`h-5 w-5 ${'rotate-180'}`} />
           </button>
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-850 font-display">
-              {isAr ? '🛵 بوابة كابتن مسافر للتوصيل' : '🛵 Mutafer Captain Workspace'}
+              {'🛵 بوابة كابتن مسافر للتوصيل'}
             </h1>
             <p className="text-xs text-slate-400 font-semibold mt-0.5">
-              {isAr 
-                ? `مرحباً بك، البطل ${currentUser.name} • رقم الموبايل: ${currentUser.phone}`
-                : `Welcome, Captain ${currentUser.name} • Mobile: ${currentUser.phone}`}
+              {`مرحباً بك، البطل ${currentUser.name} • رقم الموبايل: ${currentUser.phone}`}
             </p>
           </div>
         </div>
@@ -279,7 +264,7 @@ export default function CaptainPage({
             className="px-4 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200/50 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <LogOut className="h-4 w-4" />
-            <span>{isAr ? 'تسجيل الخروج 🚪' : 'Exit Captain Portal 🚪'}</span>
+            <span>{'تسجيل الخروج 🚪'}</span>
           </button>
         </div>
       </div>
@@ -340,8 +325,8 @@ export default function CaptainPage({
             <DollarSign className="h-6 w-6" />
           </div>
           <div>
-            <span className="text-[10px] text-indigo-500 uppercase font-bold block">{isAr ? 'أرباحك الحالية مع مسافر' : 'Current delivery commission'}</span>
-            <span className="text-xl font-mono font-black text-slate-800">{totalEarnings} <span className="text-xs">{isAr ? 'جنيه' : 'EGP'}</span></span>
+            <span className="text-[10px] text-indigo-500 uppercase font-bold block">{'أرباحك الحالية مع مسافر'}</span>
+            <span className="text-xl font-mono font-black text-slate-800">{totalEarnings} <span className="text-xs">{'جنيه'}</span></span>
           </div>
         </div>
 
@@ -351,8 +336,8 @@ export default function CaptainPage({
             <Bike className="h-6 w-6" />
           </div>
           <div>
-            <span className="text-[10px] text-orange-500 uppercase font-bold block">{isAr ? 'رحلاتك الجارية للتوصيل' : 'My active delivery duties'}</span>
-            <span className="text-xl font-mono font-black text-slate-800">{myActiveDeliveries.length} <span className="text-xs">{isAr ? 'طلب نشط' : 'active'}</span></span>
+            <span className="text-[10px] text-orange-500 uppercase font-bold block">{'رحلاتك الجارية للتوصيل'}</span>
+            <span className="text-xl font-mono font-black text-slate-800">{myActiveDeliveries.length} <span className="text-xs">{'طلب نشط'}</span></span>
           </div>
         </div>
 
@@ -362,8 +347,8 @@ export default function CaptainPage({
             <CheckCircle className="h-6 w-6" />
           </div>
           <div>
-            <span className="text-[10px] text-green-500 uppercase font-bold block">{isAr ? 'الطلبات التي قمت بتسليمها' : 'Delivered food orders'}</span>
-            <span className="text-xl font-mono font-black text-slate-800">{myCompletedDeliveries.length} <span className="text-xs">{isAr ? 'ألف هنا' : 'completed'}</span></span>
+            <span className="text-[10px] text-green-500 uppercase font-bold block">{'الطلبات التي قمت بتسليمها'}</span>
+            <span className="text-xl font-mono font-black text-slate-800">{myCompletedDeliveries.length} <span className="text-xs">{'ألف هنا'}</span></span>
           </div>
         </div>
 
@@ -372,11 +357,11 @@ export default function CaptainPage({
           <div className="bg-amber-500/10 p-3 rounded-xl text-amber-600 shrink-0">
             <span className="text-xl">⭐</span>
           </div>
-          <div className="space-y-0.5" style={{ textAlign: isAr ? 'right' : 'left' }}>
-            <span className="text-[10px] text-amber-550 uppercase font-black block">{isAr ? 'تقييم كفاءة أدائك' : 'Your Service Score'}</span>
+          <div className="space-y-0.5" style={{ textAlign: 'right' }}>
+            <span className="text-[10px] text-amber-550 uppercase font-black block">{'تقييم كفاءة أدائك'}</span>
             <div className="flex flex-col text-[11px] text-slate-500 font-bold">
-              <span>{isAr ? '⚡ السرعة:' : '⚡ Speed:'} <span className="text-slate-800 font-black">{avgSpeed} / 5</span></span>
-              <span>{isAr ? '🤝 الأسلوب:' : '🤝 Manner:'} <span className="text-slate-800 font-black">{avgManner} / 5</span></span>
+              <span>{'⚡ السرعة:'} <span className="text-slate-800 font-black">{avgSpeed} / 5</span></span>
+              <span>{'🤝 الأسلوب:'} <span className="text-slate-800 font-black">{avgManner} / 5</span></span>
             </div>
           </div>
         </div>
@@ -391,7 +376,7 @@ export default function CaptainPage({
           <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
             <span className="text-lg">🗺️</span>
             <h2 className="text-base sm:text-lg font-extrabold text-slate-800 font-display">
-              {isAr ? 'رحلاتك الجارية لتسليمها الآن' : 'Your current active delivery assignments'}
+              {'رحلاتك الجارية لتسليمها الآن'}
             </h2>
             <span className="bg-[#f94c10] text-white text-[10px] sm:text-xs font-black px-2 py-0.5 rounded-full">
               {myActiveDeliveries.length}
@@ -401,29 +386,29 @@ export default function CaptainPage({
           {myActiveDeliveries.length === 0 ? (
             <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-100 text-slate-400 space-y-2">
               <span className="text-3xl block">🛌</span>
-              <p className="text-xs font-bold">{isAr ? 'لا توجد رحلات جارية حاليـاً! استلم طلباً متوفراً في العمود المجاور لتبدأ.' : 'You have no assigned active orders at this moment.'}</p>
+              <p className="text-xs font-bold">{'لا توجد رحلات جارية حاليـاً! استلم طلباً متوفراً في العمود المجاور لتبدأ.'}</p>
             </div>
           ) : (
             <div className="space-y-4">
               {myActiveDeliveries.map((order) => (
                 <div key={order.id} className="bg-white border-2 border-orange-500/40 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden">
                   <div className="absolute top-4 left-4 bg-orange-100 text-[#f94c10] text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full">
-                    {isAr ? 'جاري التوصيل 🛵' : 'Out For Delivery 🛵'}
+                    {'جاري التوصيل 🛵'}
                   </div>
 
                   <div className="space-y-1">
-                    <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest">{isAr ? 'رح إلى بوابة المطبخ للاستلام' : 'Restaurant Pickup location'}</span>
+                    <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest">{'رح إلى بوابة المطبخ للاستلام'}</span>
                     <h3 className="text-sm font-black text-slate-800">{order.restaurant?.name || 'المطعم'}</h3>
                     <p className="text-xs text-slate-400 flex items-center gap-1">
                       <MapPin className="h-3 w-3 shrink-0" />
-                      <span>{isAr ? 'الزمالك، القاهرة' : 'Zamalek, Cairo'}</span>
+                      <span>{'الزمالك، القاهرة'}</span>
                     </p>
                   </div>
 
                   <div className="border-t border-slate-100 my-2" />
 
                   <div className="space-y-2">
-                    <span className="text-[9px] font-bold text-rose-500 uppercase tracking-widest">{isAr ? 'عنوان عميل مسافر للتسليم' : 'Customer destination delivery'}</span>
+                    <span className="text-[9px] font-bold text-rose-500 uppercase tracking-widest">{'عنوان عميل مسافر للتسليم'}</span>
                     
                     <div className="flex items-start gap-2">
                       <div className="bg-slate-100 text-slate-700 h-7 w-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0">
@@ -441,8 +426,8 @@ export default function CaptainPage({
 
                   <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-100">
                     <div>
-                      <p className="text-[10px] text-slate-400 font-bold">{isAr ? 'عمولة التوصيل المخصصة لك:' : 'Your delivery commission:'}</p>
-                      <p className="text-sm font-mono font-black text-[#f94c10]">+{order.deliveryFee || 15} {isAr ? 'جنيه' : 'EGP'}</p>
+                      <p className="text-[10px] text-slate-400 font-bold">{'عمولة التوصيل المخصصة لك:'}</p>
+                      <p className="text-sm font-mono font-black text-[#f94c10]">+{order.deliveryFee || 15} {'جنيه'}</p>
                     </div>
 
                     <button
@@ -450,7 +435,7 @@ export default function CaptainPage({
                       className="bg-green-600 hover:bg-green-700 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs sm:text-xs tracking-wide transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
                     >
                       <Check className="h-4 w-4" />
-                      <span>{isAr ? '✅ أكملت توصيل الطلب للعميل' : 'Delivered to Customer'}</span>
+                      <span>{'✅ أكملت توصيل الطلب للعميل'}</span>
                     </button>
                   </div>
                 </div>
@@ -465,7 +450,7 @@ export default function CaptainPage({
             <div className="flex items-center gap-2">
               <span className="text-lg">📦</span>
               <h2 className="text-base sm:text-lg font-extrabold text-slate-800 font-display">
-                {isAr ? 'الطلبات الجاهزة للاستلام حالياً' : 'Available open food delivery pickups'}
+                {'الطلبات الجاهزة للاستلام حالياً'}
               </h2>
             </div>
             <span className="bg-slate-200 text-slate-700 text-[10px] sm:text-xs font-black px-2 py-0.5 rounded-full">
@@ -476,8 +461,8 @@ export default function CaptainPage({
           {availableOrders.length === 0 ? (
             <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-100 text-slate-400 space-y-2">
               <span className="text-3xl block">🍿</span>
-              <p className="text-xs font-bold">{isAr ? 'لا توجد طلبات جديدة متاحة للتوصيل الآن.' : 'No open food deliveries waiting right now.'}</p>
-              <p className="text-[11px] text-slate-450">{isAr ? 'استخدم الزر البرتقالي الموضح بالأعلى لتوليد طلب تجريبي وبدء تجربة التوصيل فوراً.' : 'Use the orange button above to generate a mock order and test the delivery app now!'}</p>
+              <p className="text-xs font-bold">{'لا توجد طلبات جديدة متاحة للتوصيل الآن.'}</p>
+              <p className="text-[11px] text-slate-450">{'استخدم الزر البرتقالي الموضح بالأعلى لتوليد طلب تجريبي وبدء تجربة التوصيل فوراً.'}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -486,22 +471,22 @@ export default function CaptainPage({
                   <div className="flex justify-between items-start gap-2">
                     <div>
                       <span className="text-[9px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-md uppercase">
-                        {order.status === 'Preparing' ? (isAr ? 'قيد التحضير 🍳' : 'Preparing') : (isAr ? 'مقبول 👍' : 'Received')}
+                        {order.status === 'Preparing' ? ('قيد التحضير 🍳') : ('مقبول 👍')}
                       </span>
                       <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 mt-1">{order.restaurant?.name || 'المطعم'}</h3>
                     </div>
                     <div className="text-right">
-                      <span className="text-[9px] text-slate-400 font-bold block">{isAr ? 'العمولة' : 'Delivery fee'}</span>
-                      <span className="text-xs font-mono font-bold text-green-600">+{order.deliveryFee || 15} {isAr ? 'جنيه' : 'EGP'}</span>
+                      <span className="text-[9px] text-slate-400 font-bold block">{'العمولة'}</span>
+                      <span className="text-xs font-mono font-bold text-green-600">+{order.deliveryFee || 15} {'جنيه'}</span>
                     </div>
                   </div>
 
                   <div className="text-xs text-slate-550 space-y-1">
                     <p className="truncate">
-                      📍 <span className="font-bold text-slate-700">{isAr ? 'منطقة العميل:' : 'Customer destination:'}</span> {order.deliveryAddress}
+                      📍 <span className="font-bold text-slate-700">{'منطقة العميل:'}</span> {order.deliveryAddress}
                     </p>
                     <p>
-                      🧾 <span className="font-bold text-slate-750">{isAr ? 'ملاحظة:' : 'Short details:'}</span> {order.items.length} {isAr ? 'أصناف محددة' : 'dishes'}
+                      🧾 <span className="font-bold text-slate-750">{'ملاحظة:'}</span> {order.items.length} {'أصناف محددة'}
                     </p>
                   </div>
 
@@ -510,7 +495,7 @@ export default function CaptainPage({
                     className="w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold py-2 rounded-xl text-xs transition-all active:scale-98 tracking-wide cursor-pointer flex items-center justify-center gap-1"
                   >
                     <span>🏍️</span>
-                    <span>{isAr ? 'استلام وبدء توصيل الطلب' : 'Pickup & dispatch order'}</span>
+                    <span>{'استلام وبدء توصيل الطلب'}</span>
                   </button>
                 </div>
               ))}
@@ -524,22 +509,22 @@ export default function CaptainPage({
       <div className="bg-slate-50 rounded-3xl p-5 sm:p-6 border border-slate-100 space-y-4">
         <h3 className="text-sm sm:text-base font-extrabold text-slate-800 font-display flex items-center gap-1.5 justify-start">
           <span>📜</span>
-          <span>{isAr ? 'مستند رحلاتك السابقة المكتملة' : 'Completed Delivery Logs history'}</span>
+          <span>{'مستند رحلاتك السابقة المكتملة'}</span>
         </h3>
 
         {myCompletedDeliveries.length === 0 ? (
           <p className="text-xs text-slate-450 font-bold py-2">
-            {isAr ? 'سجل رحلاتك المكتملة فارغ اليوم! طير ووصّل طلبات وهتظهر هنا.' : 'Your history log is clear today, log active delivery duty to fill.'}
+            {'سجل رحلاتك المكتملة فارغ اليوم! طير ووصّل طلبات وهتظهر هنا.'}
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs font-semibold text-slate-600 text-right">
               <thead>
                 <tr className="border-b border-slate-200/60 pb-2">
-                  <th className="py-2 pl-3">{isAr ? 'تعريف الفاتورة' : 'Order ID'}</th>
-                  <th className="py-2 pl-3">{isAr ? 'اسم المطعم' : 'Restaurant'}</th>
-                  <th className="py-2 pl-3">{isAr ? 'المستلم وعنوانه' : 'Customer Area'}</th>
-                  <th className="py-2 pl-3">{isAr ? 'العمولة المستلمة' : 'Delivery commission'}</th>
+                  <th className="py-2 pl-3">{'تعريف الفاتورة'}</th>
+                  <th className="py-2 pl-3">{'اسم المطعم'}</th>
+                  <th className="py-2 pl-3">{'المستلم وعنوانه'}</th>
+                  <th className="py-2 pl-3">{'العمولة المستلمة'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -548,7 +533,7 @@ export default function CaptainPage({
                     <td className="py-2.5 font-mono font-bold text-[10px] sm:text-xs">#{hl.id.replace('order_', '')}</td>
                     <td className="py-2.5 font-black text-slate-700">{hl.restaurant?.name || 'المطعم'}</td>
                     <td className="py-2.5">{hl.customerName} - {hl.deliveryAddress?.split('-')[0]}</td>
-                    <td className="py-2.5 font-bold font-mono text-green-600">+{hl.deliveryFee || 15} {isAr ? 'جنيه' : 'EGP'}</td>
+                    <td className="py-2.5 font-bold font-mono text-green-600">+{hl.deliveryFee || 15} {'جنيه'}</td>
                   </tr>
                 ))}
               </tbody>

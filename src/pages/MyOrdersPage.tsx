@@ -23,7 +23,7 @@ export default function MyOrdersPage({
   const isAr = true;
 
 
-  const t = (arText: string, enText: string) => (isAr ? arText : enText);
+  const t = (arText: string, _enText?: string) => arText;
 
   // Load guest order IDs from localStorage
   const getGuestOrderIds = (): string[] => {
@@ -100,7 +100,7 @@ export default function MyOrdersPage({
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 animate-in fade-in duration-250" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 animate-in fade-in duration-250" dir={'rtl'}>
       
       {/* Header back button row */}
       <div className={`flex items-center justify-between`}>
@@ -108,7 +108,7 @@ export default function MyOrdersPage({
           onClick={onBack}
           className="flex items-center gap-2 text-xs font-extrabold text-slate-500 hover:text-slate-800 transition-colors bg-white hover:bg-slate-50 py-2 px-4 rounded-xl border border-slate-150 shadow-xs cursor-pointer active:scale-95 duration-150"
         >
-          <ChevronRight className={`h-4 w-4 ${isAr ? '' : 'rotate-180'}`} />
+          <ChevronRight className={`h-4 w-4 ${''}`} />
           <span>{t('العودة للرئيسية', 'Back to Home')}</span>
         </button>
 
