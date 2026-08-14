@@ -927,7 +927,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       const formattedData = {
         name: restForm.name,
         coverImage: restForm.coverImage || logoImageSetting || "/logo.png",
-        categories: restForm.categories,
+        categories: editingRestId ? (restaurants.find(r => r.id === editingRestId)?.categories || []) : [],
         promo: restForm.promo || undefined,
         rating: editingRestId ? (restaurants.find(r => r.id === editingRestId)?.rating || 0) : 0,
         distance: Number(restForm.distance) || 1.0,
@@ -1592,34 +1592,6 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
               onChange={(e) => setRestForm({ ...restForm, whatsappNumber: e.target.value })}
               className="w-full bg-slate-50 border border-slate-150 rounded-xl px-4 py-2.5 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-orange-500 font-bold font-mono"
             />
-          </div>
-
-          <div className="md:col-span-2 space-y-1 pt-1">
-            <label className="text-xs font-bold text-slate-600">فئات الطعام (نوع المطبخ) *</label>
-            <p className="text-[10px] text-slate-400 mb-1">اختر تصنيف أو أكتر بتوصف نوع أكل المطعم — التصنيفات دي هي نفسها اللي بتظهر للعميل في فلتر الأقسام بالموقع.</p>
-            <div className="flex flex-wrap gap-2">
-              {categoriesList.filter(c => c.id !== 'all').map(cat => {
-                const isSelected = restForm.categories.includes(cat.id);
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setRestForm({
-                      ...restForm,
-                      categories: isSelected ? restForm.categories.filter(c => c !== cat.id) : [...restForm.categories, cat.id],
-                    })}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                      isSelected ? 'bg-orange-500 text-white border-orange-500 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    {cat.icon} {cat.nameAr || cat.name}
-                  </button>
-                );
-              })}
-              {categoriesList.filter(c => c.id !== 'all').length === 0 && (
-                <p className="text-[10px] text-slate-400">مفيش تصنيفات مضافة لسه — ضيفها من تبويب "التصنيفات" في الإعدادات أولاً.</p>
-              )}
-            </div>
           </div>
 
           <div className="md:col-span-2 space-y-1 pt-1">

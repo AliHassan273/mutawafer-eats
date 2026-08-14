@@ -1,6 +1,18 @@
 import { supabase } from '../lib/supabase';
 import { mergeMenuItems } from '../utils/businessRules';
 
+// بيحدّث تصنيفات المطعم (اللي بتظهر في فلتر الأقسام بالصفحة الرئيسية) تلقائيًا
+// عشان تكون نفس فئات أصنافه الفعلية — من غير ما تحتاج تختارها يدويًا وقت إنشاء المطعم
+async function syncRestaurantCategoriesFromMenu(restaurantId: string) {
+  try {
+    const { data: items } = await supabase.from('menu_items').select('category').eq('restaurant_id', restaurantId);
+    const uniqueCategories = Array.from(new Set((items || []).map((i: any) => i.category).filter(Boolean)));
+    await supabase.from('restaurants').update({ categories: uniqueCategories }).eq('id', restaurantId);
+  } catch {
+    // مش خطأ حرج — لو فشلت المزامنة، الصنف نفسه يكون اتحفظ بنجاح برضو
+  }
+}
+
 export async function addMenuItemsToSupabase(restaurantId: string, items: any[]) {
   const normalizedItems = mergeMenuItems([], items);
   const rows = normalizedItems.map(item => ({ restaurant_id: restaurantId, name: item.name, description: item.description || '', price: Number(item.price || 0), original_price: item.originalPrice ?? null, image: item.image || '', category: item.category || 'أصناف متنوعة' }));
@@ -13,12 +25,14 @@ export async function addMenuItemsToSupabase(restaurantId: string, items: any[])
       if (sizeError) throw sizeError;
     }
   }
+  await syncRestaurantCategoriesFromMenu(restaurantId);
   return data || [];
 }
 
 export async function updateMenuItemInSupabase(itemId: string, item: any) {
   const { data, error } = await supabase.from('menu_items').update({ name: item.name, description: item.description || '', price: Number(item.price || 0), original_price: item.originalPrice ?? null, image: item.image || '', category: item.category || 'أصناف متنوعة' }).eq('id', itemId).select().single();
   if (error) throw error;
+  if (data?.restaurant_id) await syncRestaurantCategoriesFromMenu(data.restaurant_id);
   return data;
 }
 
@@ -33,6 +47,8 @@ export async function replaceMenuItemSizesInSupabase(itemId: string, sizes: { na
 }
 
 export async function deleteMenuItemFromSupabase(itemId: string) {
+  const { data: existing } = await supabase.from('menu_items').select('restaurant_id').eq('id', itemId).maybeSingle();
   const { error } = await supabase.from('menu_items').delete().eq('id', itemId);
   if (error) throw error;
+  if (existing?.restaurant_id) await syncRestaurantCategoriesFromMenu(existing.restaurant_id);
 }
