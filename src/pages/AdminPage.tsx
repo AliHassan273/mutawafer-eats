@@ -695,6 +695,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiWarning, setAiWarning] = useState<string | null>(null);
+  const [isImportingItems, setIsImportingItems] = useState(false);
   const [extractedItems, setExtractedItems] = useState<any[]>([]);
   const [selectedImportItems, setSelectedImportItems] = useState<Record<number, boolean>>({});
   const [fileName, setFileName] = useState<string | null>(null);
@@ -1020,6 +1021,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       return;
     }
     if (!selectedRestId || extractedItems.length === 0) return;
+    if (isImportingItems) return; // منع الضغط المزدوج أثناء الاستيراد
     const targetRestaurant = restaurants.find((restaurant: any) => restaurant.id === selectedRestId);
     if (!targetRestaurant) { setAiError('المطعم المحدد غير موجود. اختر مطعمًا موجودًا ثم أعد المحاولة.'); setSelectedRestId(restaurants[0]?.id || ''); return; }
 
@@ -1046,6 +1048,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     }
 
     try {
+      setIsImportingItems(true);
+      setAiError(null);
       if (supabaseConfigured) {
         // إرسال دفعات صغيرة يمنع فشل HTTP/2 عندما تكون صور المنيو أو اللوجو كبيرة.
         for (let start = 0; start < itemsToImport.length; start += 5) {
@@ -1076,7 +1080,16 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       triggerSuccess(t("addedSuccess"));
     } catch (err: any) {
       console.error("AI dishes import failed:", err);
-      setAiError(err?.message || "تعذر استيراد الأصناف. جرّب دفعات أصغر أو ملفًا أخف.");
+      const rawMessage = String(err?.message || '');
+      let friendlyMessage = rawMessage || "تعذر استيراد الأصناف. جرّب دفعات أصغر أو ملفًا أخف.";
+      if (/null value in column "name".*menu_item_sizes|violates not-null constraint/i.test(rawMessage)) {
+        friendlyMessage = "بعض الأحجام في الأصناف المختارة اسمها فاضي. راجع خانة اسم الحجم لكل صنف في الجدول قبل الاستيراد وتأكد إنها مكتوبة (مثلاً: فينو، سوري، صغير، كبير...).";
+      } else if (/timeout|network|fetch/i.test(rawMessage)) {
+        friendlyMessage = "الاتصال بالسيرفر انقطع أثناء الاستيراد. تأكد من الإنترنت وحاول تاني — الأصناف اللي اتحفظت قبل الانقطاع (لو فيه) هتلاقيها موجودة بالفعل.";
+      }
+      setAiError(friendlyMessage);
+    } finally {
+      setIsImportingItems(false);
     }
   };
 
@@ -2093,20 +2106,31 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
                   <div className="flex justify-end gap-2 pt-2">
                     <button
+                      disabled={isImportingItems}
                       onClick={() => {
                         setExtractedItems([]);
                         setFileName(null);
                       }}
-                      className="bg-slate-800 hover:bg-slate-750 text-slate-300 py-2 px-6 rounded-full text-xs font-bold cursor-pointer transition-all"
+                      className="bg-slate-800 hover:bg-slate-750 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 py-2 px-6 rounded-full text-xs font-bold cursor-pointer transition-all"
                     >
                       إلغاء المعاينة
                     </button>
                     <button
+                      disabled={isImportingItems}
                       onClick={handleImportExtracted}
-                      className="bg-gradient-to-r from-orange-500 to-amber-500 text-white py-2 px-6 rounded-full text-xs font-black cursor-pointer transition-all shadow-md flex items-center gap-1.5"
+                      className="bg-gradient-to-r from-orange-500 to-amber-500 disabled:opacity-60 disabled:cursor-not-allowed text-white py-2 px-6 rounded-full text-xs font-black cursor-pointer transition-all shadow-md flex items-center gap-1.5"
                     >
-                      <Check className="h-4 w-4" />
-                      <span>{t("approveImport")}</span>
+                      {isImportingItems ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>جاري الاستيراد...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="h-4 w-4" />
+                          <span>{t("approveImport")}</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
