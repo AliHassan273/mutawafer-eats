@@ -7,6 +7,7 @@ interface RestaurantCardProps {
   restaurant: Restaurant;
   onClick: () => void;
   reviews?: Review[];
+  categories?: { id: string; name: string; nameAr: string; icon?: string; visible?: boolean }[];
   key?: React.Key;
 }
 
@@ -50,7 +51,7 @@ export function isRestaurantOpen(openTime?: string, closeTime?: string): boolean
 }
 
 export default function RestaurantCard({
- restaurant, onClick, reviews }: RestaurantCardProps) {
+  restaurant, onClick, reviews, categories }: RestaurantCardProps) {
   const isAr = true;
 
   const t = (key: any, params?: any) => getTranslation(key, lang as any, params);
@@ -68,20 +69,25 @@ export default function RestaurantCard({
     return Number((sum / restReviews.length).toFixed(1));
   }, [reviews, restaurant.id]);
 
-  // Localize categories list
+  // خريطة id/name التصنيف → الاسم العربي الحالي، مبنية من بيانات جدول categories
+  // (مش أسماء ثابتة بالكود) عشان أي تعديل في اسم التصنيف من لوحة التحكم يظهر هنا فورًا
+  const categoriesMap = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    (categories || []).forEach((cat) => {
+      const label = cat.nameAr || cat.name || cat.id;
+      if (cat.id) map[cat.id.toLowerCase()] = label;
+      if (cat.name) map[cat.name.toLowerCase()] = label;
+    });
+    return map;
+  }, [categories]);
+
   const getLocalizedCategories = () => {
     const cats = restaurant.categories || [];
-    return cats.map((c) => {
-      if (c === 'burgers') return 'برجر';
-      if (c === 'pizza') return 'بيتزا';
-      if (c === 'salads') return 'سلطات';
-      if (c === 'sushi') return 'سوشي';
-      if (c === 'ramen') return 'رامين';
-      if (c === 'dessert') return 'حلويات';
-      return c;
-    }).join(' • ');
+    return cats
+      .map((c) => categoriesMap[String(c).toLowerCase()] || c)
+      .join(' • ');
   };
-
+  
   return (
     <div 
       onClick={isOpen ? onClick : undefined}

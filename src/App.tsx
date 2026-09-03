@@ -1074,6 +1074,7 @@ export default function App() {
                                     restaurant={restaurant}
                                     onClick={() => handleOpenRestaurant(restaurant)}
                                     reviews={reviews}
+                                    categories={settings.categories}
                                   />
                                 </div>
                               ))}
