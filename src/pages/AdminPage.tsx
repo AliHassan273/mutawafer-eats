@@ -217,7 +217,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     try {
       if (supabaseConfigured) setLoyaltyCustomers(await listLoyaltyCustomersFromSupabase(rewardOrderThreshold));
       else { const loyaltyRes = await fetchWithRetry("/api/loyalty/customers"); if (loyaltyRes.ok) setLoyaltyCustomers(await loyaltyRes.json()); }
-    } catch {}
+    } catch { }
     try {
       const adData: any[] = supabaseConfigured
         ? (await listAdminProfilesFromSupabase()).map((item: any) => ({ ...item, canManageRestaurants: item.can_manage_restaurants, canManageMenu: item.can_manage_menu, canUseAIScanner: item.can_use_ai_scanner }))
@@ -239,51 +239,51 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         ? await getSettingsFromSupabase()
         : await (async () => { const res = await fetchWithRetry("/api/settings"); return res.ok ? res.json() : null; })();
       if (setData) {
-          if (setData.rewardOrderThreshold !== undefined) setRewardOrderThreshold(Number(setData.rewardOrderThreshold) || 10);
-          if (setData.whatsappNumber) {
-            setWhatsappNumberSetting(setData.whatsappNumber);
-          }
-          if (setData.deliveryPricingType) {
-            setDeliveryPricingType(setData.deliveryPricingType);
-          }
-          if (setData.distanceBaseFee !== undefined) {
-            setDistanceBaseFee(setData.distanceBaseFee);
-          }
-          if (setData.distanceFeePerKm !== undefined) {
-            setDistanceFeePerKm(setData.distanceFeePerKm);
-          }
-          if (setData.officeLat !== undefined) {
-            setOfficeLat(setData.officeLat);
-          }
-          if (setData.officeLng !== undefined) {
-            setOfficeLng(setData.officeLng);
-          }
-          if (setData.deliveryCommissionType) {
-            setDeliveryCommissionType(setData.deliveryCommissionType);
-          }
-          if (setData.deliveryCommissionValue !== undefined) {
-            setDeliveryCommissionValue(setData.deliveryCommissionValue);
-          }
-          if (setData.aboutUsContent) {
-            setAboutUsContentSetting(setData.aboutUsContent);
-          }
-          if (setData.logoImage) {
-            setLogoImageSetting(setData.logoImage);
-          }
-          if (setData.deliveryOptions) {
-            setDeliveryOptions(setData.deliveryOptions);
-          }
-          if (setData.coupons) {
-            setCouponsList(setData.coupons);
-          } else {
-            setCouponsList([]);
-          }
-          if (setData.categories) {
-            setCategoriesList(setData.categories);
-          } else {
-            setCategoriesList([]);
-          }
+        if (setData.rewardOrderThreshold !== undefined) setRewardOrderThreshold(Number(setData.rewardOrderThreshold) || 10);
+        if (setData.whatsappNumber) {
+          setWhatsappNumberSetting(setData.whatsappNumber);
         }
+        if (setData.deliveryPricingType) {
+          setDeliveryPricingType(setData.deliveryPricingType);
+        }
+        if (setData.distanceBaseFee !== undefined) {
+          setDistanceBaseFee(setData.distanceBaseFee);
+        }
+        if (setData.distanceFeePerKm !== undefined) {
+          setDistanceFeePerKm(setData.distanceFeePerKm);
+        }
+        if (setData.officeLat !== undefined) {
+          setOfficeLat(setData.officeLat);
+        }
+        if (setData.officeLng !== undefined) {
+          setOfficeLng(setData.officeLng);
+        }
+        if (setData.deliveryCommissionType) {
+          setDeliveryCommissionType(setData.deliveryCommissionType);
+        }
+        if (setData.deliveryCommissionValue !== undefined) {
+          setDeliveryCommissionValue(setData.deliveryCommissionValue);
+        }
+        if (setData.aboutUsContent) {
+          setAboutUsContentSetting(setData.aboutUsContent);
+        }
+        if (setData.logoImage) {
+          setLogoImageSetting(setData.logoImage);
+        }
+        if (setData.deliveryOptions) {
+          setDeliveryOptions(setData.deliveryOptions);
+        }
+        if (setData.coupons) {
+          setCouponsList(setData.coupons);
+        } else {
+          setCouponsList([]);
+        }
+        if (setData.categories) {
+          setCategoriesList(setData.categories);
+        } else {
+          setCategoriesList([]);
+        }
+      }
     } catch (err) {
       console.error("Error loading settings:", err);
     }
@@ -291,8 +291,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
     try {
       if (supabaseConfigured) { setOrdersList(await listAdminOrdersFromSupabase()); }
       else {
-      const ordRes = await fetchWithRetry("/api/orders");
-      if (ordRes.ok) { const ordData = await ordRes.json(); setOrdersList(ordData); }
+        const ordRes = await fetchWithRetry("/api/orders");
+        if (ordRes.ok) { const ordData = await ordRes.json(); setOrdersList(ordData); }
       }
     } catch (err) {
       console.error("Error loading admin orders:", err);
@@ -756,7 +756,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
       const handleClickOutside = (e: MouseEvent) => {
         const target = e.target as Node;
         if (menuRef.current && !menuRef.current.contains(target) &&
-            buttonRef.current && !buttonRef.current.contains(target)) {
+          buttonRef.current && !buttonRef.current.contains(target)) {
           onClose();
         }
       };
@@ -784,34 +784,35 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
           <div
             ref={menuRef}
             className="fixed z-[9999] bg-white opacity-100 backdrop-blur-none isolate border border-slate-200 rounded-xl shadow-2xl w-40 p-1 animate-in fade-in duration-100"
-            style={{ backgroundColor: '#ffffff', opacity: 1,
+            style={{
+              backgroundColor: '#ffffff', opacity: 1,
               top: `${menuPos.top}px`,
               left: `${menuPos.left}px`,
             }}
           >
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit();
-                }}
-                className="w-full text-left px-2.5 py-1.5 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer flex-row-reverse text-right"
-              >
-                <Edit2 className="h-3.5 w-3.5 text-[#f94c10]" />
-                <span>تعديل المطعم</span>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-                className="w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer flex-row-reverse text-right"
-              >
-                <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                <span>حذف المطعم</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="w-full text-left px-2.5 py-1.5 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer flex-row-reverse text-right"
+            >
+              <Edit2 className="h-3.5 w-3.5 text-[#f94c10]" />
+              <span>تعديل المطعم</span>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="w-full text-left px-2.5 py-1.5 hover:bg-red-50 text-red-650 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer flex-row-reverse text-right"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-red-500" />
+              <span>حذف المطعم</span>
+            </button>
+          </div>
         )}
       </div>
     );
@@ -1229,7 +1230,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
 
   // إذا لم يكن هناك مشرف مسجل دخول، نعرض نموذج الدخول
   if (!currentAdmin) {
-      return (
+    return (
       <div className="max-w-7xl mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[70vh]" dir={"rtl"}>
         <div className="w-full max-w-md bg-white rounded-[32px] p-6 sm:p-8 shadow-xl border border-slate-100 space-y-6">
           <div className="text-center space-y-2">
@@ -1474,8 +1475,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         <button
           onClick={() => setAdminTab('stores')}
           className={`px-5 py-3 rounded-2xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${adminTab === 'stores'
-              ? 'bg-[#f94c10] text-white shadow-md'
-              : 'text-slate-600 hover:bg-slate-105'
+            ? 'bg-[#f94c10] text-white shadow-md'
+            : 'text-slate-600 hover:bg-slate-105'
             }`}
         >
           <span>🏪</span>
@@ -1485,8 +1486,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         <button
           onClick={() => { setAdminTab('orders'); fetchAdminsAndSettings(); }}
           className={`px-5 py-3 rounded-2xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 relative ${adminTab === 'orders'
-              ? 'bg-[#0ea5e9] text-white shadow-md'
-              : 'text-slate-600 hover:bg-slate-105'
+            ? 'bg-[#0ea5e9] text-white shadow-md'
+            : 'text-slate-600 hover:bg-slate-105'
             }`}
         >
           <span>📦</span>
@@ -1501,8 +1502,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         <button
           onClick={() => { setAdminTab('captains'); fetchCaptainsList(); }}
           className={`px-5 py-3 rounded-2xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 relative ${adminTab === 'captains'
-              ? 'bg-[#f43f5e] text-white shadow-md'
-              : 'text-slate-600 hover:bg-slate-105'
+            ? 'bg-[#f43f5e] text-white shadow-md'
+            : 'text-slate-600 hover:bg-slate-105'
             }`}
         >
           <span>🛵</span>
@@ -1517,8 +1518,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         <button
           onClick={() => { setAdminTab('settings'); fetchAdminsAndSettings(); }}
           className={`px-5 py-3 rounded-2xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 relative ${adminTab === 'settings'
-              ? 'bg-[#10b981] text-white shadow-md'
-              : 'text-slate-600 hover:bg-slate-105'
+            ? 'bg-[#10b981] text-white shadow-md'
+            : 'text-slate-600 hover:bg-slate-105'
             }`}
         >
           <span>⚙️</span>
@@ -1667,7 +1668,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                 </button>
               </div>
 
-              <div className="space-y-2 max-h-96 overflow-y-auto overflow-x-visible no-scrollbar" style={{overflowX: "visible"}}>
+              <div className="space-y-2 max-h-96 overflow-y-auto overflow-x-visible no-scrollbar" style={{ overflowX: "visible" }}>
                 {restaurants.map((rest) => {
                   const isActive = rest.id === selectedRestId;
                   return (
@@ -1678,8 +1679,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                         handleSetEditRestaurant(rest);
                       }}
                       className={`p-3 rounded-2xl border transition-all flex justify-between items-center cursor-pointer ${isActive
-                          ? "bg-orange-50 border-orange-200 text-[#f94c10]"
-                          : "bg-white border-slate-100 text-slate-700 hover:bg-slate-50"
+                        ? "bg-orange-50 border-orange-200 text-[#f94c10]"
+                        : "bg-white border-slate-100 text-slate-700 hover:bg-slate-50"
                         }`}
                     >
                       <button
@@ -1690,7 +1691,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                         {rest.name}
                       </button>
 
-                      <RestaurantMenuDropdown 
+                      <RestaurantMenuDropdown
                         rest={rest}
                         isOpen={activeStoreDropdownId === rest.id}
                         onToggle={() => setActiveStoreDropdownId((prev) => prev === rest.id ? null : rest.id)}
@@ -1773,8 +1774,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                         key={`ai-sel-${r.id}`}
                         onClick={() => setSelectedRestId(r.id)}
                         className={`relative flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer group select-none ${isSelected
-                            ? "border-[#f94c10] bg-orange-500/10 shadow-[0_0_12px_rgba(249,76,16,0.2)]"
-                            : "border-slate-800 bg-slate-900/60 hover:bg-slate-900 hover:border-slate-700"
+                          ? "border-[#f94c10] bg-orange-500/10 shadow-[0_0_12px_rgba(249,76,16,0.2)]"
+                          : "border-slate-800 bg-slate-900/60 hover:bg-slate-900 hover:border-slate-700"
                           }`}
                       >
                         {isSelected && (
@@ -1878,8 +1879,8 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
                 className={`border-2 border-dashed rounded-3xl p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3 relative overflow-hidden ${dragActive
-                    ? "border-[#f94c10] bg-orange-500/10"
-                    : "border-slate-800 bg-slate-950/40 hover:bg-slate-950/60"
+                  ? "border-[#f94c10] bg-orange-500/10"
+                  : "border-slate-800 bg-slate-950/40 hover:bg-slate-950/60"
                   }`}
               >
                 <input
@@ -1991,39 +1992,61 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                                     }}
                                     className="text-[11px] text-slate-400 bg-transparent border-b border-transparent focus:border-slate-700 outline-none w-full"
                                   />
-                                  {item.sizes && item.sizes.length > 0 && (
-                                    <div className="flex flex-col gap-1 mt-2" dir="rtl">
-                                      <span className="text-[9px] text-slate-500 font-bold">الأحجام والأسعار:</span>
-                                      {item.sizes.map((sz: any, szIdx: number) => (
-                                        <div key={szIdx} className="flex items-center gap-1.5 bg-[#1e293b] px-2 py-1 rounded border border-slate-800">
-                                          <input
-                                            type="text"
-                                            value={sz.name}
-                                            onChange={(e) => {
-                                              const copy = [...extractedItems];
-                                              copy[idx].sizes[szIdx].name = e.target.value;
-                                              setExtractedItems(copy);
-                                            }}
-                                            className="text-[10px] text-slate-300 font-bold bg-transparent outline-none w-16 border-b border-slate-700 focus:border-orange-500"
-                                          />
-                                          <span className="text-slate-600 text-[9px]">:</span>
-                                          <input
-                                            type="number"
-                                            value={sz.price}
-                                            onChange={(e) => {
-                                              const copy = [...extractedItems];
-                                              copy[idx].sizes[szIdx].price = Number(e.target.value) || 0;
-                                              // أقل سعر يبقى الـ price الرئيسي
-                                              copy[idx].price = Math.min(...copy[idx].sizes.map((s: any) => s.price));
-                                              setExtractedItems(copy);
-                                            }}
-                                            className="text-[10px] text-[#f94c10] font-mono font-bold bg-transparent outline-none w-14 border-b border-slate-700 focus:border-orange-500 text-center"
-                                          />
-                                          <span className="text-[9px] text-slate-500">ج</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
+                                  <div className="flex flex-col gap-1 mt-2" dir="rtl">
+                                    <span className="text-[9px] text-slate-500 font-bold">الأحجام والأسعار:</span>
+                                    {(item.sizes || []).map((sz: any, szIdx: number) => (
+                                      <div key={szIdx} className="flex items-center gap-1.5 bg-[#1e293b] px-2 py-1 rounded border border-slate-800">
+                                        <input
+                                          type="text"
+                                          value={sz.name}
+                                          placeholder="اسم الحجم"
+                                          onChange={(e) => {
+                                            const copy = [...extractedItems];
+                                            copy[idx].sizes[szIdx].name = e.target.value;
+                                            setExtractedItems(copy);
+                                          }}
+                                          className="text-[10px] text-slate-300 font-bold bg-transparent outline-none w-16 border-b border-slate-700 focus:border-orange-500"
+                                        />
+                                        <span className="text-slate-600 text-[9px]">:</span>
+                                        <input
+                                          type="number"
+                                          value={sz.price}
+                                          onChange={(e) => {
+                                            const copy = [...extractedItems];
+                                            copy[idx].sizes[szIdx].price = Number(e.target.value) || 0;
+                                            copy[idx].price = Math.min(...copy[idx].sizes.map((s: any) => s.price));
+                                            setExtractedItems(copy);
+                                          }}
+                                          className="text-[10px] text-[#f94c10] font-mono font-bold bg-transparent outline-none w-14 border-b border-slate-700 focus:border-orange-500 text-center"
+                                        />
+                                        <span className="text-[9px] text-slate-500">ج</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const copy = [...extractedItems];
+                                            copy[idx].sizes = copy[idx].sizes.filter((_: any, i: number) => i !== szIdx);
+                                            setExtractedItems(copy);
+                                          }}
+                                          className="text-slate-500 hover:text-red-400 text-[11px] font-bold leading-none px-0.5"
+                                          title="حذف الحجم"
+                                        >
+                                          ×
+                                        </button>
+                                      </div>
+                                    ))}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const copy = [...extractedItems];
+                                        const existing = Array.isArray(copy[idx].sizes) ? copy[idx].sizes : [];
+                                        copy[idx].sizes = [...existing, { name: '', price: copy[idx].price || 0 }];
+                                        setExtractedItems(copy);
+                                      }}
+                                      className="self-start text-[9px] text-orange-400 hover:text-orange-300 font-bold border border-dashed border-orange-800/60 rounded px-2 py-0.5 mt-0.5"
+                                    >
+                                      + إضافة حجم
+                                    </button>
+                                  </div>
                                 </td>
                                 <td className="p-3">
                                   <label className="flex flex-col items-center gap-1 cursor-pointer group">
@@ -2238,7 +2261,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                                 className="fixed inset-0 z-30"
                                 onClick={() => setActiveDishDropdownId(null)}
                               />
-                              <div className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl w-36 p-1 animate-in fade-in duration-100" style={{top: (() => { const b = document.querySelector(`[data-dish-menu="${item.id}"]`); return b ? b.getBoundingClientRect().bottom + 4 : 0; })(), right: (() => { const b = document.querySelector(`[data-dish-menu="${item.id}"]`); return b ? window.innerWidth - b.getBoundingClientRect().right : 0; })()}}>
+                              <div className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl w-36 p-1 animate-in fade-in duration-100" style={{ top: (() => { const b = document.querySelector(`[data-dish-menu="${item.id}"]`); return b ? b.getBoundingClientRect().bottom + 4 : 0; })(), right: (() => { const b = document.querySelector(`[data-dish-menu="${item.id}"]`); return b ? window.innerWidth - b.getBoundingClientRect().right : 0; })() }}>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -2277,11 +2300,11 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
         </div>
       )}
 
-      <AdminOrders ctx={{RestaurantMenuDropdown, aboutUsContentSetting, activeDishDropdownId, activeRestaurant, activeStoreDropdownId, adminEmail, adminLoginError, adminLoginLoading, adminPassword, adminTab, adminsList, aiError, aiLoading, aiWarning, captainLocations, captains, categoriesList, couponsList, currentAdmin, customInstructions, deleteConfirmAdminId, deleteConfirmDishId, deleteConfirmRestId, deliveryCommissionType, deliveryCommissionValue, deliveryOptions, deliveryPricingType, distanceBaseFee, distanceFeePerKm, dragActive, editingRestId, expandedCaptainReviews, extractedItems, fetchAdminsAndSettings, fetchCaptainsList, fileInputRef, fileName, handleAddCoupon, handleAddDeliveryOption, handleAdminLogin, handleAdminLogout, handleAdminRegister, handleCreateNewAdmin, handleDeleteAdmin, handleDeleteCaptain, handleDeleteCoupon, handleDeleteDeliveryOption, handleDeleteRestaurant, handleDrag, handleDrop, handleFileChange, handleFileParse, handleImportExtracted, handleSaveRestaurant, handleSaveSettings, handleScrollToRestaurantForm, handleSetEditRestaurant, handleSettingChange, handleToggleAdminPermission, handleToggleCoupon, handleUpdateAdminFlags, handleUpdateCaptainStatus, handleUpdateOrderCourierStatus, handleUpdateOrderFullStatus, isAdminRegisterMode, isAr, isCreatingRest, isUpdatingSettings, logoImageSetting, loyaltyCustomers, newAdminForm, newCatIcon, newCatId, newCatName, newCatNameAr, newCouponCode, newCouponMinOrder, newCouponType, newCouponValue, newRegionFee, newRegionName, officeLat, officeLng, onBack, onRefreshData, ordersList, registerEmail, registerName, registerPassword, restForm, restaurants, reviews, rewardOrderThreshold, selectedFile, selectedImportItems, selectedRestId, setAboutUsContentSetting, setActiveDishDropdownId, setActiveStoreDropdownId, setAdminEmail, setAdminLoginError, setAdminLoginLoading, setAdminPassword, setAdminTab, setAdminsList, setAiError, setAiLoading, setAiWarning, setCaptainLocations, setCaptains, setCategoriesList, setCouponsList, setCurrentAdmin, setCustomInstructions, setDeleteConfirmAdminId, setDeleteConfirmDishId, setDeleteConfirmRestId, setDeliveryCommissionType, setDeliveryCommissionValue, setDeliveryOptions, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDragActive, setEditingRestId, setExpandedCaptainReviews, setExtractedItems, setFileName, setIsAdminRegisterMode, setIsCreatingRest, setIsUpdatingSettings, setLogoImageSetting, setLoyaltyCustomers, setNewAdminForm, setNewCatIcon, setNewCatId, setNewCatName, setNewCatNameAr, setNewCouponCode, setNewCouponMinOrder, setNewCouponType, setNewCouponValue, setNewRegionFee, setNewRegionName, setOfficeLat, setOfficeLng, setOrdersList, setRegisterEmail, setRegisterName, setRegisterPassword, setRestForm, setRewardOrderThreshold, setSelectedFile, setSelectedImportItems, setSelectedRestId, setSettingsExtra, setSuccessMsg, setWhatsappNumberSetting, settings, settingsExtra, successMsg, t, triggerSuccess, whatsappNumberSetting}} />
+      <AdminOrders ctx={{ RestaurantMenuDropdown, aboutUsContentSetting, activeDishDropdownId, activeRestaurant, activeStoreDropdownId, adminEmail, adminLoginError, adminLoginLoading, adminPassword, adminTab, adminsList, aiError, aiLoading, aiWarning, captainLocations, captains, categoriesList, couponsList, currentAdmin, customInstructions, deleteConfirmAdminId, deleteConfirmDishId, deleteConfirmRestId, deliveryCommissionType, deliveryCommissionValue, deliveryOptions, deliveryPricingType, distanceBaseFee, distanceFeePerKm, dragActive, editingRestId, expandedCaptainReviews, extractedItems, fetchAdminsAndSettings, fetchCaptainsList, fileInputRef, fileName, handleAddCoupon, handleAddDeliveryOption, handleAdminLogin, handleAdminLogout, handleAdminRegister, handleCreateNewAdmin, handleDeleteAdmin, handleDeleteCaptain, handleDeleteCoupon, handleDeleteDeliveryOption, handleDeleteRestaurant, handleDrag, handleDrop, handleFileChange, handleFileParse, handleImportExtracted, handleSaveRestaurant, handleSaveSettings, handleScrollToRestaurantForm, handleSetEditRestaurant, handleSettingChange, handleToggleAdminPermission, handleToggleCoupon, handleUpdateAdminFlags, handleUpdateCaptainStatus, handleUpdateOrderCourierStatus, handleUpdateOrderFullStatus, isAdminRegisterMode, isAr, isCreatingRest, isUpdatingSettings, logoImageSetting, loyaltyCustomers, newAdminForm, newCatIcon, newCatId, newCatName, newCatNameAr, newCouponCode, newCouponMinOrder, newCouponType, newCouponValue, newRegionFee, newRegionName, officeLat, officeLng, onBack, onRefreshData, ordersList, registerEmail, registerName, registerPassword, restForm, restaurants, reviews, rewardOrderThreshold, selectedFile, selectedImportItems, selectedRestId, setAboutUsContentSetting, setActiveDishDropdownId, setActiveStoreDropdownId, setAdminEmail, setAdminLoginError, setAdminLoginLoading, setAdminPassword, setAdminTab, setAdminsList, setAiError, setAiLoading, setAiWarning, setCaptainLocations, setCaptains, setCategoriesList, setCouponsList, setCurrentAdmin, setCustomInstructions, setDeleteConfirmAdminId, setDeleteConfirmDishId, setDeleteConfirmRestId, setDeliveryCommissionType, setDeliveryCommissionValue, setDeliveryOptions, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDragActive, setEditingRestId, setExpandedCaptainReviews, setExtractedItems, setFileName, setIsAdminRegisterMode, setIsCreatingRest, setIsUpdatingSettings, setLogoImageSetting, setLoyaltyCustomers, setNewAdminForm, setNewCatIcon, setNewCatId, setNewCatName, setNewCatNameAr, setNewCouponCode, setNewCouponMinOrder, setNewCouponType, setNewCouponValue, setNewRegionFee, setNewRegionName, setOfficeLat, setOfficeLng, setOrdersList, setRegisterEmail, setRegisterName, setRegisterPassword, setRestForm, setRewardOrderThreshold, setSelectedFile, setSelectedImportItems, setSelectedRestId, setSettingsExtra, setSuccessMsg, setWhatsappNumberSetting, settings, settingsExtra, successMsg, t, triggerSuccess, whatsappNumberSetting }} />
 
-      <AdminCaptains ctx={{RestaurantMenuDropdown, aboutUsContentSetting, activeDishDropdownId, activeRestaurant, activeStoreDropdownId, adminEmail, adminLoginError, adminLoginLoading, adminPassword, adminTab, adminsList, aiError, aiLoading, aiWarning, captainLocations, captains, categoriesList, couponsList, currentAdmin, customInstructions, deleteConfirmAdminId, deleteConfirmDishId, deleteConfirmRestId, deliveryCommissionType, deliveryCommissionValue, deliveryOptions, deliveryPricingType, distanceBaseFee, distanceFeePerKm, dragActive, editingRestId, expandedCaptainReviews, extractedItems, fetchAdminsAndSettings, fetchCaptainsList, fileInputRef, fileName, handleAddCoupon, handleAddDeliveryOption, handleAdminLogin, handleAdminLogout, handleAdminRegister, handleCreateNewAdmin, handleDeleteAdmin, handleDeleteCaptain, handleDeleteCoupon, handleDeleteDeliveryOption, handleDeleteRestaurant, handleDrag, handleDrop, handleFileChange, handleFileParse, handleImportExtracted, handleSaveRestaurant, handleSaveSettings, handleScrollToRestaurantForm, handleSetEditRestaurant, handleSettingChange, handleToggleAdminPermission, handleToggleCoupon, handleUpdateAdminFlags, handleUpdateCaptainStatus, handleUpdateOrderCourierStatus, handleUpdateOrderFullStatus, isAdminRegisterMode, isAr, isCreatingRest, isUpdatingSettings, logoImageSetting, loyaltyCustomers, newAdminForm, newCatIcon, newCatId, newCatName, newCatNameAr, newCouponCode, newCouponMinOrder, newCouponType, newCouponValue, newRegionFee, newRegionName, officeLat, officeLng, onBack, onNavigateCaptain, onRefreshData, ordersList, registerEmail, registerName, registerPassword, restForm, restaurants, reviews, rewardOrderThreshold, selectedFile, selectedImportItems, selectedRestId, setAboutUsContentSetting, setActiveDishDropdownId, setActiveStoreDropdownId, setAdminEmail, setAdminLoginError, setAdminLoginLoading, setAdminPassword, setAdminTab, setAdminsList, setAiError, setAiLoading, setAiWarning, setCaptainLocations, setCaptains, setCategoriesList, setCouponsList, setCurrentAdmin, setCustomInstructions, setDeleteConfirmAdminId, setDeleteConfirmDishId, setDeleteConfirmRestId, setDeliveryCommissionType, setDeliveryCommissionValue, setDeliveryOptions, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDragActive, setEditingRestId, setExpandedCaptainReviews, setExtractedItems, setFileName, setIsAdminRegisterMode, setIsCreatingRest, setIsUpdatingSettings, setLogoImageSetting, setLoyaltyCustomers, setNewAdminForm, setNewCatIcon, setNewCatId, setNewCatName, setNewCatNameAr, setNewCouponCode, setNewCouponMinOrder, setNewCouponType, setNewCouponValue, setNewRegionFee, setNewRegionName, setOfficeLat, setOfficeLng, setOrdersList, setRegisterEmail, setRegisterName, setRegisterPassword, setRestForm, setRewardOrderThreshold, setSelectedFile, setSelectedImportItems, setSelectedRestId, setSettingsExtra, setSuccessMsg, setWhatsappNumberSetting, settings, settingsExtra, successMsg, t, triggerSuccess, whatsappNumberSetting}} />
+      <AdminCaptains ctx={{ RestaurantMenuDropdown, aboutUsContentSetting, activeDishDropdownId, activeRestaurant, activeStoreDropdownId, adminEmail, adminLoginError, adminLoginLoading, adminPassword, adminTab, adminsList, aiError, aiLoading, aiWarning, captainLocations, captains, categoriesList, couponsList, currentAdmin, customInstructions, deleteConfirmAdminId, deleteConfirmDishId, deleteConfirmRestId, deliveryCommissionType, deliveryCommissionValue, deliveryOptions, deliveryPricingType, distanceBaseFee, distanceFeePerKm, dragActive, editingRestId, expandedCaptainReviews, extractedItems, fetchAdminsAndSettings, fetchCaptainsList, fileInputRef, fileName, handleAddCoupon, handleAddDeliveryOption, handleAdminLogin, handleAdminLogout, handleAdminRegister, handleCreateNewAdmin, handleDeleteAdmin, handleDeleteCaptain, handleDeleteCoupon, handleDeleteDeliveryOption, handleDeleteRestaurant, handleDrag, handleDrop, handleFileChange, handleFileParse, handleImportExtracted, handleSaveRestaurant, handleSaveSettings, handleScrollToRestaurantForm, handleSetEditRestaurant, handleSettingChange, handleToggleAdminPermission, handleToggleCoupon, handleUpdateAdminFlags, handleUpdateCaptainStatus, handleUpdateOrderCourierStatus, handleUpdateOrderFullStatus, isAdminRegisterMode, isAr, isCreatingRest, isUpdatingSettings, logoImageSetting, loyaltyCustomers, newAdminForm, newCatIcon, newCatId, newCatName, newCatNameAr, newCouponCode, newCouponMinOrder, newCouponType, newCouponValue, newRegionFee, newRegionName, officeLat, officeLng, onBack, onNavigateCaptain, onRefreshData, ordersList, registerEmail, registerName, registerPassword, restForm, restaurants, reviews, rewardOrderThreshold, selectedFile, selectedImportItems, selectedRestId, setAboutUsContentSetting, setActiveDishDropdownId, setActiveStoreDropdownId, setAdminEmail, setAdminLoginError, setAdminLoginLoading, setAdminPassword, setAdminTab, setAdminsList, setAiError, setAiLoading, setAiWarning, setCaptainLocations, setCaptains, setCategoriesList, setCouponsList, setCurrentAdmin, setCustomInstructions, setDeleteConfirmAdminId, setDeleteConfirmDishId, setDeleteConfirmRestId, setDeliveryCommissionType, setDeliveryCommissionValue, setDeliveryOptions, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDragActive, setEditingRestId, setExpandedCaptainReviews, setExtractedItems, setFileName, setIsAdminRegisterMode, setIsCreatingRest, setIsUpdatingSettings, setLogoImageSetting, setLoyaltyCustomers, setNewAdminForm, setNewCatIcon, setNewCatId, setNewCatName, setNewCatNameAr, setNewCouponCode, setNewCouponMinOrder, setNewCouponType, setNewCouponValue, setNewRegionFee, setNewRegionName, setOfficeLat, setOfficeLng, setOrdersList, setRegisterEmail, setRegisterName, setRegisterPassword, setRestForm, setRewardOrderThreshold, setSelectedFile, setSelectedImportItems, setSelectedRestId, setSettingsExtra, setSuccessMsg, setWhatsappNumberSetting, settings, settingsExtra, successMsg, t, triggerSuccess, whatsappNumberSetting }} />
 
-      <AdminSettings ctx={{restaurants, onBack, onRefreshData, onAdminLogin, onAdminLogout, reviews, adminsList, currentAdmin, rewardOrderThreshold, setRewardOrderThreshold, loyaltyCustomers, categoriesList, setCategoriesList, newCatId, setNewCatId, newCatNameAr, setNewCatNameAr, newCatIcon, setNewCatIcon, triggerSuccess, refreshAdminPage, handleDeleteCategory, adminTab, whatsappNumberSetting, deliveryPricingType, distanceBaseFee, distanceFeePerKm, deliveryCommissionType, deliveryCommissionValue, aboutUsContentSetting, logoImageSetting, deliveryOptions, couponsList, isUpdatingSettings, handleSaveSettings, handleAddDeliveryOption, handleDeleteDeliveryOption, handleAddCoupon, handleToggleCoupon, handleDeleteCoupon, setWhatsappNumberSetting, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDeliveryCommissionType, setDeliveryCommissionValue, setAboutUsContentSetting, setLogoImageSetting, setDeliveryOptions, setCouponsList, setNewRegionName, setNewRegionFee, handleSettingChange, settings, settingsExtra, officeLat, officeLng}} />
+      <AdminSettings ctx={{ restaurants, onBack, onRefreshData, onAdminLogin, onAdminLogout, reviews, adminsList, currentAdmin, rewardOrderThreshold, setRewardOrderThreshold, loyaltyCustomers, categoriesList, setCategoriesList, newCatId, setNewCatId, newCatNameAr, setNewCatNameAr, newCatIcon, setNewCatIcon, triggerSuccess, refreshAdminPage, handleDeleteCategory, adminTab, whatsappNumberSetting, deliveryPricingType, distanceBaseFee, distanceFeePerKm, deliveryCommissionType, deliveryCommissionValue, aboutUsContentSetting, logoImageSetting, deliveryOptions, couponsList, isUpdatingSettings, handleSaveSettings, handleAddDeliveryOption, handleDeleteDeliveryOption, handleAddCoupon, handleToggleCoupon, handleDeleteCoupon, setWhatsappNumberSetting, setDeliveryPricingType, setDistanceBaseFee, setDistanceFeePerKm, setDeliveryCommissionType, setDeliveryCommissionValue, setAboutUsContentSetting, setLogoImageSetting, setDeliveryOptions, setCouponsList, setNewRegionName, setNewRegionFee, handleSettingChange, settings, settingsExtra, officeLat, officeLng }} />
 
       {deleteConfirmRestId && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
