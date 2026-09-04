@@ -42,7 +42,33 @@ const RESTAURANT_NAMES_MAP: Record<string, string> = {
   'Sweet Delight Desserts': 'حلويات البهجة والسرور 🍦',
 };
 
+// خارج الكومبوننت: بيحسب بصمة (hash) لمحتوى ملف الصورة، نفس البصمة اللي هيحسبها edge function بالظبط
+async function hashImageFile(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminLogin, onAdminLogout, reviews, onNavigateCaptain }: AdminPageProps & { onNavigateCaptain?: () => void }) {
+  // ✅ Cache لمنع رفع نفس الصورة أكتر من مرة في نفس جلسة الأدمن (مثلاً لو نفس الصورة
+  // هتتحط لأكتر من صنف في جدول مراجعة الاستيراد). المفتاح = hash محتوى الملف.
+  const imageUploadCacheRef = useRef<Map<string, Promise<string>>>(new Map());
+
+  const uploadImageFileDeduped = async (file: File): Promise<string> => {
+    const key = await hashImageFile(file);
+    const cached = imageUploadCacheRef.current.get(key);
+    if (cached) return cached;
+
+    const uploadPromise = uploadImageFile(file);
+    imageUploadCacheRef.current.set(key, uploadPromise);
+    try {
+      return await uploadPromise;
+    } catch (err) {
+      imageUploadCacheRef.current.delete(key); // اسمح بمحاولة تانية لو فشل الرفع
+      throw err;
+    }
+  };
+
   // ✅ ترجمات عربية ثابتة
   const translations: Record<string, string> = {
     egp: "ج",
@@ -1561,7 +1587,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    uploadImageFile(file).then(url => setRestForm(prev => ({ ...prev, coverImage: url, _coverFile: file }))).catch(err => setAiError(err.message));
+                    uploadImageFileDeduped(file).then(url => setRestForm(prev => ({ ...prev, coverImage: url, _coverFile: file }))).catch(err => setAiError(err.message));
                   }}
                 />
               </label>
@@ -2065,7 +2091,7 @@ export default function AdminPage({ restaurants, onBack, onRefreshData, onAdminL
                                       onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (!file) return;
-                                        uploadImageFile(file).then(url => {
+                                        uploadImageFileDeduped(file).then(url => {
                                           setExtractedItems(items => items.map((item, itemIndex) => itemIndex === idx ? { ...item, image: url } : item));
                                         }).catch(err => setAiError(err.message));
                                       }}
