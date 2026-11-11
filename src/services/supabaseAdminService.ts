@@ -26,6 +26,9 @@ export async function listAdminOrdersFromSupabase() {
     deliveryFee: row.delivery_fee,
     paymentMethod: row.payment_method,
     createdAt: row.created_at,
+    courierId: row.courier_id,
+    courierName: row.courier_name,
+    courierPhone: row.courier_phone,
     restaurant: row.restaurant || { id: row.restaurant_id, name: row.restaurant_name || 'المطعم' },
     items: (row.order_items || []).map((item: any) => ({
       restaurantId: item.restaurant_id,
@@ -45,11 +48,21 @@ export async function listAdminProfilesFromSupabase() {
   if (error) throw error; return data || [];
 }
 export async function updateProfilePermissionsInSupabase(id: string, values: any) {
-  const { data, error } = await supabase.from('profiles').update({ can_manage_restaurants: !!values.canManageRestaurants, can_manage_menu: !!values.canManageMenu, can_use_ai_scanner: !!values.canUseAIScanner, can_manage_orders: !!values.canManageOrders, can_manage_captains: !!values.canManageCaptains }).eq('id', id).select().single();
+  // للمدير الرئيسي فقط. بتتنفذ عن طريق دالة في Supabase (مفيش كتابة مباشرة على profiles).
+  const { data, error } = await supabase.rpc('admin_update_permissions', {
+    p_id: id,
+    p_flags: {
+      canManageRestaurants: !!values.canManageRestaurants,
+      canManageMenu: !!values.canManageMenu,
+      canUseAIScanner: !!values.canUseAIScanner,
+      canManageOrders: !!values.canManageOrders,
+      canManageCaptains: !!values.canManageCaptains,
+    },
+  });
   if (error) throw error; return data;
 }
 export async function updateCaptainStatusInSupabase(id: string, status: string) {
-  const { data, error } = await supabase.from('profiles').update({ status }).eq('id', id).select().single();
+  const { data, error } = await supabase.rpc('admin_set_captain_status', { p_captain_id: id, p_status: status });
   if (error) throw error; return data;
 }
 
@@ -80,6 +93,7 @@ export async function listLoyaltyCustomersFromSupabase(threshold = 10) {
 }
 
 export async function deleteCaptainInSupabase(id: string) {
-  const { error } = await supabase.from('profiles').delete().eq('id', id).eq('role', 'captain');
-  if (error) throw error;
+  const { data, error } = await supabase.functions.invoke('delete-captain', { body: { id } });
+  if (error) throw new Error(await extractFunctionErrorMessage(error, 'تعذر حذف حساب الكابتن.'));
+  if (data?.error) throw new Error(data.error);
 }

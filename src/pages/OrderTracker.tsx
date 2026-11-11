@@ -43,6 +43,7 @@ export default function OrderTracker({
         customerName: currentOrder.customerName,
         restaurantId: currentOrder.restaurant?.id || '',
         restaurantName: currentOrder.restaurant?.name || 'المطعم',
+        courierId: currentOrder.courierId,
         courierName: currentOrder.courierName || "الكابتن أحمد",
         ratingDeliverySpeed: ratingSpeed,
         ratingDeliveryManner: ratingManner,
@@ -91,7 +92,15 @@ export default function OrderTracker({
     if (!supabaseConfigured) return;
     const channel = supabase.channel(`order-${currentOrder.id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${currentOrder.id}` }, payload => {
-        setCurrentOrder(prev => ({ ...prev, ...payload.new, status: (payload.new as any).status, eta: (payload.new as any).eta }));
+        setCurrentOrder(prev => ({
+          ...prev,
+          ...payload.new,
+          status: (payload.new as any).status,
+          eta: (payload.new as any).eta,
+          courierId: (payload.new as any).courier_id ?? prev.courierId,
+          courierName: (payload.new as any).courier_name ?? prev.courierName,
+          courierPhone: (payload.new as any).courier_phone ?? prev.courierPhone,
+        }));
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'captain_locations', filter: `order_id=eq.${currentOrder.id}` }, payload => {
         const row: any = payload.new;

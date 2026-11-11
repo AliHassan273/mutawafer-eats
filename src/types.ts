@@ -57,6 +57,8 @@ export interface Order {
   eta: number; // in minutes
   courierName?: string;
   courierPhone?: string;
+  courierId?: string;
+  itemsCount?: number; // عدد الأصناف (للأوردرات المتاحة للكباتن من غير تفاصيل)
   paymentMethod?: string;
   paymentDetails?: string;
   vodafoneFee?: number;

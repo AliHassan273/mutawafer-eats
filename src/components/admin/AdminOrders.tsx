@@ -144,6 +144,7 @@ export default function AdminOrders({ ctx }: { ctx: any }) {
                                 if (!e.target.value) return;
                                 const parsed = JSON.parse(e.target.value);
                                 handleUpdateOrderFullStatus(order.id, {
+                                  courierId: parsed.id,
                                   courierName: parsed.name,
                                   courierPhone: parsed.phone,
                                   status: 'OutForDelivery'
@@ -153,17 +154,17 @@ export default function AdminOrders({ ctx }: { ctx: any }) {
                             >
                               <option value="">-- اختر كابتن توصيل معتمد --</option>
                               {currentAdmin && (
-                                <option value={JSON.stringify({ name: currentAdmin.name, phone: currentAdmin.phone || '01016789012' })}>
+                                <option value={JSON.stringify({ id: currentAdmin.id, name: currentAdmin.name, phone: currentAdmin.phone || '' })}>
                                   👑 نفسي ({currentAdmin.name} - الآدمن الحالي)
                                 </option>
                               )}
                               {adminsList.filter(a => a.id !== currentAdmin?.id).map((admin: any) => (
-                                <option key={`admin-select-${admin.id}`} value={JSON.stringify({ name: admin.name, phone: admin.phone || '01012345678' })}>
+                                <option key={`admin-select-${admin.id}`} value={JSON.stringify({ id: admin.id, name: admin.name, phone: admin.phone || '' })}>
                                   👑 {admin.name} (مشرف)
                                 </option>
                               ))}
                               {captains.filter(c => c.status === 'approved').map((cap: any) => (
-                                <option key={cap.id} value={JSON.stringify({ name: cap.name, phone: cap.phone })}>
+                                <option key={cap.id} value={JSON.stringify({ id: cap.id, name: cap.name, phone: cap.phone })}>
                                   🛵 {cap.name} ({cap.phone})
                                 </option>
                               ))}

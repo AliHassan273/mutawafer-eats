@@ -3,6 +3,7 @@ import { ArrowLeft, Clock, MapPin, Bike, User, Phone, CheckCircle, Flame, Dollar
 import { Order, CartItem, Review } from '../types';
 import { lang, getTranslation } from '../translations';
 import { saveCaptainLocation, removeCaptainLocation } from '../services/supabaseCaptainService';
+import { listAvailableOrdersFromSupabase, listMyDeliveriesFromSupabase, claimOrderInSupabase, updateOrderStatusInSupabase } from '../services/supabaseOrderService';
 
 interface CaptainPageProps {
   currentUser: { id: string; name: string; email?: string; phone: string; role: string };
@@ -98,20 +99,36 @@ export default function CaptainPage({
     };
   }, [isGpsAgreed]);
 
-  // ✅ Refresh الأوردرات كل 30 ثانية عشان الكابتن يشوف الطلبات الجديدة
+  // ✅ الأوردرات المتاحة + رحلاتي بتيجي من Supabase مباشرة وبتتحدّث كل 15 ثانية
+  const [availableRemote, setAvailableRemote] = useState<Order[]>([]);
+  const [myDeliveries, setMyDeliveries] = useState<Order[]>([]);
+  const [loadError, setLoadError] = useState('');
+
+  const loadCaptainData = React.useCallback(async () => {
+    try {
+      const [available, mine] = await Promise.all([
+        listAvailableOrdersFromSupabase(),
+        listMyDeliveriesFromSupabase(),
+      ]);
+      setAvailableRemote(available);
+      setMyDeliveries(mine);
+      setLoadError('');
+    } catch (err) {
+      console.error('Failed to load captain orders:', err);
+      setLoadError('تعذر تحميل الطلبات حاليًا، جاري إعادة المحاولة تلقائيًا...');
+    }
+  }, []);
+
   useEffect(() => {
-    const refreshInterval = setInterval(() => {
-      onRefreshData();
-    }, 30000);
+    loadCaptainData();
+    const refreshInterval = setInterval(loadCaptainData, 15000);
     return () => clearInterval(refreshInterval);
-  }, [onRefreshData]);
+  }, [loadCaptainData]);
 
   // ✅ ابعت موقع الكابتن للسيرفر كل 15 ثانية
   useEffect(() => {
     if (!gpsCoords) return;
-    const activeOrder = orders.find(o =>
-      o.courierPhone === currentUser.phone && o.status === 'OutForDelivery'
-    );
+    const activeOrder = myDeliveries.find(o => o.status === 'OutForDelivery');
     const sendLocation = async () => {
       try {
         await saveCaptainLocation({ lat: gpsCoords.lat, lng: gpsCoords.lng, orderId: activeOrder?.id });
@@ -120,7 +137,7 @@ export default function CaptainPage({
     sendLocation();
     const locInterval = setInterval(sendLocation, 15000);
     return () => clearInterval(locInterval);
-  }, [gpsCoords, orders]);
+  }, [gpsCoords, myDeliveries]);
 
   // ℹ️ الـ GPS الحقيقي بيشتغل من watchPosition أعلاه — مفيش محاكاة
 
@@ -194,44 +211,46 @@ export default function CaptainPage({
   // باقي دوال CaptainPage (نفس الكود الأصلي)
   // ============================================================
 
-  const handlePickUpOrder = (orderId: string) => {
+  const handlePickUpOrder = async (orderId: string) => {
     // ✅ GPS حقيقي إلزامي
     if (!gpsCoords) {
       alert('⚠️ يجب تفعيل الـ GPS الفعلي من إعدادات المتصفح أولاً قبل استلام الطلب!');
       return;
     }
-    onUpdateStatus(orderId, 'OutForDelivery', currentUser.name, currentUser.phone);
-    // ✅ refresh فوري عشان الطلب يتشال من القائمة
-    setTimeout(() => onRefreshData(), 500);
-    setSuccessMsg('🥳 تم استلام الطلب وبدأ الرحلة بنجاح! طير للعميل بالسلامة.');
-    setTimeout(() => setSuccessMsg(''), 4000);
+    try {
+      await claimOrderInSupabase(orderId);
+      await loadCaptainData();
+      setSuccessMsg('🥳 تم استلام الطلب وبدأ الرحلة بنجاح! طير للعميل بالسلامة.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err: any) {
+      alert(err?.message || 'تعذر استلام الطلب.');
+      await loadCaptainData();
+    }
   };
 
-  const handleCompleteOrder = (orderId: string) => {
+  const handleCompleteOrder = async (orderId: string) => {
     // ✅ اشترط وجود GPS حقيقي قبل التسليم
     if (!gpsCoords) {
       alert('⚠️ يجب تفعيل الـ GPS الفعلي قبل تسليم الطلب!');
       return;
     }
-    onUpdateStatus(orderId, 'Delivered', currentUser.name, currentUser.phone);
-    setSuccessMsg('🎉 مبروك! تم تسليم الطلب للعميل وإضافة عمولتك لمحفظتك.');
-    setTimeout(() => setSuccessMsg(''), 4000);
+    try {
+      await updateOrderStatusInSupabase(orderId, { status: 'Delivered' });
+      await loadCaptainData();
+      setSuccessMsg('🎉 مبروك! تم تسليم الطلب للعميل وإضافة عمولتك لمحفظتك.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err: any) {
+      alert(err?.message || 'تعذر تأكيد التسليم.');
+      await loadCaptainData();
+    }
   };
 
   // تصفية الطلبات
-  const availableOrders = orders.filter(
-    (o) =>
-      (o.status === 'Preparing' || o.status === 'Received') &&
-      (!o.courierPhone || o.courierPhone.trim() === '')
-  );
+  const availableOrders = availableRemote;
 
-  const myActiveDeliveries = orders.filter(
-    (o) => o.status === 'OutForDelivery' && o.courierPhone === currentUser.phone
-  );
+  const myActiveDeliveries = myDeliveries.filter((o) => o.status === 'OutForDelivery');
 
-  const myCompletedDeliveries = orders.filter(
-    (o) => o.status === 'Delivered' && o.courierPhone === currentUser.phone
-  );
+  const myCompletedDeliveries = myDeliveries.filter((o) => o.status === 'Delivered');
 
   const totalEarnings = myCompletedDeliveries.reduce((sum, o) => sum + (o.deliveryFee || 15), 0);
 
@@ -273,6 +292,12 @@ export default function CaptainPage({
         <div className="p-4 bg-green-50 border border-green-150 rounded-2xl text-green-700 font-extrabold text-xs sm:text-sm text-center animate-bounce flex items-center justify-center gap-2">
           <span>🛵</span>
           <span>{successMsg}</span>
+        </div>
+      )}
+
+      {loadError && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 font-bold text-xs text-center">
+          {loadError}
         </div>
       )}
 
@@ -486,7 +511,7 @@ export default function CaptainPage({
                       📍 <span className="font-bold text-slate-700">{'منطقة العميل:'}</span> {order.deliveryAddress}
                     </p>
                     <p>
-                      🧾 <span className="font-bold text-slate-750">{'ملاحظة:'}</span> {order.items.length} {'أصناف محددة'}
+                      🧾 <span className="font-bold text-slate-750">{'ملاحظة:'}</span> {order.itemsCount ?? order.items?.length ?? 0} {'أصناف محددة'}
                     </p>
                   </div>
 

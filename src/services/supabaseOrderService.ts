@@ -15,8 +15,8 @@ export async function createOrderInSupabase(input: { cart: CartItem[]; customerN
   return { ...order, userId: order.user_id, customerName: order.customer_name, customerPhone: order.customer_phone, deliveryAddress: order.delivery_address, deliveryFee: order.delivery_fee, subtotal: order.subtotal, discount: order.discount, total: order.total, paymentMethod: order.payment_method, items: input.cart, createdAt: order.created_at, status: order.status, eta: order.eta };
 }
 
-function mapOrder(row: any): any {
-  return { ...row, userId: row.user_id, customerName: row.customer_name, customerPhone: row.customer_phone, deliveryAddress: row.delivery_address, deliveryFee: row.delivery_fee, additionalRestaurantFee: row.additional_restaurant_fee, doorstepFee: row.doorstep_fee, paymentMethod: row.payment_method, createdAt: row.created_at, restaurant: row.restaurant || { id: row.restaurant_id, name: row.restaurant_name || '' }, items: (row.order_items || []).map((item: any) => ({ restaurantId: item.restaurant_id, restaurantName: item.restaurant_name || '', menuItem: { id: item.menu_item_id, name: item.name_snapshot, description: '', price: item.unit_price, category: item.category_snapshot, image: '' }, selectedSize: item.size_name ? { name: item.size_name, price: item.unit_price } : undefined, quantity: item.quantity })) };
+export function mapOrder(row: any): any {
+  return { ...row, userId: row.user_id, customerName: row.customer_name, customerPhone: row.customer_phone, deliveryAddress: row.delivery_address, deliveryFee: row.delivery_fee, additionalRestaurantFee: row.additional_restaurant_fee, doorstepFee: row.doorstep_fee, paymentMethod: row.payment_method, createdAt: row.created_at, courierId: row.courier_id, courierName: row.courier_name, courierPhone: row.courier_phone, itemsCount: row.items_count, restaurant: row.restaurant ? { id: row.restaurant_id, ...row.restaurant } : { id: row.restaurant_id, name: row.restaurant_name || '' }, items: (row.order_items || []).map((item: any) => ({ restaurantId: item.restaurant_id, restaurantName: item.restaurant_name || '', menuItem: { id: item.menu_item_id, name: item.name_snapshot, description: '', price: item.unit_price, category: item.category_snapshot, image: '' }, selectedSize: item.size_name ? { name: item.size_name, price: item.unit_price } : undefined, quantity: item.quantity })) };
 }
 
 export async function listMyOrdersFromSupabase(): Promise<any[]> {
@@ -33,12 +33,49 @@ export async function listMyOrdersFromSupabase(): Promise<any[]> {
 export async function submitReviewToSupabase(payload: any) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error('يجب تسجيل الدخول لإضافة تقييم.');
-  const { error } = await supabase.from('reviews').insert({ order_id: payload.orderId, user_id: auth.user.id, restaurant_id: payload.restaurantId, restaurant_name: payload.restaurantName, courier_name: payload.courierName, rating_delivery_speed: payload.ratingDeliverySpeed, rating_delivery_manner: payload.ratingDeliveryManner, rating_food_quality: payload.ratingFoodQuality, comment: payload.comment || '' });
+  const { error } = await supabase.from('reviews').insert({ order_id: payload.orderId, user_id: auth.user.id, restaurant_id: payload.restaurantId, restaurant_name: payload.restaurantName, courier_id: payload.courierId || null, courier_name: payload.courierName, rating_delivery_speed: payload.ratingDeliverySpeed, rating_delivery_manner: payload.ratingDeliveryManner, rating_food_quality: payload.ratingFoodQuality, comment: payload.comment || '' });
   if (error) throw error;
 }
 
-export async function updateOrderStatusInSupabase(orderId: string, update: { status: string; eta?: number; courierName?: string; courierPhone?: string }) {
-  const { data, error } = await supabase.from('orders').update({ status: update.status, eta: update.eta ?? 0, courier_id: null }).eq('id', orderId).select().single();
+// تغيير الحالة / تعيين الكابتن: كله عن طريق دوال Supabase (بتتحقق من الصلاحيات في الداتابيز).
+// لو فيه courierId يبقى تعيين كابتن (أدمن)، غير كده يبقى تغيير حالة (أدمن أي حالة، والكابتن تأكيد التسليم بس).
+export async function updateOrderStatusInSupabase(
+  orderId: string,
+  update: { status: string; eta?: number; courierId?: string | null; courierName?: string; courierPhone?: string }
+) {
+  const { data, error } = update.courierId
+    ? await supabase.rpc('admin_assign_courier', { p_order_id: orderId, p_courier_id: update.courierId, p_status: update.status || null })
+    : await supabase.rpc('set_order_status', { p_order_id: orderId, p_status: update.status, p_eta: update.eta ?? null });
   if (error) throw error;
-  return data;
+  // نرجّع الصف الخام + أسماء الكابتن camelCase (من غير items/restaurant عشان ماتمسحش بيانات القائمة)
+  return { ...data, courierId: data.courier_id, courierName: data.courier_name, courierPhone: data.courier_phone };
+}
+
+// الأوردرات المتاحة للكابتن (من غير كابتن). بترجّع بيانات مختصرة من غير رقم العميل.
+export async function listAvailableOrdersFromSupabase(): Promise<any[]> {
+  const { data, error } = await supabase.rpc('get_available_orders');
+  if (error) throw error;
+  return (data || []).map((row: any) => mapOrder(row));
+}
+
+// استلام أوردر متاح وبدء التوصيل.
+export async function claimOrderInSupabase(orderId: string) {
+  const { data, error } = await supabase.rpc('claim_order', { p_order_id: orderId });
+  if (error) throw error;
+  return mapOrder(data);
+}
+
+// رحلات الكابتن الحالية والسابقة (الأوردرات المسنودة له) بكل التفاصيل.
+export async function listMyDeliveriesFromSupabase(): Promise<any[]> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return [];
+  const columns = '*, order_items(*)';
+  let { data, error } = await supabase.from('orders').select(`${columns}, restaurant:restaurants(name)`).eq('courier_id', auth.user.id).order('created_at', { ascending: false }).limit(100);
+  if (error) {
+    // لو الـ join مع المطاعم مش متاح لأي سبب، نجيب الأوردرات من غير اسم المطعم
+    const retry = await supabase.from('orders').select(columns).eq('courier_id', auth.user.id).order('created_at', { ascending: false }).limit(100);
+    data = retry.data; error = retry.error;
+  }
+  if (error) throw error;
+  return (data || []).map((row: any) => mapOrder(row));
 }
