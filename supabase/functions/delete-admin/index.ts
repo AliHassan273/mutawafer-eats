@@ -5,21 +5,49 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+const json = (value: unknown, status = 200) =>
+  new Response(JSON.stringify(value), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+const secretKeys = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
+const serviceKey: string = secretKeys.default ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+// client واحد بمفتاح السيرفر بس (القديم كان بيخلط مفتاح السيرفر مع توكن المستخدم)
+const admin = createClient(Deno.env.get('SUPABASE_URL')!, serviceKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
+
   try {
-    const authHeader = req.headers.get('Authorization') || '';
-    const client = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { global: { headers: { Authorization: authHeader } } });
-    const { data: caller } = await client.auth.getUser(authHeader.replace('Bearer ', ''));
-    if (!caller.user) return new Response(JSON.stringify({ error: 'غير مصرح.' }), { status: 401 });
-    const { data: profile } = await client.from('profiles').select('role').eq('id', caller.user.id).single();
-    if (profile?.role !== 'primary') return new Response(JSON.stringify({ error: 'المدير الرئيسي فقط يستطيع حذف الأدمن.' }), { status: 403 });
-    const { id } = await req.json();
-    if (!id || id === caller.user.id) return new Response(JSON.stringify({ error: 'لا يمكن حذف الحساب الحالي.' }), { status: 400 });
-    const { error } = await client.auth.admin.deleteUser(id);
-    if (error) throw error;
+    const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    if (!token) return json({ error: 'غير مصرح.' }, 401);
+    const { data: caller } = await admin.auth.getUser(token);
+    if (!caller.user) return json({ error: 'غير مصرح.' }, 401);
+
+    const { data: me } = await admin.from('profiles').select('role').eq('id', caller.user.id).maybeSingle();
+    if (me?.role !== 'primary') return json({ error: 'المدير الرئيسي فقط يستطيع حذف الأدمن.' }, 403);
+
+    const body = await req.json().catch(() => null);
+    const id = typeof body?.id === 'string' ? body.id : '';
+    if (!UUID.test(id)) return json({ error: 'معرّف غير صحيح.' }, 400);
+    if (id === caller.user.id) return json({ error: 'لا يمكن حذف الحساب الحالي.' }, 400);
+
+    // لازم يكون أدمن عادي (مش مدير رئيسي، ومش عميل أو كابتن)
+    const { data: target } = await admin.from('profiles').select('id, role').eq('id', id).maybeSingle();
+    if (!target || target.role !== 'admin') return json({ error: 'الأدمن غير موجود.' }, 404);
+
+    const { error } = await admin.auth.admin.deleteUser(id);
+    if (error) {
+      console.error('deleteUser failed:', error);
+      return json({ error: 'تعذر حذف الحساب.' }, 400);
+    }
+    // الـ profile بيتمسح تلقائيًا (cascade). والأوردرات القديمة بتفضل (user_id/courier_id بتبقى null)
     return json({ success: true });
-  } catch (error) { return new Response(JSON.stringify({ error: String(error) }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }); }
+  } catch (error) {
+    console.error('delete-admin error:', error);
+    return json({ error: 'حصل خطأ غير متوقع.' }, 500);
+  }
 });

@@ -1,3 +1,16 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+// الماسح الذكي للأدمن اللي معاه صلاحية can_use_ai_scanner بس (كان مفتوح لأي حد معاه المفتاح العام وبيستهلك رصيد Gemini)
+const secretKeys = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
+const serviceKey: string = secretKeys.default ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const admin = createClient(Deno.env.get('SUPABASE_URL')!, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+
+async function allowed(key: string, max: number, windowSec: number) {
+  const { data, error } = await admin.rpc('rate_limit_hit', { p_key: key, p_max: max, p_window_seconds: windowSec });
+  if (error) { console.error('rate_limit_hit failed:', error.message); return true; }
+  return data === true;
+}
+
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
@@ -30,6 +43,14 @@ const responseSchema = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
+    const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    if (!token) return json({ error: 'غير مصرح.' }, 401);
+    const { data: auth } = await admin.auth.getUser(token);
+    if (!auth.user) return json({ error: 'غير مصرح.' }, 401);
+    const { data: me } = await admin.from('profiles').select('id, role, can_use_ai_scanner').eq('id', auth.user.id).maybeSingle();
+    if (!(me?.role === 'primary' || (me?.role === 'admin' && me.can_use_ai_scanner === true))) return json({ error: 'لا تملك صلاحية استخدام الماسح الذكي.' }, 403);
+    if (!(await allowed(`parse:${me!.id}`, 30, 3600))) return json({ error: 'تجاوزت الحد المسموح (30 تحليل في الساعة). جرّب بعد شوية.' }, 429);
+
     const { fileData, mimeType, fileName, customInstructions } = await req.json();
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     const preferredModel = Deno.env.get('GEMINI_MODEL') || 'gemini-3.5-flash';
@@ -51,7 +72,7 @@ ${customInstructions || ''}`;
     let lastError = 'فشل تحليل المنيو.';
     for (const model of [...new Set(models)]) {
       for (let attempt = 1; attempt <= 3; attempt++) {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ inlineData: { mimeType, data: fileData } }, { text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseSchema, temperature: 0.1 } }) });
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify({ contents: [{ parts: [{ inlineData: { mimeType, data: fileData } }, { text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseSchema, temperature: 0.1 } }) });
         const result = await response.json().catch(() => ({}));
         if (response.ok) {
           try {
@@ -67,7 +88,7 @@ ${customInstructions || ''}`;
                 : [],
             }));
             return json({ success: true, items, fileName });
-          } catch (error) { return json({ error: `تعذر فهم رد الذكاء الاصطناعي — جرّب صورة أوضح أو أقل زحمة (السبب التقني: ${String(error)}).` }, 502); }
+          } catch (error) { return json({ error: (console.error('parse-menu: bad AI response:', error), 'تعذر فهم رد الذكاء الاصطناعي — جرّب صورة أوضح أو أقل زحمة.') }, 502); }
         }
         lastError = result.error?.message ? `تعذر تحليل الملف: ${result.error.message}` : `تعذر تحليل الملف باستخدام ${model} (كود الاستجابة: ${response.status}).`;
         if (![429, 500, 502, 503, 504].includes(response.status)) break;
@@ -75,5 +96,5 @@ ${customInstructions || ''}`;
       }
     }
     return json({ error: lastError }, 502);
-  } catch (error) { return json({ error: `تعذر معالجة الطلب: ${String(error)}` }, 400); }
+  } catch (error) { console.error('parse-menu error:', error); return json({ error: 'تعذر معالجة الطلب.' }, 400); }
 });

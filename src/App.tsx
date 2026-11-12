@@ -433,10 +433,12 @@ export default function App() {
       const completeOrder = { ...persisted, restaurant: associatedRest, items: cart };
       setOrders(prev => [completeOrder, ...prev]);
       setSelectedOrder(completeOrder);
-    } catch (err) {
+    } catch (err: any) {
+      // ❌ القديم كان بيعمل أوردر وهمي على الشاشة بس، والعميل يفتكر إن طلبه اتبعت وهو مااتحفظش.
+      // ✅ دلوقتي بنوريله الخطأ ونسيب السلة زي ما هي عشان يعيد المحاولة.
       console.error("Failed to post order:", err);
-      setOrders((prev) => [newOrder, ...prev]);
-      setSelectedOrder(newOrder);
+      alert(err?.message ? `تعذر إرسال طلبك: ${err.message}` : 'تعذر إرسال طلبك. لم يتم تسجيل الطلب. تأكد من اتصالك وحاول مرة أخرى.');
+      return;
     }
 
     setCart([]); // Clean basket

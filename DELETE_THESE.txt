@@ -1,0 +1,16 @@
+# امسحهم من الريبو (كود Express القديم الميت، مفيش حاجة في الواجهة بتستورده)
+# بيتسببوا في فشل npm run lint في GitHub Actions، وبيخلوا الريبو الـ public فيه كود قديم فيه ثغرات محتملة.
+#
+# شغّل ده من فولدر المشروع:
+
+git rm server.ts migrate.ts src/auth.ts src/db.ts src/otp.ts scripts/exportData.ts
+git rm .github/workflows/database-backup.yml
+git rm -r --cached supabase/.temp
+echo "supabase/.temp/" >> .gitignore
+
+# وامسح من Supabase (Edge Functions) الدالة دي: sync-profile
+# (مابقتش مستخدمة، والواجهة بتنادي create_my_profile بدالها)
+#   أو:  supabase functions delete sync-profile
+
+# ومن GitHub: Settings → Secrets and variables → Actions → امسح TURSO_DATABASE_URL و TURSO_AUTH_TOKEN
+# ومن Turso نفسه: امسح قاعدة البيانات القديمة (أو غيّر التوكن) بعد ما تتأكد إن كل البيانات اتنقلت لـ Supabase.

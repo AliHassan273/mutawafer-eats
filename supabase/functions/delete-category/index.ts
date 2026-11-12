@@ -2,16 +2,21 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const json = (v: unknown, status=200) => new Response(JSON.stringify(v), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 const normalize = (value: unknown) => String(value ?? '').trim().toLowerCase();
+
+// مفتاح السيرفر: الجديد لو موجود، وإلا القديم (مؤقتًا)
+const secretKeys = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
+const serviceKey: string = secretKeys.default ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
     const auth = req.headers.get('Authorization') || '';
-    const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { global: { headers: { Authorization: auth } } });
-    const { data: user } = await db.auth.getUser(auth.replace('Bearer ', ''));
+    const db = createClient(Deno.env.get('SUPABASE_URL')!, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data: user } = await db.auth.getUser(auth.replace(/^Bearer\s+/i, ''));
     if (!user.user) return json({ error: 'غير مصرح.' }, 401);
-    const { data: profile } = await db.from('profiles').select('role').eq('id', user.user.id).single();
-    if (!['admin','primary'].includes(profile?.role)) return json({ error: 'لا تملك صلاحية حذف التصنيف.' }, 403);
-    const { categoryId } = await req.json();
+    const { data: profile } = await db.from('profiles').select('role, can_manage_menu').eq('id', user.user.id).maybeSingle();
+    if (!(profile?.role === 'primary' || (profile?.role === 'admin' && profile?.can_manage_menu === true))) return json({ error: 'لا تملك صلاحية حذف التصنيف.' }, 403);
+    const { categoryId } = await req.json().catch(() => ({} as any));
+    if (typeof categoryId !== 'string' || !categoryId || categoryId.length > 100) return json({ error: 'تصنيف غير صحيح.' }, 400);
     const { data: settingsRow } = await db.from('settings').select('value').eq('key','main').maybeSingle();
     const value: any = settingsRow?.value || {};
     const category = Array.isArray(value.categories) ? value.categories.find((item: any) => item.id === categoryId) : null;
@@ -40,5 +45,5 @@ Deno.serve(async req => {
     const { error: settingsError } = await db.from('settings').upsert({ key:'main', value, updated_at:new Date().toISOString() });
     if (settingsError) throw settingsError;
     return json({ success: true, deletedItems: deletedCount });
-  } catch (e) { return json({ error: String(e) }, 400); }
+  } catch (e) { console.error('delete-category error:', e); return json({ error: 'حصل خطأ غير متوقع.' }, 500); }
 });

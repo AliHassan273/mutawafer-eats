@@ -102,9 +102,8 @@ isOpen, onClose, onSuccess, initialMode = 'login' }: AuthModalProps) {
       const result = await supabase.functions.invoke('forgot-password', { body: { phone: forgotPhone.trim() } });
       if (result.error) throw new Error(await extractFunctionErrorMessage(result.error, 'لا يوجد حساب مسجل بهذا الرقم.'));
       if (result.data?.error) throw new Error(result.data.error);
-      setResetEmail(result.data.email);
       setForgotStep('reset');
-      setSuccessText(`تم إرسال رمز التحقق إلى بريدك (${maskEmail(result.data.email)}).`);
+      setSuccessText('لو الرقم مسجّل عندنا، هيوصلك رمز التحقق على البريد المسجّل على حسابك.');
     } catch (err: any) {
       setErrorText(err.message || 'تعذر إرسال رمز الاسترجاع.');
     } finally {
@@ -121,10 +120,10 @@ isOpen, onClose, onSuccess, initialMode = 'login' }: AuthModalProps) {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.verifyOtp({ email: resetEmail, token: resetCode.trim(), type: 'recovery' });
-      if (error || !data.session) throw error || new Error('رمز التحقق غير صحيح.');
-      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword.trim() });
-      if (updateError) throw updateError;
+      // التحقق من الرمز وتغيير كلمة السر بيتم على السيرفر (الإيميل مابيظهرش للمتصفح)
+      const result = await supabase.functions.invoke('forgot-password', { body: { phone: forgotPhone.trim(), code: resetCode.trim(), newPassword: newPassword.trim() } });
+      if (result.error) throw new Error(await extractFunctionErrorMessage(result.error, 'رمز التحقق غير صحيح أو منتهي.'));
+      if (result.data?.error) throw new Error(result.data.error);
       setSuccessText('تم تغيير كلمة المرور بنجاح! سجّل دخولك بكلمة المرور الجديدة.');
       await supabase.auth.signOut();
       setTimeout(() => { setMode('login'); resetForgotFlow(); setErrorText(''); }, 1200);
@@ -302,7 +301,7 @@ isOpen, onClose, onSuccess, initialMode = 'login' }: AuthModalProps) {
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5 pb-0.5">
                       <Check className="h-3.5 w-3.5 text-slate-400" />
-                      <span>رمز التحقق — تم إرساله على {maskEmail(resetEmail)}</span>
+                      <span>رمز التحقق — اتبعت على البريد المسجّل على حسابك</span>
                     </label>
                     <input
                       type="text"
